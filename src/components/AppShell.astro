@@ -63,6 +63,16 @@
     return rows.length ? el('section', {}, el('h2', {}, title), el('ul', { className: 'rows' }, ...rows)) : el('span');
   }
 
+  // The API picks the venue you're at, or your city, from where you are.
+  function here(): Promise<{ latitude: number; longitude: number } | null> {
+    if (!('geolocation' in navigator)) return Promise.resolve(null);
+    return new Promise((resolve) => navigator.geolocation.getCurrentPosition(
+      ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+      () => resolve(null),
+      { maximumAge: 5 * 60 * 1000, timeout: 15000 },
+    ));
+  }
+
   function signIn() {
     const view = (document.getElementById('signin') as HTMLTemplateElement).content.cloneNode(true) as DocumentFragment;
     const button = view.querySelector('button')!;
@@ -91,7 +101,9 @@
     try {
       switch (route.kind) {
         case 'now': {
-          const now = await api.now();
+          const position = await here();
+          if (!position) return message('Hot Mess shows what\'s happening around you. Allow location access for hotmess.social and reload.');
+          const now = await api.now(position.latitude, position.longitude);
           const venues = now.venues ?? (now.venue ? [now.venue] : []);
           document.title = 'Now · Hot Mess';
           return show(el('h1', {}, now.title ?? 'Now'), list('Tonight', (now.events ?? []).map(eventRow)), list('Venues', venues.map(venueRow)));

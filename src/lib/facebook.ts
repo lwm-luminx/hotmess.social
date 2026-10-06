@@ -12,6 +12,10 @@ declare global {
   }
 }
 
+// The same permissions the iOS app asks for. user_friends shows friends who
+// also use Hot Mess at the same venue.
+const SCOPE = 'public_profile,email,user_friends';
+
 let loading: Promise<NonNullable<Window['FB']>> | null = null;
 
 function sdk(): Promise<NonNullable<Window['FB']>> {
@@ -36,6 +40,6 @@ export async function facebookAccessToken(): Promise<string> {
     FB.login((response) => {
       const token = response.authResponse?.accessToken;
       if (token) resolve(token); else reject(new Error('Facebook sign-in was cancelled'));
-    }, { scope: 'public_profile,email' });
+    }, { scope: SCOPE });
   });
 }

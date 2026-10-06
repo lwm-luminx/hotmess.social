@@ -4,7 +4,7 @@ The Hot Mess web app and marketing site. Hot Mess is an audience on
 [AudienceKit](https://audiencekit.com); this site talks to the same API as the
 [iOS](https://github.com/audience-kit/hot_mess_ios) and
 [Android](https://github.com/audience-kit/hot_mess_android) apps,
-`https://api.hotmess.social`.
+`https://api.audiencekit.com`.
 
 ## What's here
 
@@ -34,15 +34,18 @@ npm run build   # type-check and build to dist/
 ```
 
 Configuration is public build-time values only (see `.env.example`):
-`PUBLIC_API_BASE` and `PUBLIC_FACEBOOK_APP_ID`. Never put a secret in this
-repository or in a `PUBLIC_` variable; both ship to every visitor.
+`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID` and `PUBLIC_AUDIENCE_HOST`. Never put a
+secret in this repository or in a `PUBLIC_` variable; they ship to every visitor.
 
 ## Before it works end to end
 
 - **Pages**: Settings → Pages → Source: GitHub Actions, custom domain
   `hotmess.social`, and DNS for the apex pointed at GitHub Pages.
-- **API CORS**: `api/config/initializers/cors.rb` in audience-kit/audience-kit
-  only allows admin origins, so the API must also allow `https://hotmess.social`.
+- **API CORS**: the API allows an origin only when it is in `ADMIN_ORIGINS` or a
+  verified audience domain (`api/config/initializers/cors.rb` in
+  audience-kit/audience-kit), so verify `hotmess.social` on the Hot Mess audience.
+- **Audience app**: the Hot Mess audience's Facebook apps in AudienceKit must
+  include 1168782378316790 with its secret, or `/v1/token` answers 401.
 - **Facebook**: add `hotmess.social` to the Hot Mess app's App Domains and as a
   Website platform so the JavaScript SDK can log in.
 - **Android App Links**: `/.well-known/assetlinks.json` needs the release

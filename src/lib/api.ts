@@ -1,6 +1,6 @@
 // A small client for the Hot Mess (AudienceKit) REST API, mirroring
 // hot_mess_ios HotMess/Networking/HotMessAPI.swift.
-import { API_BASE } from './config';
+import { API_BASE, AUDIENCE_HOST, FACEBOOK_APP_ID } from './config';
 
 const TOKEN_KEY = 'hotmess.token';
 const DEVICE_KEY = 'hotmess.device';
@@ -66,6 +66,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({
         facebook_token: facebookToken,
+        // host picks the audience; facebook_app_id is the app the token is for.
+        host: AUDIENCE_HOST,
+        facebook_app_id: FACEBOOK_APP_ID,
         device: {
           type: 'web',
           identifier: deviceIdentifier(),
@@ -75,7 +78,8 @@ export const api = {
         },
       }),
     }, false),
-  now: () => send<Now>('/v1/now'),
+  now: (latitude: number, longitude: number) =>
+    send<Now>(`/v1/now?${new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) })}`),
   venue: (id: string) => send<{ venue: Venue }>(`/v1/venues/${id}`).then((r) => r.venue),
   venueEvents: (id: string) => send<{ events: Event[] }>(`/v1/venues/${id}/events`).then((r) => r.events),
   event: (id: string) => send<{ event: Event }>(`/v1/events/${id}`).then((r) => r.event),
