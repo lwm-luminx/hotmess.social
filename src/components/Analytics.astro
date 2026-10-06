@@ -1,0 +1,16 @@
+---
+// Google Analytics 4: the hotmess.social web stream of the Hot Mess property.
+// Production builds only, so local development doesn't send hits.
+const MEASUREMENT_ID = 'G-RDDLBGJVYV';
+---
+{import.meta.env.PROD && (
+  <>
+    <script async is:inline src={`https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`}></script>
+    <script is:inline define:vars={{ id: MEASUREMENT_ID }}>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', id);
+    </script>
+  </>
+)}
