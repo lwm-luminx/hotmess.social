@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["DWVXMLB45Y.social.hotmess.HotMess"],
+        "components": [
+          { "/": "/venues/*", "comment": "Venue share links" },
+          { "/": "/events/*", "comment": "Event share links" },
+          { "/": "/people/*", "comment": "Person share links" }
+        ]
+      }
+    ]
+  }
+}

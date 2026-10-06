@@ -1,0 +1,58 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'Hot Mess',
+  description = 'Where your people are tonight: the venues, events and DJs of your queer nightlife scene.',
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title === 'Hot Mess' ? title : `${title} · Hot Mess`}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#a50000" />
+    <meta property="og:site_name" content="Hot Mess" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="fb:app_id" content="713525445368431" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="wrap">
+        <a class="brand" href="/">Hot Mess</a>
+        <a class="button" href="/app/">Open the app</a>
+      </nav>
+    </header>
+    <slot />
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>.</p>
+        <p>
+          <a href="https://audiencekit.com/privacy/">Privacy</a>{' · '}
+          <a href="https://audiencekit.com/terms/">Terms</a>{' · '}
+          <a href="https://audiencekit.com/data-deletion/">Data deletion</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header { border-bottom: 1px solid var(--border); background: var(--surface-raised); }
+  .site-header nav { display: flex; align-items: center; justify-content: space-between; min-height: 64px; gap: 1rem; }
+  .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
+  .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
+  .site-footer p { margin: .25rem 0; }
+</style>
