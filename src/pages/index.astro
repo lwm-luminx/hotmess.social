@@ -1,0 +1,53 @@
+---
+import Base from '../layouts/Base.astro';
+
+const features = [
+  { title: 'Now', body: 'Open the app and see what is happening near you right now: the bar you are in, who is spinning, and where the night is heading.' },
+  { title: 'Events', body: 'Every party, drag show and DJ set in your city on one calendar, with RSVPs your friends can see.' },
+  { title: 'Venues', body: 'The bars and clubs that make up your scene, with their upcoming nights and the friends who are there.' },
+  { title: 'People', body: 'Follow the DJs, hosts and performers you love, hear their latest sets and never miss their next gig.' },
+];
+---
+<Base>
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Queer nightlife, live</p>
+        <h1>Where your people are tonight.</h1>
+        <p class="lede">Hot Mess shows you the venues, events and DJs of your scene, and which of your friends are already out.</p>
+        <div class="actions">
+          <a class="button" href="/app/">Open Hot Mess on the web</a>
+          <a class="button secondary" href="#get-the-app">Get the app</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap features" aria-label="What Hot Mess does">
+      {features.map((f) => (
+        <article class="card feature">
+          <h2>{f.title}</h2>
+          <p class="muted">{f.body}</p>
+        </article>
+      ))}
+    </section>
+
+    <section id="get-the-app" class="wrap get">
+      <h2>Take it out with you</h2>
+      <p class="muted">Hot Mess is on iPhone and Android, with share links that open straight in the app.</p>
+      <p class="muted">Store links are coming soon.</p>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .hero { padding: clamp(3rem, 10vw, 7rem) 0 clamp(2rem, 6vw, 4rem); background: radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%); }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2.4rem, 7vw, 4.5rem); font-weight: 800; margin: 0 0 1rem; max-width: 14ch; }
+  .lede { font-size: clamp(1.1rem, 2.4vw, 1.35rem); color: var(--ink-muted); max-width: 40ch; margin: 0 0 2rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 2rem; }
+  .feature { padding: 1.25rem 1.25rem .5rem; }
+  .feature h2 { margin: 0 0 .5rem; font-size: 1.3rem; }
+  .get { margin-top: 4rem; }
+  .get h2 { font-size: 1.8rem; margin-bottom: .5rem; }
+</style>
