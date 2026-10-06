@@ -11,7 +11,7 @@ The Hot Mess web app and marketing site. Hot Mess is an audience on
 | Path | What it is |
 | --- | --- |
 | `/` | Marketing page (`src/pages/index.astro`) |
-| `/app/` | The web app: Facebook sign-in, then Now (`src/components/AppShell.astro`) |
+| `/app/` | The web app: Facebook sign-in, then Now (`src/components/AppShell.astro`). Sign-in opens Facebook's OAuth dialog with the audience's Login for Business config from `/v1/branding`, and the API exchanges the code it returns (`src/lib/login.ts`). |
 | `/venues/<id>`, `/events/<id>`, `/people/<id>` | Share links. GitHub Pages serves `404.html` for them, which runs the app and routes the same way the iOS app's `DeepLink` parser does (`src/lib/routes.ts`). |
 | `/.well-known/apple-app-site-association` | Universal links for `DWVXMLB45Y.social.hotmess.HotMess`, so share links open the iOS app when it's installed |
 
@@ -34,16 +34,19 @@ npm run build   # type-check and build to dist/
 ```
 
 Configuration is public build-time values only (see `.env.example`):
-`PUBLIC_API_BASE` and `PUBLIC_FACEBOOK_APP_ID`. Never put a secret in this
+`PUBLIC_API_BASE`. The Facebook app and login config come from the API's
+`/v1/branding` for the page's host, so sign-in only works on a host that
+belongs to an audience, not on `localhost`. Never put a secret in this
 repository or in a `PUBLIC_` variable; both ship to every visitor.
 
 ## Before it works end to end
 
 - **Pages**: Settings → Pages → Source: GitHub Actions, custom domain
   `hotmess.social`, and DNS for the apex pointed at GitHub Pages.
-- **API CORS**: `api/config/initializers/cors.rb` in audience-kit/audience-kit
-  only allows admin origins, so the API must also allow `https://hotmess.social`.
-- **Facebook**: add `hotmess.social` to the Hot Mess app's App Domains and as a
-  Website platform so the JavaScript SDK can log in.
+- **API CORS**: the API must allow `https://hotmess.social`
+  (audience-kit/audience-kit#37).
+- **Facebook**: add `https://hotmess.social/app/` to the Hot Mess app's Valid
+  OAuth Redirect URIs (Facebook Login for Business → Settings), and
+  `hotmess.social` to its App Domains.
 - **Android App Links**: `/.well-known/assetlinks.json` needs the release
   signing certificate's SHA-256 fingerprint, which isn't in the repo yet.

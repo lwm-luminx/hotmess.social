@@ -18,7 +18,7 @@
 
 <script>
   import { api, session, APIError, type Event, type Venue } from '../lib/api';
-  import { facebookAccessToken } from '../lib/facebook';
+  import { dialogURL, parseCallback, type PendingLogin } from '../lib/login';
   import { routeFor, pathFor, type Route } from '../lib/routes';
 
   const root = document.getElementById('app')!;
@@ -63,19 +63,58 @@
     return rows.length ? el('section', {}, el('h2', {}, title), el('ul', { className: 'rows' }, ...rows)) : el('span');
   }
 
-  function signIn() {
+  const PENDING_KEY = 'hotmess.login';
+
+  function pendingLogin(): PendingLogin | null {
+    try { return JSON.parse(sessionStorage.getItem(PENDING_KEY) ?? 'null'); } catch { return null; }
+  }
+
+  // Sends the browser to Facebook's login dialog; it comes back to /app/ with a code.
+  async function startLogin() {
+    const branding = await api.branding();
+    const pending: PendingLogin = {
+      state: crypto.randomUUID(),
+      appID: branding.facebook_app_id,
+      redirectURI: `${location.origin}/app/`,
+      returnTo: location.pathname,
+    };
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    location.assign(dialogURL({ appID: pending.appID, configID: branding.facebook_login_config_id }, pending.redirectURI, pending.state));
+  }
+
+  // Finishes a login when Facebook has just redirected back. Returns an error to show, if any.
+  async function finishLogin(): Promise<string | null> {
+    const callback = parseCallback(location.search, pendingLogin());
+    if (callback.kind === 'none') return null;
+
+    sessionStorage.removeItem(PENDING_KEY);
+    const returnTo = callback.kind === 'code' ? callback.pending.returnTo : '/app/';
+    history.replaceState(null, '', returnTo);
+    if (callback.kind === 'error') return callback.message;
+
+    message('Signing in…');
+    try {
+      const { pending, code } = callback;
+      session.token = (await api.signIn(code, pending.redirectURI, pending.appID)).token;
+      return null;
+    } catch {
+      return "Hot Mess couldn't finish signing you in. Please try again.";
+    }
+  }
+
+  function signIn(error: string | null = null) {
     const view = (document.getElementById('signin') as HTMLTemplateElement).content.cloneNode(true) as DocumentFragment;
     const button = view.querySelector('button')!;
-    const error = view.querySelector('.error') as HTMLElement;
+    const errorLine = view.querySelector('.error') as HTMLElement;
+    const showError = (text: string) => { errorLine.textContent = text; errorLine.hidden = false; };
+    if (error) showError(error);
     button.addEventListener('click', async () => {
       button.disabled = true;
-      error.hidden = true;
+      errorLine.hidden = true;
       try {
-        session.token = (await api.signIn(await facebookAccessToken())).token;
-        render();
-      } catch (e) {
-        error.textContent = e instanceof Error ? e.message : 'Sign-in failed';
-        error.hidden = false;
+        await startLogin();
+      } catch {
+        showError("Hot Mess couldn't reach its server. Try again in a moment.");
         button.disabled = false;
       }
     });
@@ -119,8 +158,8 @@
     }
   }
 
-  addEventListener('popstate', render);
-  render();
+  addEventListener('popstate', () => render());
+  finishLogin().then((error) => (error ? signIn(error) : render()));
 </script>
 
 <style is:global>

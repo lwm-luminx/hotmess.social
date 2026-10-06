@@ -60,12 +60,25 @@ export interface Now {
   title?: string; venue?: Venue; venues?: Venue[]; events?: Event[]; image_url?: string;
 }
 
+export interface Branding {
+  audience: { id: string; name: string };
+  facebook_app_id: string;
+  facebook_login_config_id?: string | null;
+}
+
 export const api = {
-  signIn: (facebookToken: string) =>
+  branding: () =>
+    send<Branding>(`/v1/branding?host=${encodeURIComponent(location.hostname)}`, {}, false),
+  // Exchanges the OAuth code from Facebook's dialog for a session. host names
+  // the audience; facebook_app_id is the app the code was issued for.
+  signIn: (code: string, redirectURI: string, facebookAppID: string) =>
     send<{ token: string; user: { id: string; name: string } }>('/v1/token', {
       method: 'POST',
       body: JSON.stringify({
-        facebook_token: facebookToken,
+        code,
+        redirect_uri: redirectURI,
+        host: location.hostname,
+        facebook_app_id: facebookAppID,
         device: {
           type: 'web',
           identifier: deviceIdentifier(),
