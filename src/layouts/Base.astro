@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import Analytics from '../components/Analytics.astro';
 
 interface Props {
   title?: string;
@@ -27,6 +28,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="fb:app_id" content="713525445368431" />
+    <Analytics />
   </head>
   <body>
     <header class="site-header">
