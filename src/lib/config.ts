@@ -15,9 +15,10 @@ export const FACEBOOK_APP_ID: string =
 export const AUDIENCE_HOST: string =
   import.meta.env.PUBLIC_AUDIENCE_HOST ?? 'hotmess.admin.audiencekit.com';
 
-// 'staging' for a staging deployment: the API is shared, so the site sends
-// X-AudienceKit-Environment: staging and the API signs people in with Hot
-// Mess's staging Facebook app (set PUBLIC_FACEBOOK_APP_ID to match).
-// Anything else is production.
+// 'staging' for a staging deployment (with PUBLIC_API_BASE set to
+// https://api-staging.audiencekit.com and PUBLIC_FACEBOOK_APP_ID to the
+// staging app): the site also sends X-AudienceKit-Environment: staging, and
+// the API signs people in with Hot Mess's staging Facebook app. Anything else
+// is production.
 export const AUDIENCEKIT_ENVIRONMENT: string =
   import.meta.env.PUBLIC_AUDIENCEKIT_ENVIRONMENT === 'staging' ? 'staging' : 'production';
