@@ -22,3 +22,7 @@ export const AUDIENCE_HOST: string =
 // is production.
 export const AUDIENCEKIT_ENVIRONMENT: string =
   import.meta.env.PUBLIC_AUDIENCEKIT_ENVIRONMENT === 'staging' ? 'staging' : 'production';
+
+// Public TestFlight link for the Hot Mess 2.0 iPhone beta. Swap for the App
+// Store link once the app is released.
+export const IOS_BETA_URL = 'https://testflight.apple.com/join/mcPybJVN';

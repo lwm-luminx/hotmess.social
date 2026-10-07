@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import { IOS_BETA_URL } from '../lib/config';
 
 const features = [
   { title: 'Now', body: 'Open the app and see what is happening near you right now: the bar you are in, who is spinning, and where the night is heading.' },
@@ -17,7 +18,7 @@ const features = [
         <p class="lede">Hot Mess shows you the venues, events and DJs of your scene, and which of your friends are already out.</p>
         <div class="actions">
           <a class="button" href="/app/">Open Hot Mess on the web</a>
-          <a class="button secondary" href="#get-the-app">Get the app</a>
+          <a class="button secondary" href={IOS_BETA_URL}>Join the 2.0 beta on iPhone</a>
         </div>
       </div>
     </section>
@@ -33,8 +34,15 @@ const features = [
 
     <section id="get-the-app" class="wrap get">
       <h2>Take it out with you</h2>
-      <p class="muted">Hot Mess is on iPhone and Android, with share links that open straight in the app.</p>
-      <p class="muted">Store links are coming soon.</p>
+      <article class="card beta">
+        <div>
+          <p class="eyebrow">iPhone beta</p>
+          <h3>Try Hot Mess 2.0 before anyone else</h3>
+          <p class="muted">The 2.0 beta is open on TestFlight, Apple's app for testing new apps. Tap the button on your iPhone, install TestFlight if it asks, then install Hot Mess from there.</p>
+        </div>
+        <a class="button" href={IOS_BETA_URL}>Join the 2.0 beta on iPhone</a>
+      </article>
+      <p class="muted">Android is coming soon. Until then, <a href="/app/">Hot Mess works on the web</a>.</p>
     </section>
   </main>
 </Base>
@@ -49,5 +57,10 @@ const features = [
   .feature { padding: 1.25rem 1.25rem .5rem; }
   .feature h2 { margin: 0 0 .5rem; font-size: 1.3rem; }
   .get { margin-top: 4rem; }
-  .get h2 { font-size: 1.8rem; margin-bottom: .5rem; }
+  .get h2 { font-size: 1.8rem; margin-bottom: 1rem; }
+  .beta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem; padding: 1.5rem; background: linear-gradient(135deg, var(--accent-soft), var(--surface-raised) 70%); }
+  .beta > div { flex: 1 1 32ch; }
+  .beta .eyebrow { margin-bottom: .4rem; }
+  .beta h3 { margin: 0 0 .5rem; font-size: 1.4rem; }
+  .beta p { margin: 0; }
 </style>
