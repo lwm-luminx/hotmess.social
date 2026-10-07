@@ -34,7 +34,8 @@ npm run build   # type-check and build to dist/
 ```
 
 Configuration is public build-time values only (see `.env.example`):
-`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID` and `PUBLIC_AUDIENCE_HOST`. Never put a
+`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID`, `PUBLIC_AUDIENCE_HOST` and
+`PUBLIC_AUDIENCEKIT_ENVIRONMENT` (`staging` for a staging deployment). Never put a
 secret in this repository or in a `PUBLIC_` variable; they ship to every visitor.
 
 ## Before it works end to end

@@ -1,6 +1,6 @@
 // A small client for the Hot Mess (AudienceKit) REST API, mirroring
 // hot_mess_ios HotMess/Networking/HotMessAPI.swift.
-import { API_BASE, AUDIENCE_HOST, FACEBOOK_APP_ID } from './config';
+import { API_BASE, AUDIENCE_HOST, AUDIENCEKIT_ENVIRONMENT, FACEBOOK_APP_ID } from './config';
 
 const TOKEN_KEY = 'hotmess.token';
 const DEVICE_KEY = 'hotmess.device';
@@ -40,6 +40,7 @@ async function send<T>(path: string, init: RequestInit = {}, authenticated = tru
   headers.set('Accept', 'application/json');
   if (init.body) headers.set('Content-Type', 'application/json');
   if (authenticated && session.token) headers.set('Authorization', `JWT ${session.token}`);
+  if (AUDIENCEKIT_ENVIRONMENT === 'staging') headers.set('X-AudienceKit-Environment', 'staging');
 
   const response = await fetch(new URL(path, API_BASE), { ...init, headers });
   if (response.status === 401) session.token = null;
