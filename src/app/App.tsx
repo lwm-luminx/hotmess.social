@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, session, APIError } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
 import { routeFor, pathFor, type Route } from '../lib/routes';
+import { reportError, startErrorReporting } from '../lib/errorReporting';
+import ErrorBoundary from './ErrorBoundary';
 import { EventView, NavigationProvider, NowView, PersonView, VenueView, type Navigation } from '../sdk';
 import type { Event, Now, Person, Venue } from '../sdk/types';
 import '../sdk/styles.css';
@@ -85,6 +87,10 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
 }
 
 export default function App() {
+  return <ErrorBoundary><HotMess /></ErrorBoundary>;
+}
+
+function HotMess() {
   const [path, setPath] = useState(() => location.pathname);
   const [screen, setScreen] = useState<Screen>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -108,6 +114,7 @@ export default function App() {
         if (cancelled) return;
         if (e instanceof APIError && e.status === 401) return setScreen({ state: 'signed-out' });
         if (e instanceof APIError && e.status === 404) return setScreen({ state: 'message', text: "We couldn't find that." });
+        if (!(e instanceof APIError) || e.status >= 500) reportError(e);
         setScreen({ state: 'message', text: "Hot Mess couldn't reach its server. Try again in a moment." });
       },
     );

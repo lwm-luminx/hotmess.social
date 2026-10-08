@@ -48,6 +48,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
         </p>
       </div>
     </footer>
+    <script>
+      import { startErrorReporting } from '../lib/errorReporting';
+      startErrorReporting();
+    </script>
   </body>
 </html>
 
