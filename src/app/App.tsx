@@ -37,10 +37,7 @@ async function load(route: Route): Promise<Screen> {
       if (!position) return { state: 'message', text: "Hot Mess shows what's happening around you. Allow location access for hotmess.social and reload." };
       return { state: 'now', now: await api.now(position.latitude, position.longitude) };
     }
-    case 'venue': {
-      const [venue, events] = await Promise.all([api.venue(route.id), api.venueEvents(route.id)]);
-      return { state: 'venue', venue, events };
-    }
+    case 'venue': return { state: 'venue', ...await api.venue(route.id) };
     case 'event': return { state: 'event', event: await api.event(route.id) };
     case 'person': return { state: 'person', person: await api.person(route.id) };
   }

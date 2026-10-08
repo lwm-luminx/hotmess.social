@@ -36,7 +36,7 @@ export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event
   const withVenue = events.map((event) => ({ ...event, venue: { ...venue, ...event.venue, hero_url: event.venue?.hero_url ?? venue.hero_url } }));
   return (
     <div className="ak-view">
-      <Hero src={venueHero(venue)} title={venue.name} eyebrow={venue.is_open === false ? 'Closed' : undefined}>
+      <Hero src={venueHero(venue)} title={venue.name}>
         {venue.photo_url && venue.hero_url ? <Photo src={venue.photo_url} className="ak-hero__badge" /> : null}
       </Hero>
       <div className="ak-columns">

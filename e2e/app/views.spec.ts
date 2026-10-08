@@ -1,4 +1,4 @@
-import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, PERSON_PAGE, VENUE } from './fixtures';
+import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, PERSON_PAGE, VENUE, operation } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -25,12 +25,10 @@ test.describe('venue', () => {
     await expect(facebook).toHaveAttribute('target', '_blank');
   });
 
-  test('marks a closed venue and says when nothing is announced', async ({ page, api }) => {
-    const closed = { ...VENUE, is_open: false, facebook_id: '', phone: null, description: null, hero_url: null };
-    api.on(`GET /v1/venues/${VENUE.id}`, { json: { venue: closed } });
-    api.on(`GET /v1/venues/${VENUE.id}/events`, { json: { events: [] } });
+  test('says when nothing is announced at a venue', async ({ page, api }) => {
+    const closed = { ...VENUE, facebook_id: '', phone: null, description: null, hero_url: null };
+    api.on(operation('Venue'), { json: { venue: { ...closed, events: [] } } });
     await page.goto(`/venues/${VENUE.id}`);
-    await expect(page.locator('.ak-hero__eyebrow')).toHaveText('Closed');
     // With no photo of the place, the header falls back to the Page picture.
     await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', VENUE.photo_url);
     await expect(section(page, 'Upcoming')).toContainText('Nothing announced yet.');
@@ -40,8 +38,7 @@ test.describe('venue', () => {
 
   test('an event without its own photo uses a photo of the venue', async ({ page, api }) => {
     // Most venues have a photo of the place but no Page picture.
-    api.on(`GET /v1/venues/${VENUE.id}`, { json: { venue: { ...VENUE, photo_url: null } } });
-    api.on(`GET /v1/venues/${VENUE.id}/events`, { json: { events: [{ ...EVENT, venue: { id: VENUE.id, name: VENUE.name } }] } });
+    api.on(operation('Venue'), { json: { venue: { ...VENUE, photo_url: null, events: [{ ...EVENT, venue: { id: VENUE.id, name: VENUE.name } }] } } });
     await page.goto(`/venues/${VENUE.id}`);
     await expect(section(page, 'Upcoming').locator('img')).toHaveAttribute('src', VENUE.hero_url);
   });
@@ -64,14 +61,14 @@ test.describe('event', () => {
   });
 
   test('links the venue on Facebook when the event has no Facebook event', async ({ page, api }) => {
-    api.on(`GET /v1/events/${EVENT.id}`, { json: { event: { ...EVENT_PAGE, facebook_id: 0 } } });
+    api.on(operation('Event'), { json: { event: { ...EVENT_PAGE, facebook_id: 0 } } });
     await page.goto(`/events/${EVENT.id}`);
     await expect(page.getByRole('link', { name: 'Event on Facebook' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Venue on Facebook' })).toHaveAttribute('href', `https://www.facebook.com/${VENUE.facebook_id}`);
   });
 
   test('a venue to be announced is named without a link', async ({ page, api }) => {
-    api.on(`GET /v1/events/${EVENT.id}`, { json: { event: { ...EVENT_PAGE, venue: null, venue_name: 'Secret warehouse', facebook_id: null } } });
+    api.on(operation('Event'), { json: { event: { ...EVENT_PAGE, venue: null, venue_name: 'Secret warehouse', facebook_id: null } } });
     await page.goto(`/events/${EVENT.id}`);
     await expect(page.getByText('At Secret warehouse (venue to be announced).')).toBeVisible();
     await expect(section(page, 'Where')).toHaveCount(0);
@@ -107,7 +104,7 @@ test.describe('person', () => {
   });
 
   test('says when someone has nothing coming up', async ({ page, api }) => {
-    api.on(`GET /v1/people/${PERSON.id}`, { json: { person: { id: PERSON.id, name: 'Solo' } } });
+    api.on(operation('Person'), { json: { person: { id: PERSON.id, name: 'Solo' } } });
     await page.goto(`/people/${PERSON.id}`);
     await expect(page.locator('.ak-hero')).toHaveClass(/ak-hero--plain/);
     await expect(section(page, 'Upcoming')).toContainText('No upcoming events.');
@@ -118,7 +115,7 @@ test.describe('person', () => {
 });
 
 test('a photo that fails to load is hidden instead of showing a broken image', async ({ page, api }) => {
-  api.on('GET /v1/now', { json: { title: 'Now', venues: [{ ...VENUE, photo_url: `${IMAGES}/broken.png` }] } });
+  api.on(operation('ReportLocation'), { json: { reportLocation: { now: { title: 'Now', venues: [{ ...VENUE, photo_url: `${IMAGES}/broken.png` }] } } } });
   await page.goto('/app/');
   const photo = section(page, 'Venues near you').locator('img');
   await expect(photo).toHaveCSS('visibility', 'hidden');

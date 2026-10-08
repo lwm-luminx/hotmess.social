@@ -1,4 +1,4 @@
-import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE } from './fixtures';
+import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE, NOW, AUDIENCE_ID, operation } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -33,14 +33,14 @@ test('shows your city, friends out, tonight\'s events and nearby venues', async 
   await expect(venue.locator('.ak-card__meta')).toHaveText([VENUE.address, '2 friends here']);
   await expect(venue.locator('.ak-card__badge')).toHaveText('390 ft');
 
-  const [now] = api.calls('GET /v1/now');
-  const params = new URL(now.url()).searchParams;
-  expect(Number(params.get('latitude'))).toBeCloseTo(SEATTLE.latitude);
-  expect(Number(params.get('longitude'))).toBeCloseTo(SEATTLE.longitude);
+  const [now] = api.calls(operation('ReportLocation'));
+  const { position } = now.postDataJSON().variables;
+  expect(position.latitude).toBeCloseTo(SEATTLE.latitude);
+  expect(position.longitude).toBeCloseTo(SEATTLE.longitude);
 });
 
 test('says which venue you\'re at, and that no friends are out yet', async ({ page, api }) => {
-  api.on('GET /v1/now', { json: { title: VENUE.name, venue: { ...VENUE, distance: 2400 }, events: [] } });
+  api.on(operation('ReportLocation'), { json: { reportLocation: { now: { title: VENUE.name, venue: { ...VENUE, distance: 2400 }, events: [] } } } });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);
   await expect(page.locator('.ak-hero img')).toHaveAttribute('src', VENUE.hero_url);
@@ -78,19 +78,19 @@ test('asks for location when it is blocked', async ({ page, context, api }) => {
   await context.clearPermissions();
   await page.goto('/app/');
   await expect(page.getByText('Allow location access for hotmess.social and reload.')).toBeVisible();
-  expect(api.calls('GET /v1/now')).toEqual([]);
+  expect(api.calls(operation('ReportLocation'))).toEqual([]);
 });
 
-// The failure Rick saw on hotmess.social/app when GET /v1/now returned 500.
+// The failure Rick saw on hotmess.social/app when Now (then GET /v1/now) returned 500.
 test('says the server is unreachable when Now fails', async ({ page, api }) => {
-  api.on('GET /v1/now', { status: 500 });
+  api.on(operation('ReportLocation'), { status: 500 });
   await page.goto('/app/');
   await expect(page.getByText("Hot Mess couldn't reach its server. Try again in a moment.")).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).not.toBeNull();
 });
 
 test('survives a sparse Now with nothing but a title', async ({ page, api }) => {
-  api.on('GET /v1/now', { json: {} });
+  api.on(operation('ReportLocation'), { json: { reportLocation: { now: {} } } });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText('Now');
   await expect(page.locator('.ak-hero img')).toHaveCount(0);
@@ -98,8 +98,26 @@ test('survives a sparse Now with nothing but a title', async ({ page, api }) => 
 });
 
 test('signs out and asks to sign in again when the session has expired', async ({ page, api }) => {
-  api.on('GET /v1/now', { status: 401 });
+  api.on(operation('ReportLocation'), { status: 401 });
   await page.goto('/app/');
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBeNull();
+});
+
+test('asks the audience in the session token, without looking it up', async ({ page, api, signedIn }) => {
+  const claims = Buffer.from(JSON.stringify({ id: 'u1', audience_id: 'b1111111-1111-4111-8111-111111111111' })).toString('base64url');
+  await signedIn(`e2e.${claims}.sig`);
+  await page.goto('/app/');
+  await expect(page.locator('.ak-hero h1')).toHaveText(NOW.title);
+  const [now] = api.calls(operation('ReportLocation'));
+  expect(new URL(now.url()).pathname).toBe('/v1/audience/b1111111-1111-4111-8111-111111111111/graphql');
+  expect(api.calls('GET /v1/branding')).toEqual([]);
+});
+
+test('looks the audience up from its host when the token doesn\'t name it', async ({ page, api }) => {
+  await page.goto('/app/');
+  await expect(page.locator('.ak-hero h1')).toHaveText(NOW.title);
+  const [branding] = api.calls('GET /v1/branding');
+  expect(new URL(branding.url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
+  expect(new URL(api.calls(operation('ReportLocation'))[0].url()).pathname).toBe(`/v1/audience/${AUDIENCE_ID}/graphql`);
 });

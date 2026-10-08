@@ -1,5 +1,5 @@
-// The AudienceKit REST API's shapes, as the /v1 endpoints return them (api/app/views in
-// audience-kit/audience-kit). Fields are optional wherever the API leaves them out or sends null.
+// AudienceKit's shapes, as src/lib/api.ts asks GraphQL for them (fields aliased to snake_case).
+// Fields are optional wherever the API leaves them out or sends null.
 
 export interface VenueReference {
   id: string;
@@ -13,7 +13,6 @@ export interface VenueReference {
 }
 
 export interface Venue extends VenueReference {
-  is_open?: boolean;
   address?: string | null;
   phone?: string | null;
   hero_banner_url?: string | null;
