@@ -64,6 +64,14 @@
     return el('li', {}, link({ kind: 'event', id: e.id }, image(eventPhoto(e)), el('span', {}, el('strong', {}, e.name), el('small', { className: 'muted' }, [when(e.start_at), e.venue?.name].filter(Boolean).join(' · ')))));
   }
 
+  // The Facebook Page or event an object came from, when the API knows it.
+  function onFacebook(id: string | number | undefined | null, kind: 'page' | 'event' = 'page') {
+    const value = id == null ? '' : String(id);
+    if (!/^[1-9][0-9]*$/.test(value)) return el('span');
+    const href = kind === 'event' ? `https://www.facebook.com/events/${value}/` : `https://www.facebook.com/${value}`;
+    return el('p', {}, el('a', { href, className: 'button secondary', target: '_blank', rel: 'noopener' }, 'View on Facebook'));
+  }
+
   function list(title: string, rows: HTMLLIElement[]) {
     return rows.length ? el('section', {}, el('h2', {}, title), el('ul', { className: 'rows' }, ...rows)) : el('span');
   }
@@ -116,17 +124,17 @@
         case 'venue': {
           const [venue, events] = await Promise.all([api.venue(route.id), api.venueEvents(route.id)]);
           document.title = `${venue.name} · Hot Mess`;
-          return show(image(venue.hero_url ?? venue.photo_url, venue.name), el('h1', {}, venue.name), venue.address ? el('p', { className: 'muted' }, venue.address) : el('span'), list('Upcoming', events.map(eventRow)));
+          return show(image(venue.hero_url ?? venue.photo_url, venue.name), el('h1', {}, venue.name), venue.address ? el('p', { className: 'muted' }, venue.address) : el('span'), onFacebook(venue.facebook_id), list('Upcoming', events.map(eventRow)));
         }
         case 'event': {
           const event = await api.event(route.id);
           document.title = `${event.name} · Hot Mess`;
-          return show(image(eventPhoto(event), event.name), el('h1', {}, event.name), el('p', { className: 'muted' }, when(event.start_at)), list('Where', event.venue ? [venueRow(event.venue)] : []));
+          return show(image(eventPhoto(event), event.name), el('h1', {}, event.name), el('p', { className: 'muted' }, when(event.start_at)), event.facebook_id ? onFacebook(event.facebook_id, 'event') : onFacebook(event.venue?.facebook_id), list('Where', event.venue ? [venueRow(event.venue)] : []));
         }
         case 'person': {
           const person = await api.person(route.id);
           document.title = `${person.name} · Hot Mess`;
-          return show(image(person.photo_url, person.name), el('h1', {}, person.name));
+          return show(image(person.photo_url, person.name), el('h1', {}, person.name), onFacebook(person.facebook_id));
         }
       }
     } catch (e) {

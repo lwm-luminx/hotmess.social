@@ -50,13 +50,13 @@ async function send<T>(path: string, init: RequestInit = {}, authenticated = tru
 
 export interface Venue {
   id: string; name: string; description?: string; address?: string;
-  photo_url?: string; hero_url?: string;
+  photo_url?: string; hero_url?: string; facebook_id?: string;
 }
 export interface Event {
   id: string; name: string; start_at: string; end_at?: string;
-  cover_photo_url?: string; venue?: Venue; person?: Person;
+  cover_photo_url?: string; venue?: Venue; person?: Person; facebook_id?: string | number;
 }
-export interface Person { id: string; name: string; photo_url?: string; }
+export interface Person { id: string; name: string; photo_url?: string; facebook_id?: string | number; }
 export interface Now {
   title?: string; venue?: Venue; venues?: Venue[]; events?: Event[]; image_url?: string;
 }
