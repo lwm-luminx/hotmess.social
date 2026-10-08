@@ -52,11 +52,16 @@
   }
 
   function venueRow(v: Venue) {
-    return el('li', {}, link({ kind: 'venue', id: v.id }, image(v.photo_url), el('span', {}, el('strong', {}, v.name), v.address ? el('small', { className: 'muted' }, v.address) : '')));
+    return el('li', {}, link({ kind: 'venue', id: v.id }, image(v.photo_url ?? v.hero_url), el('span', {}, el('strong', {}, v.name), v.address ? el('small', { className: 'muted' }, v.address) : '')));
+  }
+
+  // Most events have no cover photo of their own (and Now doesn't send one), so show the venue's.
+  function eventPhoto(e: Event) {
+    return e.cover_photo_url ?? e.venue?.photo_url ?? e.venue?.hero_url;
   }
 
   function eventRow(e: Event) {
-    return el('li', {}, link({ kind: 'event', id: e.id }, image(e.cover_photo_url), el('span', {}, el('strong', {}, e.name), el('small', { className: 'muted' }, [when(e.start_at), e.venue?.name].filter(Boolean).join(' · ')))));
+    return el('li', {}, link({ kind: 'event', id: e.id }, image(eventPhoto(e)), el('span', {}, el('strong', {}, e.name), el('small', { className: 'muted' }, [when(e.start_at), e.venue?.name].filter(Boolean).join(' · ')))));
   }
 
   function list(title: string, rows: HTMLLIElement[]) {
@@ -116,7 +121,7 @@
         case 'event': {
           const event = await api.event(route.id);
           document.title = `${event.name} · Hot Mess`;
-          return show(image(event.cover_photo_url, event.name), el('h1', {}, event.name), el('p', { className: 'muted' }, when(event.start_at)), list('Where', event.venue ? [venueRow(event.venue)] : []));
+          return show(image(eventPhoto(event), event.name), el('h1', {}, event.name), el('p', { className: 'muted' }, when(event.start_at)), list('Where', event.venue ? [venueRow(event.venue)] : []));
         }
         case 'person': {
           const person = await api.person(route.id);
