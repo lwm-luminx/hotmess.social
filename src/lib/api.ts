@@ -1,5 +1,6 @@
 // A small client for the Hot Mess (AudienceKit) REST API, mirroring
 // hot_mess_ios HotMess/Networking/HotMessAPI.swift.
+import type { Event, Now, Person, Venue } from '../sdk/types';
 import { API_BASE, AUDIENCE_HOST, AUDIENCEKIT_ENVIRONMENT, FACEBOOK_APP_ID } from './config';
 
 const TOKEN_KEY = 'hotmess.token';
@@ -48,18 +49,7 @@ async function send<T>(path: string, init: RequestInit = {}, authenticated = tru
   return response.status === 204 ? (undefined as T) : response.json();
 }
 
-export interface Venue {
-  id: string; name: string; description?: string; address?: string;
-  photo_url?: string; hero_url?: string;
-}
-export interface Event {
-  id: string; name: string; start_at: string; end_at?: string;
-  cover_photo_url?: string; venue?: Venue; person?: Person;
-}
-export interface Person { id: string; name: string; photo_url?: string; }
-export interface Now {
-  title?: string; venue?: Venue; venues?: Venue[]; events?: Event[]; image_url?: string;
-}
+export type { Event, Now, Person, Venue } from '../sdk/types';
 
 export const api = {
   signIn: (facebookToken: string) =>
