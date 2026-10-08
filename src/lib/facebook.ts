@@ -16,12 +16,15 @@ declare global {
 // also use Hot Mess at the same venue.
 const SCOPE = 'public_profile,email,user_friends';
 
+// The Graph API version the site calls.
+const GRAPH_API_VERSION = 'v26.0';
+
 let loading: Promise<NonNullable<Window['FB']>> | null = null;
 
 function sdk(): Promise<NonNullable<Window['FB']>> {
   loading ??= new Promise((resolve, reject) => {
     window.fbAsyncInit = () => {
-      window.FB!.init({ appId: FACEBOOK_APP_ID, version: 'v21.0', cookie: false, xfbml: false });
+      window.FB!.init({ appId: FACEBOOK_APP_ID, version: GRAPH_API_VERSION, cookie: false, xfbml: false });
       resolve(window.FB!);
     };
     const script = document.createElement('script');
