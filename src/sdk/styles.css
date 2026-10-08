@@ -1,0 +1,122 @@
+/* AudienceKit React components. Every class starts with ak-; colours and radii come from the
+   host's design tokens (--surface, --ink, --accent, ...), with fallbacks so the components look
+   right on a page that doesn't define them. */
+
+.ak-view {
+  --ak-surface: var(--surface-raised, #fff);
+  --ak-sunken: var(--surface-sunken, #ece7e6);
+  --ak-border: var(--border, #d9d0ce);
+  --ak-ink: var(--ink, #1c1517);
+  --ak-muted: var(--ink-muted, #645a5c);
+  --ak-accent: var(--accent, #a50000);
+  --ak-radius: var(--radius, 14px);
+  display: grid;
+  gap: 1.5rem;
+  padding-bottom: 3rem;
+  color: var(--ak-ink);
+}
+
+.ak-muted { color: var(--ak-muted); }
+.ak-accent { color: var(--ak-accent); }
+.ak-lede { font-size: 1.1rem; margin: 0; }
+
+/* Hero */
+.ak-hero {
+  position: relative;
+  min-height: clamp(220px, 38vw, 380px);
+  border-radius: var(--ak-radius);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(135deg, #b0124f, #3a0a2a);
+  color: #fff;
+  isolation: isolate;
+}
+.ak-hero--plain { min-height: 180px; }
+.ak-hero__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+.ak-hero::after {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,.15) 60%, rgba(0,0,0,0));
+}
+.ak-hero__text { padding: clamp(1rem, 3vw, 1.75rem); display: grid; gap: .35rem; width: 100%; }
+.ak-hero__eyebrow { margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; opacity: .9; }
+.ak-hero__title { margin: 0; font-size: clamp(1.9rem, 5vw, 3rem); text-shadow: 0 2px 12px rgba(0,0,0,.35); }
+.ak-photo.ak-hero__avatar, .ak-photo.ak-hero__badge {
+  width: 84px; height: 84px; justify-self: start; border-radius: 50%; border: 3px solid #fff; order: -1;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.ak-photo.ak-hero__badge { border-radius: 18px; }
+
+/* Photos and avatars */
+.ak-photo { width: 100%; height: 100%; object-fit: cover; background: var(--ak-sunken); }
+.ak-photo--empty {
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--ak-sunken), color-mix(in srgb, var(--ak-accent) 18%, var(--ak-sunken)));
+  color: var(--ak-muted); font-weight: 700;
+}
+.ak-photo.ak-avatar { width: 64px; height: 64px; border-radius: 50%; flex: none; }
+
+/* Sections and grids */
+.ak-section { display: grid; gap: .75rem; }
+.ak-section__title { margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: .5rem; }
+.ak-section__count {
+  font-size: .8rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--ak-accent) 14%, transparent); color: var(--ak-accent);
+}
+.ak-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+
+/* Cards */
+.ak-card { min-width: 0; }
+.ak-card__link {
+  display: grid; height: 100%; color: inherit; text-decoration: none;
+  background: var(--ak-surface); border: 1px solid var(--ak-border); border-radius: var(--ak-radius);
+  overflow: hidden; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.ak-card__link:hover { border-color: var(--ak-accent); transform: translateY(-2px); box-shadow: var(--shadow-md, 0 8px 20px rgba(0,0,0,.15)); }
+.ak-card__media { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--ak-sunken); }
+.ak-card__body { display: grid; gap: .15rem; padding: .75rem .9rem .9rem; min-width: 0; }
+.ak-card__title { font-size: 1.05rem; line-height: 1.25; }
+.ak-card__meta { color: var(--ak-muted); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ak-card__badge { position: absolute; top: .6rem; right: .6rem; }
+.ak-pill { padding: .15rem .55rem; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font-size: .8rem; font-weight: 600; }
+.ak-date {
+  position: absolute; top: .6rem; left: .6rem; display: grid; justify-items: center; min-width: 46px;
+  padding: .25rem .4rem; border-radius: 10px; background: #fff; color: #1c1517; line-height: 1.05; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.ak-date span { font-size: .65rem; font-weight: 700; letter-spacing: .06em; color: var(--ak-accent); }
+.ak-date strong { font-size: 1.25rem; }
+.ak-card--track .ak-card__media { aspect-ratio: 1; }
+
+/* People */
+.ak-section:has(.ak-person) .ak-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.ak-person__link { display: grid; justify-items: center; gap: .4rem; text-align: center; color: inherit; text-decoration: none; padding: .5rem; border-radius: var(--ak-radius); }
+a.ak-person__link:hover { background: var(--ak-surface); }
+.ak-person__name { font-weight: 600; line-height: 1.2; }
+.ak-person__role { color: var(--ak-muted); font-size: .8rem; text-transform: capitalize; }
+
+/* Detail layout */
+.ak-columns { display: grid; gap: 1.5rem; align-items: start; }
+@media (min-width: 840px) { .ak-columns { grid-template-columns: minmax(0, 1fr) 300px; } }
+.ak-columns > div { display: grid; gap: 1.5rem; }
+.ak-panel {
+  display: grid; gap: 1rem; padding: 1.1rem; background: var(--ak-surface);
+  border: 1px solid var(--ak-border); border-radius: var(--ak-radius);
+}
+.ak-panel:empty { display: none; }
+.ak-facts { margin: 0; display: grid; gap: .75rem; }
+.ak-facts:empty { display: none; }
+.ak-fact dt { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ak-muted); }
+.ak-fact dd { margin: .1rem 0 0; }
+.ak-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ak-actions:empty { display: none; }
+.ak-links { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.ak-links a { color: inherit; text-decoration: none; }
+.ak-links a:hover strong { color: var(--ak-accent); }
+
+.ak-button {
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .6rem 1.1rem;
+  border: 0; border-radius: 999px; background: var(--ak-accent); color: var(--on-accent, #fff);
+  font: 600 1rem inherit; text-decoration: none; cursor: pointer;
+}
+.ak-button--secondary { background: transparent; color: var(--ak-ink); box-shadow: inset 0 0 0 1.5px var(--ak-border); }
+.ak-button--secondary:hover { box-shadow: inset 0 0 0 1.5px var(--ak-accent); color: var(--ak-accent); }
