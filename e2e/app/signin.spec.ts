@@ -1,4 +1,4 @@
-import { test, expect, TOKEN } from './fixtures';
+import { test, expect, TOKEN, operation } from './fixtures';
 
 test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   await page.goto('/app/');
@@ -21,7 +21,7 @@ test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   expect(signIn.headers()['authorization']).toBeUndefined();
 
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBe(TOKEN);
-  const [now] = api.calls('GET /v1/now');
+  const [now] = api.calls(operation('ReportLocation'));
   expect(now.headers()['authorization']).toBe(`JWT ${TOKEN}`);
 });
 

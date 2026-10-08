@@ -1,4 +1,4 @@
-import { test, expect, EVENT, PERSON, VENUE } from './fixtures';
+import { test, expect, EVENT, PERSON, VENUE, operation } from './fixtures';
 
 // Share links are served by the 404 page, as on GitHub Pages.
 test.describe('signed in', () => {
@@ -15,7 +15,7 @@ test.describe('signed in', () => {
   test('upper-case ids open the same page', async ({ page, api }) => {
     await page.goto(`/people/${PERSON.id.toUpperCase()}`);
     await expect(page.locator('.ak-hero h1')).toHaveText(PERSON.name);
-    expect(api.calls(`GET /v1/people/${PERSON.id}`)).toHaveLength(1);
+    expect(api.calls(operation('Person'))).toHaveLength(1);
   });
 
   test('a link to something deleted says it can\'t be found', async ({ page }) => {
@@ -35,5 +35,5 @@ test('a share link asks to sign in first', async ({ page, api }) => {
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
   await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);
-  expect(api.calls('GET /v1/now')).toEqual([]);
+  expect(api.calls(operation('ReportLocation'))).toEqual([]);
 });

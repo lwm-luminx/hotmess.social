@@ -19,8 +19,6 @@ export const VENUE = {
   photo_url: `${IMAGES}/neighbours-page.png`,
   hero_url: `${IMAGES}/neighbours-hero.png`,
   distance: 120,
-  friend_count: 2,
-  is_open: true,
 };
 export const PERSON = {
   id: '33333333-3333-4333-8333-333333333333',
@@ -56,10 +54,19 @@ export const NOW = {
   events: [EVENT],
   venues: [VENUE],
   friends: FRIENDS,
+  friend_venues: [{ venue: { id: VENUE.id }, friend_count: 2 }],
 };
 
 type Reply = { status?: number; json?: unknown };
 type Handler = (request: Request) => Reply | Promise<Reply>;
+
+export const AUDIENCE_ID = 'a0000000-0000-4000-8000-000000000000';
+
+// GraphQL operations are mocked by name ("Venue", "ReportLocation"); a reply's
+// json is the operation's data.
+export function operation(name: string) {
+  return `graphql ${name}`;
+}
 
 export class MockAPI {
   readonly requests: Request[] = [];
@@ -67,20 +74,30 @@ export class MockAPI {
 
   constructor() {
     this.on('POST /v1/token', () => ({ json: { token: TOKEN, user: { id: 'u1', name: 'Dave S.' } } }));
-    this.on('GET /v1/now', () => ({ json: NOW }));
-    this.on(`GET /v1/venues/${VENUE.id}`, () => ({ json: { venue: VENUE } }));
-    this.on(`GET /v1/venues/${VENUE.id}/events`, () => ({ json: { events: [EVENT] } }));
-    this.on(`GET /v1/events/${EVENT.id}`, () => ({ json: { event: EVENT_PAGE } }));
-    this.on(`GET /v1/people/${PERSON.id}`, () => ({ json: { person: PERSON_PAGE } }));
+    this.on('GET /v1/branding', () => ({ json: { audience: { id: AUDIENCE_ID, name: 'Hot Mess', subdomain: 'hotmess' } } }));
+    this.on(operation('ReportLocation'), () => ({ json: { reportLocation: { now: NOW } } }));
+    // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
+    const byID = (id: string, record: unknown) => (request: Request) =>
+      request.postDataJSON().variables.id === id ? record : null;
+    this.on(operation('Venue'), (r) => ({ json: { venue: byID(VENUE.id, { ...VENUE, events: [EVENT] })(r) } }));
+    this.on(operation('Event'), (r) => ({ json: { event: byID(EVENT.id, EVENT_PAGE)(r) } }));
+    this.on(operation('Person'), (r) => ({ json: { person: byID(PERSON.id, PERSON_PAGE)(r) } }));
   }
 
-  // Replaces the reply for "METHOD /path" (no query string).
+  // Replaces the reply for "METHOD /path" (no query string), or for a GraphQL
+  // operation('Name').
   on(route: string, handler: Handler | Reply) {
     this.handlers.set(route, typeof handler === 'function' ? handler : () => handler);
   }
 
   calls(route: string) {
-    return this.requests.filter((r) => `${r.method()} ${new URL(r.url()).pathname}` === route);
+    return this.requests.filter((r) => MockAPI.key(r) === route);
+  }
+
+  // GraphQL requests are keyed by operation name, everything else by method and path.
+  private static key(request: Request) {
+    const route = `${request.method()} ${new URL(request.url()).pathname}`;
+    return /^POST \/v1\/audience\/[^/]+\/graphql$/.test(route) ? operation(request.postDataJSON()?.operationName) : route;
   }
 
   async install(page: Page) {
@@ -94,9 +111,11 @@ export class MockAPI {
       if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
 
       this.requests.push(request);
-      const handler = this.handlers.get(`${request.method()} ${new URL(request.url()).pathname}`);
+      const key = MockAPI.key(request);
+      const handler = this.handlers.get(key);
       const reply = handler ? await handler(request) : { status: 404, json: {} };
-      await route.fulfill({ status: reply.status ?? 200, headers: cors, contentType: 'application/json', json: reply.json ?? {} });
+      const json = key.startsWith('graphql ') && (reply.status ?? 200) < 400 ? { data: reply.json ?? null } : reply.json ?? {};
+      await route.fulfill({ status: reply.status ?? 200, headers: cors, contentType: 'application/json', json });
     });
   }
 }

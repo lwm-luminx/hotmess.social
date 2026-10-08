@@ -1,5 +1,5 @@
 // The deployed site against the real API. Runs on a schedule and after each
-// deploy, so a broken endpoint (like GET /v1/now returning 500) shows up as a
+// deploy, so a broken endpoint (like Now returning 500) shows up as a
 // failed run instead of a report from someone opening the app.
 import { test, expect, type Page } from '@playwright/test';
 import { API_BASE, canSignIn, sessionToken } from './session';
@@ -42,9 +42,12 @@ test.describe('signed in', () => {
 
   test('Now loads around Seattle, and its venues and events open', async ({ page }) => {
     const failures = watchAPI(page);
-    const now = page.waitForResponse((r) => r.url().startsWith(`${API_BASE}/v1/now`));
+    const now = page.waitForResponse((r) => r.url().startsWith(`${API_BASE}/v1/audience/`)
+      && r.request().postDataJSON()?.operationName === 'ReportLocation');
     await page.goto('/app/');
-    expect((await now).status(), 'GET /v1/now').toBe(200);
+    const response = await now;
+    expect(response.status(), 'ReportLocation').toBe(200);
+    expect((await response.json()).errors, 'ReportLocation errors').toBeUndefined();
 
     await expect(page.locator('#app h1')).toBeVisible();
     await expect(page.getByText(UNREACHABLE)).toHaveCount(0);
