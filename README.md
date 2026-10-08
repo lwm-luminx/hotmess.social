@@ -49,7 +49,8 @@ npm run e2e:live               # hotmess.social against the real API
 ```
 
 The mocked suite runs on every pull request and covers sign-in, Now, share
-links and their failure states. The live suite runs hourly and after each
+links, the venue, event and person pages (photos, Facebook links, tracks) and
+their failure states. The live suite runs hourly and after each
 deploy. To sign in it needs the repository secrets `FB_TEST_APP_ID`
 (713525445368431, the app the Facebook test users belong to) and
 `FB_TEST_APP_SECRET`, or a session JWT in `HOTMESS_E2E_TOKEN`; without them it

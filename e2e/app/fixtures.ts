@@ -6,21 +6,57 @@ export const API = 'https://api.audiencekit.com';
 export const TOKEN = 'e2e.session.jwt';
 export const SEATTLE = { latitude: 47.6062, longitude: -122.3321 };
 
+// Photos load from images.test; any URL with "broken" in it fails to load.
+export const IMAGES = 'https://images.test';
+
 export const VENUE = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Neighbours',
   address: '1509 Broadway, Seattle',
-  photo_url: undefined,
+  phone: '+12063245358',
+  description: 'Capitol Hill\'s dance club since 1983.',
+  facebook_id: '108155092546395',
+  photo_url: `${IMAGES}/neighbours-page.png`,
+  hero_url: `${IMAGES}/neighbours-hero.png`,
+  distance: 120,
+  friend_count: 2,
+  is_open: true,
+};
+export const PERSON = {
+  id: '33333333-3333-4333-8333-333333333333',
+  name: 'Aurora Borealis',
+  role: 'DJ',
+  facebook_id: '100064000000001',
+  photo_url: null,
+  cover_url: `${IMAGES}/aurora-cover.png`,
 };
 export const EVENT = {
   id: '22222222-2222-4222-8222-222222222222',
   name: 'Mess Hall Fridays',
   start_at: '2026-10-09T22:00:00-07:00',
+  end_at: '2026-10-10T02:00:00-07:00',
+  facebook_id: '1234567890123',
   venue: VENUE,
+  person: { id: PERSON.id, name: PERSON.name },
 };
-export const PERSON = { id: '33333333-3333-4333-8333-333333333333', name: 'Aurora B.' };
+// How the API renders an event on its own page: everyone on the bill.
+export const EVENT_PAGE = { ...EVENT, people: [{ id: PERSON.id, name: PERSON.name, role: 'DJ' }] };
+export const PERSON_PAGE = {
+  ...PERSON,
+  events: [EVENT],
+  social_links: [{ id: 's1', provider: 'instagram', handle: '@aurora', url: 'https://www.instagram.com/aurora' }],
+  tracks: [{ id: 't1', title: 'Northern Lights (Extended Mix)', provider: 'soundcloud', provider_url: 'https://soundcloud.com/aurora/northern-lights', artwork_url: `${IMAGES}/track.png` }],
+};
+export const FRIENDS = [{ id: 'f1', name: 'Dana K.' }, { id: 'f2', name: 'Sam Rivera' }];
 
-export const NOW = { title: 'Capitol Hill', events: [EVENT], venues: [VENUE] };
+export const NOW = {
+  title: 'Capitol Hill',
+  image_url: `${IMAGES}/capitol-hill.png`,
+  locale: { id: 'l1', name: 'Seattle' },
+  events: [EVENT],
+  venues: [VENUE],
+  friends: FRIENDS,
+};
 
 type Reply = { status?: number; json?: unknown };
 type Handler = (request: Request) => Reply | Promise<Reply>;
@@ -34,8 +70,8 @@ export class MockAPI {
     this.on('GET /v1/now', () => ({ json: NOW }));
     this.on(`GET /v1/venues/${VENUE.id}`, () => ({ json: { venue: VENUE } }));
     this.on(`GET /v1/venues/${VENUE.id}/events`, () => ({ json: { events: [EVENT] } }));
-    this.on(`GET /v1/events/${EVENT.id}`, () => ({ json: { event: EVENT } }));
-    this.on(`GET /v1/people/${PERSON.id}`, () => ({ json: { person: PERSON } }));
+    this.on(`GET /v1/events/${EVENT.id}`, () => ({ json: { event: EVENT_PAGE } }));
+    this.on(`GET /v1/people/${PERSON.id}`, () => ({ json: { person: PERSON_PAGE } }));
   }
 
   // Replaces the reply for "METHOD /path" (no query string).
@@ -65,6 +101,9 @@ export class MockAPI {
   }
 }
 
+// A 1×1 PNG for every photo.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
 // FB.login answers with window.__fbLogin (default: a signed-in user) and
 // records the scope it was asked for in window.__fbScope.
 const FACEBOOK_SDK = `
@@ -87,6 +126,9 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string) => Pr
     await page.route('https://connect.facebook.net/**', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: FACEBOOK_SDK }));
     await page.route('https://www.googletagmanager.com/**', (route) => route.abort());
+    await page.route(`${IMAGES}/**`, (route) => route.request().url().includes('broken')
+      ? route.fulfill({ status: 404 })
+      : route.fulfill({ contentType: 'image/png', body: PNG }));
     await api.install(page);
     await use(api);
   }, { auto: true }],
@@ -108,5 +150,10 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string) => Pr
     });
   },
 });
+
+// A titled list on a page ("Friends out tonight", "Upcoming"), found by its heading.
+export function section(page: Page, title: string) {
+  return page.locator('section.ak-section', { has: page.locator('h2', { hasText: new RegExp(`^${title}`) }) });
+}
 
 export { expect };

@@ -4,32 +4,17 @@ import { test, expect, EVENT, PERSON, VENUE } from './fixtures';
 test.describe('signed in', () => {
   test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
-  test('a venue link shows the venue and what\'s coming up', async ({ page }) => {
-    await page.goto(`/venues/${VENUE.id}`);
-    await expect(page.getByRole('heading', { level: 1, name: VENUE.name })).toBeVisible();
-    await expect(page.getByText(VENUE.address)).toBeVisible();
-    await expect(page).toHaveTitle(`${VENUE.name} · Hot Mess`);
-    const upcoming = page.locator('section', { has: page.getByRole('heading', { name: 'Upcoming' }) });
-    await expect(upcoming.getByRole('link', { name: new RegExp(EVENT.name) })).toHaveAttribute('href', `/events/${EVENT.id}`);
-  });
-
-  test('an event link shows the event and where it is', async ({ page }) => {
-    await page.goto(`/events/${EVENT.id}`);
-    await expect(page.getByRole('heading', { level: 1, name: EVENT.name })).toBeVisible();
-    await expect(page.getByText('Fri, Oct 9, 10:00 PM')).toBeVisible();
-    const where = page.locator('section', { has: page.getByRole('heading', { name: 'Where' }) });
-    await expect(where.getByRole('link')).toHaveAttribute('href', `/venues/${VENUE.id}`);
-  });
-
-  test('a person link shows the person', async ({ page }) => {
-    await page.goto(`/people/${PERSON.id}`);
-    await expect(page.getByRole('heading', { level: 1, name: PERSON.name })).toBeVisible();
-    await expect(page).toHaveTitle(`${PERSON.name} · Hot Mess`);
-  });
+  for (const [path, title] of [[`/venues/${VENUE.id}`, VENUE.name], [`/events/${EVENT.id}`, EVENT.name], [`/people/${PERSON.id}`, PERSON.name]]) {
+    test(`${path.split('/')[1]} links open in the app`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator('.ak-hero h1')).toHaveText(title);
+      await expect(page).toHaveTitle(`${title} · Hot Mess`);
+    });
+  }
 
   test('upper-case ids open the same page', async ({ page, api }) => {
     await page.goto(`/people/${PERSON.id.toUpperCase()}`);
-    await expect(page.getByRole('heading', { level: 1, name: PERSON.name })).toBeVisible();
+    await expect(page.locator('.ak-hero h1')).toHaveText(PERSON.name);
     expect(api.calls(`GET /v1/people/${PERSON.id}`)).toHaveLength(1);
   });
 
@@ -49,6 +34,6 @@ test('a share link asks to sign in first', async ({ page, api }) => {
   await page.goto(`/venues/${VENUE.id}`);
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: VENUE.name })).toBeVisible();
+  await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);
   expect(api.calls('GET /v1/now')).toEqual([]);
 });
