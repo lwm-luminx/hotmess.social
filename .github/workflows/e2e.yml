@@ -1,0 +1,74 @@
+name: E2E
+
+# Chromium end-to-end tests (playwright.config.ts).
+#   app:  the built site with Facebook and the API mocked, on every pull
+#         request and push.
+#   live: hotmess.social against the real API, hourly, after each Pages
+#         deploy, and on demand. Signing in needs the repository secrets
+#         FB_TEST_APP_ID + FB_TEST_APP_SECRET (or HOTMESS_E2E_TOKEN); without
+#         them only the signed-out checks run.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_run:
+    workflows: [Pages]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-app-report
+          path: playwright-report
+          retention-days: 14
+
+  live:
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:live
+        env:
+          FB_TEST_APP_ID: ${{ secrets.FB_TEST_APP_ID }}
+          FB_TEST_APP_SECRET: ${{ secrets.FB_TEST_APP_SECRET }}
+          HOTMESS_E2E_TOKEN: ${{ secrets.HOTMESS_E2E_TOKEN }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-live-report
+          path: playwright-report
+          retention-days: 14

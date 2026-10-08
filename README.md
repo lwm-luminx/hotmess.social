@@ -38,6 +38,24 @@ Configuration is public build-time values only (see `.env.example`):
 `PUBLIC_AUDIENCEKIT_ENVIRONMENT` (`staging` for a staging deployment). Never put a
 secret in this repository or in a `PUBLIC_` variable; they ship to every visitor.
 
+## End-to-end tests
+
+Playwright drives Chromium through the site (`e2e/`, workflow `E2E`):
+
+```sh
+npx playwright install chromium
+npm run build && npm run e2e   # built site, Facebook and the API mocked
+npm run e2e:live               # hotmess.social against the real API
+```
+
+The mocked suite runs on every pull request and covers sign-in, Now, share
+links, the venue, event and person pages (photos, Facebook links, tracks) and
+their failure states. The live suite runs hourly and after each
+deploy. To sign in it needs the repository secrets `FB_TEST_APP_ID`
+(713525445368431, the app the Facebook test users belong to) and
+`FB_TEST_APP_SECRET`, or a session JWT in `HOTMESS_E2E_TOKEN`; without them it
+only checks the signed-out pages.
+
 ## Before it works end to end
 
 - **Pages**: Settings → Pages → Source: GitHub Actions, custom domain
