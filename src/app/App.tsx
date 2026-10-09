@@ -133,6 +133,15 @@ function HotMess() {
     onNavigate: (target, event) => { event.preventDefault(); go(target); },
   }), [go]);
 
+  const logOut = () => {
+    session.token = null;
+    history.replaceState(null, '', pathFor({ kind: 'now' }));
+    setPath(location.pathname);
+    setScreen({ state: 'signed-out' });
+    // Clean up pending loads even when we're already on /app/.
+    setAttempt((n) => n + 1);
+  };
+
   let content;
   switch (screen.state) {
     case 'loading': content = <p className="muted">Loading…</p>; break;
@@ -144,5 +153,10 @@ function HotMess() {
     case 'person': content = <PersonView person={screen.person} />; break;
   }
 
-  return <NavigationProvider value={navigation}>{content}</NavigationProvider>;
+  return <NavigationProvider value={navigation}>
+    {session.token ? <div className="app-account">
+      <button className="button secondary" type="button" onClick={logOut}>Log out</button>
+    </div> : null}
+    {content}
+  </NavigationProvider>;
 }
