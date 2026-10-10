@@ -8,7 +8,7 @@ test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
   await expect(page.getByRole('heading', { name: 'Capitol Hill' })).toBeVisible();
 
-  expect(await page.evaluate(() => (window as any).__fbScope)).toBe('public_profile,email,user_friends');
+  expect(await page.evaluate(() => (window as any).__fbScope)).toBe('public_profile');
   expect(await page.evaluate(() => (window as any).__fbInit)).toMatchObject({ appId: '1168782378316790', version: 'v26.0' });
 
   const [signIn] = api.calls('POST /v1/token');
