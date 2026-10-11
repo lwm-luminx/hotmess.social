@@ -2,7 +2,7 @@
 // HotMess/Networking/HotMessAPI.swift: sign-in and branding are REST, and
 // everything else goes through the audience's GraphQL endpoint, with fields
 // aliased to the snake_case keys the views read.
-import type { Event, Now, Person, Venue } from '../sdk/types';
+import type { Event, Friend, Now, Person, Venue } from '../sdk/types';
 import { API_BASE, AUDIENCE_HOST, AUDIENCEKIT_ENVIRONMENT, FACEBOOK_APP_ID } from './config';
 
 const TOKEN_KEY = 'hotmess.token';
@@ -104,19 +104,24 @@ function withHost(event: Event): Event {
   return event.person || !event.people?.length ? event : { ...event, person: event.people[0] };
 }
 
+const FRIEND = 'id name facebook_id: facebookId';
+
+// reportLocation says where you are; friends and events come from the venue's
+// or the locale's facets.
 const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
   reportLocation(input: { position: $position }) {
-    now {
-      title image_url: imageUrl
-      locale { id name }
-      venue { ${VENUE} }
-      venues { ${VENUE} }
+    venue { ${VENUE} events { ${EVENT} } friends { list { ${FRIEND} } } }
+    nearby_venues: nearbyVenues { ${VENUE} }
+    locale {
+      id name hero_url: heroUrl
       events { ${EVENT} }
-      friends { id name facebook_id: facebookId }
-      friend_venues: friendVenues { venue { id } friend_count: friendCount }
+      friends { list { ${FRIEND} } venues { venue { id } friend_count: friendCount } }
     }
   }
 }`;
+
+// How many of the locale's upcoming events Now lists away from a venue.
+const LOCALE_EVENT_LIMIT = 5;
 
 const VENUE_PAGE = `query Venue($id: ID!) {
   venue(id: $id) { ${VENUE} events { ${EVENT} } }
@@ -136,6 +141,12 @@ const PERSON_PAGE = `query Person($id: ID!) {
 }`;
 
 type FriendVenue = { venue: { id: string }; friend_count: number };
+type FriendsFacet = { list?: Friend[]; venues?: FriendVenue[] } | null;
+type LocationReport = {
+  venue?: (Venue & { events?: Event[]; friends?: FriendsFacet }) | null;
+  nearby_venues?: Venue[] | null;
+  locale?: { id: string; name: string; hero_url?: string | null; events?: Event[]; friends?: FriendsFacet } | null;
+};
 
 export const api = {
   signIn: (facebookToken: string) =>
@@ -157,13 +168,21 @@ export const api = {
     }, false),
   // Records where you are, which is how the API knows the venue you're at.
   now: async (latitude: number, longitude: number): Promise<Now> => {
-    const data = await graphql<{ reportLocation: { now: Now & { friend_venues?: FriendVenue[] } } }>(NOW, { position: { latitude, longitude } });
-    const { friend_venues: friendVenues = [], ...now } = data.reportLocation.now;
-    const friendCount = new Map(friendVenues.map((f) => [f.venue.id, f.friend_count]));
+    const data = await graphql<{ reportLocation: LocationReport }>(NOW, { position: { latitude, longitude } });
+    const { venue: here, nearby_venues: nearby, locale: place } = data.reportLocation;
+    const locale = place ? { id: place.id, name: place.name } : undefined;
+    if (here) {
+      const { events, friends, ...venue } = here;
+      return { title: venue.name, locale, venue, events: events?.map(withHost), friends: friends?.list ?? [] };
+    }
+    const friendCount = new Map((place?.friends?.venues ?? []).map((f) => [f.venue.id, f.friend_count]));
     return {
-      ...now,
-      events: now.events?.map(withHost),
-      venues: now.venues?.map((venue) => ({ ...venue, friend_count: friendCount.get(venue.id) ?? 0 })),
+      title: place ? 'Happening Now' : undefined,
+      image_url: place?.hero_url,
+      locale,
+      events: place?.events?.slice(0, LOCALE_EVENT_LIMIT).map(withHost),
+      friends: place?.friends?.list ?? [],
+      venues: nearby?.map((venue) => ({ ...venue, friend_count: friendCount.get(venue.id) ?? 0 })),
     };
   },
   // A venue and its upcoming events, in one request.

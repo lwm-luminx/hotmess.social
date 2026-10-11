@@ -115,7 +115,7 @@ test.describe('person', () => {
 });
 
 test('a photo that fails to load is hidden instead of showing a broken image', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), { json: { reportLocation: { now: { title: 'Now', venues: [{ ...VENUE, photo_url: `${IMAGES}/broken.png` }] } } } });
+  api.on(operation('ReportLocation'), { json: { reportLocation: { nearby_venues: [{ ...VENUE, photo_url: `${IMAGES}/broken.png` }] } } });
   await page.goto('/app/');
   const photo = section(page, 'Venues near you').locator('img');
   await expect(photo).toHaveCSS('visibility', 'hidden');
