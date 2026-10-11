@@ -181,19 +181,21 @@ const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
 }`;
 
 const VENUE_PAGE = `query Venue($id: ID!) {
-  venue(id: $id) { ${VENUE} events { upcoming { nodes { ${EVENT} } } } }
+  venues { venue(id: $id) { ${VENUE} events { upcoming { nodes { ${EVENT} } } } } }
 }`;
 
 const EVENT_PAGE = `query Event($id: ID!) {
-  event(id: $id) { ${EVENT} }
+  events { event(id: $id) { ${EVENT} } }
 }`;
 
 const PERSON_PAGE = `query Person($id: ID!) {
-  person(id: $id) {
-    ${PERSON} banner_url: bannerUrl
-    events { upcoming { nodes { ${EVENT} } } }
-    profile { social_links: socialLinks { nodes { id handle provider url } } }
-    music { tracks { nodes { id title provider provider_url: providerUrl artwork_url: artworkUrl } } }
+  people {
+    person(id: $id) {
+      ${PERSON} banner_url: bannerUrl
+      events { upcoming { nodes { ${EVENT} } } }
+      profile { social_links: socialLinks { nodes { id handle provider url } } }
+      music { tracks { nodes { id title provider provider_url: providerUrl artwork_url: artworkUrl } } }
+    }
   }
 }`;
 
@@ -245,14 +247,14 @@ export const api = {
   },
   // A venue and its upcoming events, in one request.
   venue: async (id: string): Promise<{ venue: Venue; events: Event[] }> => {
-    const { events, ...venue } = found((await graphql<{ venue: (WireVenue & { events?: EventsFacet | null }) | null }>(VENUE_PAGE, { id })).venue);
+    const { events, ...venue } = found((await graphql<{ venues: { venue: (WireVenue & { events?: EventsFacet | null }) | null } }>(VENUE_PAGE, { id })).venues.venue);
     return { venue: decodeVenue(venue), events: upcoming(events) };
   },
   event: async (id: string): Promise<Event> =>
-    decodeEvent(found((await graphql<{ event: WireEvent | null }>(EVENT_PAGE, { id })).event)),
+    decodeEvent(found((await graphql<{ events: { event: WireEvent | null } }>(EVENT_PAGE, { id })).events.event)),
   person: async (id: string): Promise<Person> => {
     type WirePersonPage = WirePerson<Omit<Person, 'events' | 'tracks'>> & { events?: EventsFacet | null; music?: MusicFacet | null };
-    const { events, music, ...person } = found((await graphql<{ person: WirePersonPage | null }>(PERSON_PAGE, { id })).person);
+    const { events, music, ...person } = found((await graphql<{ people: { person: WirePersonPage | null } }>(PERSON_PAGE, { id })).people.person);
     return { ...decodePerson(person), events: upcoming(events), tracks: tracks(music) };
   },
 };
