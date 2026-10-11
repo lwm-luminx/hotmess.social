@@ -23,7 +23,7 @@ test('uncaught errors and rejections are reported to the API', async ({ page, ap
 test('a view that fails to render is reported and offers a reload', async ({ page, api, signedIn }) => {
   await signedIn();
   // An address React can't render makes the view throw.
-  api.on(operation('Venue'), () => ({ json: { venue: { ...VENUE, address: { street: 'not text' }, events: [] } } }));
+  api.on(operation('Venue'), () => ({ json: { venue: { ...VENUE, address: { street: 'not text' }, events: null } } }));
 
   await page.goto(`/venues/${VENUE.id}`);
 

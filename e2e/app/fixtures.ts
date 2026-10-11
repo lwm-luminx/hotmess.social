@@ -41,17 +41,29 @@ export const EVENT = {
 export const EVENT_PAGE = { ...EVENT, people: [{ id: PERSON.id, name: PERSON.name, role: 'DJ' }] };
 export const PERSON_PAGE = {
   ...PERSON,
-  events: [EVENT],
+  events: upcoming([EVENT], 'PersonEventsView'),
   social_links: [{ id: 's1', provider: 'instagram', handle: '@aurora', url: 'https://www.instagram.com/aurora' }],
   tracks: [{ id: 't1', title: 'Northern Lights (Extended Mix)', provider: 'soundcloud', provider_url: 'https://soundcloud.com/aurora/northern-lights', artwork_url: `${IMAGES}/track.png` }],
 };
+
+// GraphQL sends an event's venue, and a venue's or person's events, through
+// facets: nullable interface objects. These wrap the app-shaped records above
+// the way the API answers; venue_name stands in for the facet's name.
+type AppEvent = { venue?: { name?: string; [field: string]: unknown } | null; venue_name?: string | null; [field: string]: unknown };
+export function wireEvent({ venue, venue_name: name, ...event }: AppEvent) {
+  return { ...event, venue: { __typename: 'EventVenueView', name: name ?? venue?.name ?? 'To be announced', venue: venue ?? null } };
+}
+export function upcoming(events: AppEvent[], typename = 'EventsView') {
+  return { __typename: typename, upcoming: events.map(wireEvent) };
+}
+
 export const FRIENDS = [{ id: 'f1', name: 'Dana K.' }, { id: 'f2', name: 'Sam Rivera' }];
 
 export const NOW = {
   title: 'Capitol Hill',
   image_url: `${IMAGES}/capitol-hill.png`,
   locale: { id: 'l1', name: 'Seattle' },
-  events: [EVENT],
+  events: [wireEvent(EVENT)],
   venues: [VENUE],
   friends: FRIENDS,
   friend_venues: [{ venue: { id: VENUE.id }, friend_count: 2 }],
@@ -79,8 +91,8 @@ export class MockAPI {
     // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
     const byID = (id: string, record: unknown) => (request: Request) =>
       request.postDataJSON().variables.id === id ? record : null;
-    this.on(operation('Venue'), (r) => ({ json: { venue: byID(VENUE.id, { ...VENUE, events: [EVENT] })(r) } }));
-    this.on(operation('Event'), (r) => ({ json: { event: byID(EVENT.id, EVENT_PAGE)(r) } }));
+    this.on(operation('Venue'), (r) => ({ json: { venue: byID(VENUE.id, { ...VENUE, events: upcoming([EVENT]) })(r) } }));
+    this.on(operation('Event'), (r) => ({ json: { event: byID(EVENT.id, wireEvent(EVENT_PAGE))(r) } }));
     this.on(operation('Person'), (r) => ({ json: { person: byID(PERSON.id, PERSON_PAGE)(r) } }));
   }
 
