@@ -12,9 +12,13 @@ declare global {
   }
 }
 
-// The same permissions the iOS app asks for. user_friends shows friends who
-// also use Hot Mess at the same venue.
-const SCOPE = 'public_profile,email,user_friends';
+// Whether sign-in asks for email and user_friends (friends who also use Hot
+// Mess at the same venue). Off while Meta's App Review has both pending on the
+// Hot Mess app, so the beta asks only for public_profile, like the iOS and
+// Android betas. Turn it back on once Meta approves them.
+const ASKS_FOR_REVIEWED_PERMISSIONS = false;
+
+const SCOPE = ['public_profile', ...(ASKS_FOR_REVIEWED_PERMISSIONS ? ['email', 'user_friends'] : [])].join(',');
 
 // The Graph API version the site calls.
 const GRAPH_API_VERSION = 'v26.0';
