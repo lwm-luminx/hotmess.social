@@ -100,9 +100,9 @@ const VENUE = `id name distance description photo_url: photoUrl hero_url: heroUr
   profile { address phone facebook { facebook_id: facebookId } }`;
 const PERSON = 'id name photo_url: pictureUrl profile { facebook { facebook_id: facebookId } }';
 // An event's venue comes through its venues facet: its name, or "To be
-// announced", and the venue, if any.
+// announced", and the venue, if any. Its lineup comes through its people facet.
 const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId banner_url: bannerUrl
-  rsvp: viewerRsvp venue { name venue { ${VENUE} } } people { ${PERSON} }`;
+  rsvp: viewerRsvp venue { name venue { ${VENUE} } } people { lineup { nodes { ${PERSON} } } }`;
 
 // Events, venues, music and profile facets as GraphQL sends them; decodeEvent,
 // upcoming, tracks, decodeVenue and decodePerson flatten them back into the
@@ -116,9 +116,10 @@ type ProfileFacet = {
 type WireVenue = Omit<Venue, 'address' | 'phone' | 'facebook_id'> & { profile?: ProfileFacet | null };
 type WirePerson<P extends PersonReference> = Omit<P, 'facebook_id' | 'social_links'> & { profile?: ProfileFacet | null };
 type EventVenueFacet = { name?: string | null; venue?: WireVenue | null };
+type EventPeopleFacet = { lineup?: { nodes?: (WirePerson<PersonReference> | null)[] | null } | null };
 type WireEvent = Omit<Event, 'venue' | 'venue_name' | 'people'> & {
   venue?: EventVenueFacet | null;
-  people?: WirePerson<PersonReference>[];
+  people?: EventPeopleFacet | null;
 };
 type EventsFacet = { upcoming?: { nodes?: WireEvent[] | null } | null };
 type MusicFacet = { tracks?: { nodes?: (Track | null)[] | null } | null };
@@ -143,11 +144,12 @@ function withHost(event: Event): Event {
 }
 
 function decodeEvent({ venue: facet, people, ...event }: WireEvent): Event {
+  const lineup = people?.lineup?.nodes;
   return {
     ...event,
     venue: facet?.venue ? decodeVenue(facet.venue) : null,
     venue_name: facet?.name ?? null,
-    ...(people ? { people: people.map((person) => decodePerson(person)) } : {}),
+    ...(lineup ? { people: lineup.filter((person) => person != null).map((person) => decodePerson(person)) } : {}),
   };
 }
 
