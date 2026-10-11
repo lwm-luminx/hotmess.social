@@ -125,9 +125,9 @@ export class MockAPI {
     // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
     const byID = (id: string, record: unknown) => (request: Request) =>
       request.postDataJSON().variables.id === id ? record : null;
-    this.on(operation('Venue'), (r) => ({ json: { venue: byID(VENUE.id, { ...wireVenue(VENUE), events: upcoming([EVENT]) })(r) } }));
-    this.on(operation('Event'), (r) => ({ json: { event: byID(EVENT.id, wireEvent(EVENT_PAGE))(r) } }));
-    this.on(operation('Person'), (r) => ({ json: { person: byID(PERSON.id, PERSON_PAGE)(r) } }));
+    this.on(operation('Venue'), (r) => ({ json: { venues: { venue: byID(VENUE.id, { ...wireVenue(VENUE), events: upcoming([EVENT]) })(r) } } }));
+    this.on(operation('Event'), (r) => ({ json: { events: { event: byID(EVENT.id, wireEvent(EVENT_PAGE))(r) } } }));
+    this.on(operation('Person'), (r) => ({ json: { people: { person: byID(PERSON.id, PERSON_PAGE)(r) } } }));
   }
 
   // Replaces the reply for "METHOD /path" (no query string), or for a GraphQL
