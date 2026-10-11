@@ -87,7 +87,7 @@ test.describe('event', () => {
 test.describe('person', () => {
   test('shows their gigs, tracks and links', async ({ page }) => {
     await page.goto(`/people/${PERSON.id}`);
-    await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', PERSON.cover_url);
+    await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', PERSON.banner_url);
     await expect(page.locator('.ak-hero__avatar')).toHaveText('AB');
 
     await expect(section(page, 'Upcoming').getByRole('link')).toHaveAttribute('href', `/events/${EVENT.id}`);

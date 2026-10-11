@@ -9,10 +9,10 @@ test('venue photos fall back between the Page picture and the place', () => {
   assert.equal(venuePhoto(undefined), undefined);
 });
 
-test('events without a cover show their venue', () => {
+test('events without a banner show their venue', () => {
   const venue = { id: 'v', name: 'Milk+', hero_url: 'hero' };
   assert.equal(eventPhoto({ id: 'e', name: 'Bear Night', start_at: '2026-10-09T02:00:00Z', venue }), 'hero');
-  assert.equal(eventPhoto({ id: 'e', name: 'Bear Night', start_at: '2026-10-09T02:00:00Z', cover_photo_url: 'cover', venue }), 'cover');
+  assert.equal(eventPhoto({ id: 'e', name: 'Bear Night', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue }), 'banner');
 });
 
 test('Facebook links skip IDs the API leaves empty', () => {

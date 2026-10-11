@@ -98,7 +98,7 @@ const VENUE = 'id name address phone distance description facebook_id: facebookI
 const PERSON = 'id name facebook_id: facebookId photo_url: pictureUrl';
 // An event's venue comes through its venues facet: its name, or "To be
 // announced", and the venue, if any.
-const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId cover_photo_url: coverPhotoUrl
+const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId banner_url: bannerUrl
   rsvp: viewerRsvp venue { name venue { ${VENUE} } } people { ${PERSON} }`;
 
 // Events and venues facets as GraphQL sends them; decodeEvent and upcoming
@@ -144,7 +144,7 @@ const EVENT_PAGE = `query Event($id: ID!) {
 
 const PERSON_PAGE = `query Person($id: ID!) {
   person(id: $id) {
-    ${PERSON} cover_url: coverUrl
+    ${PERSON} banner_url: bannerUrl
     events { upcoming { nodes { ${EVENT} } } }
     social_links: socialLinks { id handle provider url }
     tracks { id title provider provider_url: providerUrl artwork_url: artworkUrl }

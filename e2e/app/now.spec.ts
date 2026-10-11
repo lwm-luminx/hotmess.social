@@ -23,7 +23,7 @@ test('shows your city, friends out, tonight\'s events and nearby venues', async 
   await expect(event.locator('.ak-card__title')).toHaveText(EVENT.name);
   await expect(event.locator('.ak-card__meta')).toHaveText([/^Fri, Oct 9 · 10:00\sPM – 2:00\sAM$/, VENUE.name, 'with Aurora Borealis']);
   await expect(event.locator('.ak-date')).toHaveText('OCT9');
-  // Now never sends event covers, so the card shows the venue's photo.
+  // Now never sends event banners, so the card shows the venue's photo.
   await expect(event.locator('img')).toHaveAttribute('src', VENUE.photo_url);
 
   const venues = section(page, 'Venues near you');

@@ -101,7 +101,7 @@ export function PersonView({ person }: { person: Person }) {
   const tracks = person.tracks ?? [];
   return (
     <div className="ak-view">
-      <Hero src={person.cover_url} title={person.name}>
+      <Hero src={person.banner_url} title={person.name}>
         <Photo src={person.photo_url} className="ak-hero__avatar" name={person.name} />
       </Hero>
       <div className="ak-columns">

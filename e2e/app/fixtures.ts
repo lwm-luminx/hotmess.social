@@ -26,7 +26,7 @@ export const PERSON = {
   role: 'DJ',
   facebook_id: '100064000000001',
   photo_url: null,
-  cover_url: `${IMAGES}/aurora-cover.png`,
+  banner_url: `${IMAGES}/aurora-banner.png`,
 };
 export const EVENT = {
   id: '22222222-2222-4222-8222-222222222222',
