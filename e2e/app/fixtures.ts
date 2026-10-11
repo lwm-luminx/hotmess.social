@@ -69,11 +69,15 @@ export function wirePerson({ facebook_id: facebookId, social_links: links, ...pe
     },
   };
 }
+// An event's people facet: its lineup.
+function lineup(people: AppRecord[]) {
+  return { __typename: 'EventPeopleView', lineup: { __typename: 'PersonConnection', nodes: people.map(wirePerson) } };
+}
 type AppEvent = { venue?: { name?: string; [field: string]: unknown } | null; venue_name?: string | null; people?: AppRecord[]; [field: string]: unknown };
 export function wireEvent({ venue, venue_name: name, people, ...event }: AppEvent) {
   return {
     ...event,
-    ...(people ? { people: people.map(wirePerson) } : {}),
+    ...(people ? { people: lineup(people) } : {}),
     venue: { __typename: 'EventVenueView', name: name ?? venue?.name ?? 'To be announced', venue: venue ? wireVenue(venue) : null },
   };
 }
