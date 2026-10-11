@@ -41,7 +41,7 @@ test('shows your city, friends out, tonight\'s events and nearby venues', async 
 
 test('says which venue you\'re at, and that no friends are out yet', async ({ page, api }) => {
   api.on(operation('ReportLocation'), {
-    json: { reportLocation: { venue: { ...VENUE, distance: 2400, events: [], friends: { list: [] } }, nearby_venues: null } },
+    json: { reportLocation: { venue: { ...VENUE, distance: 2400, events: { upcoming: { nodes: [] } }, friends: { list: { nodes: [] } } }, nearby_venues: null } },
   });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);

@@ -56,8 +56,8 @@ export const NOW = {
     id: 'l1',
     name: 'Seattle',
     hero_url: `${IMAGES}/capitol-hill.png`,
-    events: [EVENT],
-    friends: { list: FRIENDS, venues: [{ venue: { id: VENUE.id }, friend_count: 2 }] },
+    events: { upcoming: { nodes: [EVENT] } },
+    friends: { list: { nodes: FRIENDS }, venues: { nodes: [{ venue: { id: VENUE.id }, friend_count: 2 }] } },
   },
 };
 
