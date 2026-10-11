@@ -1,4 +1,4 @@
-import { test, expect, TOKEN, NOW, VENUE, EVENT, PERSON, operation } from './fixtures';
+import { test, expect, TOKEN, NOW, NOW_TITLE, VENUE, EVENT, PERSON, operation } from './fixtures';
 
 test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   await page.goto('/app/');
@@ -6,7 +6,7 @@ test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   expect(api.requests).toEqual([]);
 
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
-  await expect(page.getByRole('heading', { name: 'Capitol Hill' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: NOW_TITLE, exact: true })).toBeVisible();
 
   expect(await page.evaluate(() => (window as any).__fbScope)).toBe('public_profile');
   expect(await page.evaluate(() => (window as any).__fbInit)).toMatchObject({ appId: '1168782378316790', version: 'v26.0' });
@@ -28,7 +28,7 @@ test('signs in with Facebook, then shows Now', async ({ page, api }) => {
 test('keeps the same device identifier across sign-ins', async ({ page, api }) => {
   await page.goto('/app/');
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
-  await expect(page.getByRole('heading', { name: 'Capitol Hill' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: NOW_TITLE, exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Log out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Log out', exact: true })).toHaveCount(0);
@@ -36,7 +36,7 @@ test('keeps the same device identifier across sign-ins', async ({ page, api }) =
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
-  await expect(page.getByRole('heading', { name: 'Capitol Hill' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: NOW_TITLE, exact: true })).toBeVisible();
 
   const [first, second] = api.calls('POST /v1/token').map((r) => r.postDataJSON().device.identifier);
   expect(second).toBe(first);
@@ -60,7 +60,7 @@ test('a pending response cannot restore the signed-in screen after logout', asyn
   const pending = new Promise<void>((resolve) => { release = resolve; });
   api.on(operation('ReportLocation'), async () => {
     await pending;
-    return { json: { reportLocation: { now: NOW } } };
+    return { json: { reportLocation: NOW } };
   });
   await page.goto('/app/');
   await expect.poll(() => api.calls(operation('ReportLocation')).length).toBe(1);
@@ -72,7 +72,7 @@ test('a pending response cannot restore the signed-in screen after logout', asyn
   // Let the browser process the completed request and any resulting React render.
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Capitol Hill' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: NOW_TITLE, exact: true })).toHaveCount(0);
 });
 
 test('shows an error when Facebook sign-in is cancelled', async ({ page, api }) => {
