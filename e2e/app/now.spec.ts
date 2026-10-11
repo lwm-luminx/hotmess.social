@@ -1,4 +1,4 @@
-import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE, NOW, AUDIENCE_ID, operation } from './fixtures';
+import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE, NOW, AUDIENCE_ID, operation, wireVenue } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -40,7 +40,7 @@ test('shows your city, friends out, tonight\'s events and nearby venues', async 
 });
 
 test('says which venue you\'re at, and that no friends are out yet', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), { json: { reportLocation: { now: { title: VENUE.name, venue: { ...VENUE, distance: 2400 }, events: [] } } } });
+  api.on(operation('ReportLocation'), { json: { reportLocation: { now: { title: VENUE.name, venue: wireVenue({ ...VENUE, distance: 2400 }), events: [] } } } });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);
   await expect(page.locator('.ak-hero img')).toHaveAttribute('src', VENUE.hero_url);
