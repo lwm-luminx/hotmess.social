@@ -1,4 +1,4 @@
-import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, TRACK, VENUE, operation, upcoming, wireEvent } from './fixtures';
+import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, TRACK, VENUE, operation, upcoming, wireEvent, wireVenue } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -27,7 +27,7 @@ test.describe('venue', () => {
 
   test('says when nothing is announced at a venue', async ({ page, api }) => {
     const closed = { ...VENUE, facebook_id: '', phone: null, description: null, hero_url: null };
-    api.on(operation('Venue'), { json: { venue: { ...closed, events: upcoming([]) } } });
+    api.on(operation('Venue'), { json: { venue: { ...wireVenue(closed), events: upcoming([]) } } });
     await page.goto(`/venues/${VENUE.id}`);
     // With no photo of the place, the header falls back to the Page picture.
     await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', VENUE.photo_url);
@@ -38,7 +38,7 @@ test.describe('venue', () => {
 
   test('an event without its own photo uses a photo of the venue', async ({ page, api }) => {
     // Most venues have a photo of the place but no Page picture.
-    api.on(operation('Venue'), { json: { venue: { ...VENUE, photo_url: null, events: upcoming([{ ...EVENT, venue: { id: VENUE.id, name: VENUE.name } }]) } } });
+    api.on(operation('Venue'), { json: { venue: { ...wireVenue({ ...VENUE, photo_url: null }), events: upcoming([{ ...EVENT, venue: { id: VENUE.id, name: VENUE.name } }]) } } });
     await page.goto(`/venues/${VENUE.id}`);
     await expect(section(page, 'Upcoming').locator('img')).toHaveAttribute('src', VENUE.hero_url);
   });
@@ -115,7 +115,7 @@ test.describe('person', () => {
 });
 
 test('a photo that fails to load is hidden instead of showing a broken image', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), { json: { reportLocation: { nearby_venues: [{ ...VENUE, photo_url: `${IMAGES}/broken.png` }] } } });
+  api.on(operation('ReportLocation'), { json: { reportLocation: { nearby_venues: [wireVenue({ ...VENUE, photo_url: `${IMAGES}/broken.png` })] } } });
   await page.goto('/app/');
   const photo = section(page, 'Venues near you').locator('img');
   await expect(photo).toHaveCSS('visibility', 'hidden');
