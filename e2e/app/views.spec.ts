@@ -1,4 +1,4 @@
-import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, PERSON_PAGE, VENUE, operation, upcoming, wireEvent } from './fixtures';
+import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, TRACK, VENUE, operation, upcoming, wireEvent } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -93,8 +93,8 @@ test.describe('person', () => {
     await expect(section(page, 'Upcoming').getByRole('link')).toHaveAttribute('href', `/events/${EVENT.id}`);
 
     const track = section(page, 'Tracks').getByRole('link');
-    await expect(track).toHaveAttribute('href', PERSON_PAGE.tracks[0].provider_url);
-    await expect(track.locator('.ak-card__title')).toHaveText(PERSON_PAGE.tracks[0].title);
+    await expect(track).toHaveAttribute('href', TRACK.provider_url);
+    await expect(track.locator('.ak-card__title')).toHaveText(TRACK.title);
     await expect(track.locator('.ak-card__meta')).toHaveText('SoundCloud');
     await expect(track.locator('img')).toHaveAttribute('src', `${IMAGES}/track.png`);
 

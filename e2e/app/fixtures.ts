@@ -39,16 +39,18 @@ export const EVENT = {
 };
 // How the API renders an event on its own page: everyone on the bill.
 export const EVENT_PAGE = { ...EVENT, people: [{ id: PERSON.id, name: PERSON.name, role: 'DJ' }] };
+export const TRACK = { id: 't1', title: 'Northern Lights (Extended Mix)', provider: 'soundcloud', provider_url: 'https://soundcloud.com/aurora/northern-lights', artwork_url: `${IMAGES}/track.png` };
 export const PERSON_PAGE = {
   ...PERSON,
   events: upcoming([EVENT], 'PersonEventsView'),
   social_links: [{ id: 's1', provider: 'instagram', handle: '@aurora', url: 'https://www.instagram.com/aurora' }],
-  tracks: [{ id: 't1', title: 'Northern Lights (Extended Mix)', provider: 'soundcloud', provider_url: 'https://soundcloud.com/aurora/northern-lights', artwork_url: `${IMAGES}/track.png` }],
+  music: { __typename: 'PersonMusicView', tracks: { __typename: 'TrackConnection', nodes: [TRACK] } },
 };
 
-// GraphQL sends an event's venue, and a venue's or person's events, through
-// facets (interface objects), with lists as connections. These wrap the app-shaped records above
-// the way the API answers; venue_name stands in for the facet's name.
+// GraphQL sends an event's venue, a venue's or person's events and a person's
+// tracks through facets (interface objects), with lists as connections. These
+// wrap the app-shaped records above the way the API answers; venue_name stands
+// in for the facet's name.
 type AppEvent = { venue?: { name?: string; [field: string]: unknown } | null; venue_name?: string | null; [field: string]: unknown };
 export function wireEvent({ venue, venue_name: name, ...event }: AppEvent) {
   return { ...event, venue: { __typename: 'EventVenueView', name: name ?? venue?.name ?? 'To be announced', venue: venue ?? null } };

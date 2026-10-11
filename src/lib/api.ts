@@ -2,7 +2,7 @@
 // HotMess/Networking/HotMessAPI.swift: sign-in and branding are REST, and
 // everything else goes through the audience's GraphQL endpoint, with fields
 // aliased to the snake_case keys the views read.
-import type { Event, Now, Person, Venue } from '../sdk/types';
+import type { Event, Now, Person, Track, Venue } from '../sdk/types';
 import { API_BASE, AUDIENCE_HOST, AUDIENCEKIT_ENVIRONMENT, FACEBOOK_APP_ID } from './config';
 
 const TOKEN_KEY = 'hotmess.token';
@@ -101,11 +101,12 @@ const PERSON = 'id name facebook_id: facebookId photo_url: pictureUrl';
 const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId banner_url: bannerUrl
   rsvp: viewerRsvp venue { name venue { ${VENUE} } } people { ${PERSON} }`;
 
-// Events and venues facets as GraphQL sends them; decodeEvent and upcoming
-// flatten them back into the Event, Venue and Person shapes the views read.
+// Events, venues and music facets as GraphQL sends them; decodeEvent, upcoming
+// and tracks flatten them back into the Event, Venue and Person shapes the views read.
 type EventVenueFacet = { name?: string | null; venue?: Venue | null };
 type WireEvent = Omit<Event, 'venue' | 'venue_name'> & { venue?: EventVenueFacet | null };
 type EventsFacet = { upcoming?: { nodes?: WireEvent[] | null } | null };
+type MusicFacet = { tracks?: { nodes?: (Track | null)[] | null } | null };
 
 // Lists name an event's first act as its host ("with Aurora").
 function withHost(event: Event): Event {
@@ -118,6 +119,10 @@ function decodeEvent({ venue: facet, ...event }: WireEvent): Event {
 
 function upcoming(facet: EventsFacet | null | undefined): Event[] {
   return (facet?.upcoming?.nodes ?? []).map(decodeEvent).map(withHost);
+}
+
+function tracks(facet: MusicFacet | null | undefined): Track[] {
+  return (facet?.tracks?.nodes ?? []).filter((track): track is Track => track != null);
 }
 
 const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
@@ -147,7 +152,7 @@ const PERSON_PAGE = `query Person($id: ID!) {
     ${PERSON} banner_url: bannerUrl
     events { upcoming { nodes { ${EVENT} } } }
     social_links: socialLinks { id handle provider url }
-    tracks { id title provider provider_url: providerUrl artwork_url: artworkUrl }
+    music { tracks { nodes { id title provider provider_url: providerUrl artwork_url: artworkUrl } } }
   }
 }`;
 
@@ -191,7 +196,8 @@ export const api = {
   event: async (id: string): Promise<Event> =>
     decodeEvent(found((await graphql<{ event: WireEvent | null }>(EVENT_PAGE, { id })).event)),
   person: async (id: string): Promise<Person> => {
-    const { events, ...person } = found((await graphql<{ person: (Omit<Person, 'events'> & { events?: EventsFacet | null }) | null }>(PERSON_PAGE, { id })).person);
-    return { ...person, events: upcoming(events) };
+    type WirePerson = Omit<Person, 'events' | 'tracks'> & { events?: EventsFacet | null; music?: MusicFacet | null };
+    const { events, music, ...person } = found((await graphql<{ person: WirePerson | null }>(PERSON_PAGE, { id })).person);
+    return { ...person, events: upcoming(events), tracks: tracks(music) };
   },
 };
