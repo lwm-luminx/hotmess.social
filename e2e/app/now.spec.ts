@@ -1,11 +1,11 @@
-import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE, NOW, AUDIENCE_ID, operation, wireVenue } from './fixtures';
+import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE, NOW_TITLE, AUDIENCE_ID, operation, wireVenue } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
 test('shows your city, friends out, tonight\'s events and nearby venues', async ({ page, api }) => {
   await page.goto('/app/');
   const hero = page.locator('.ak-hero');
-  await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Capitol Hill');
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText(NOW_TITLE);
   await expect(hero.locator('.ak-hero__eyebrow')).toHaveText('Seattle');
   await expect(hero.locator('img')).toHaveAttribute('src', `${IMAGES}/capitol-hill.png`);
   await expect(page).toHaveTitle('Now · Hot Mess');
@@ -40,7 +40,9 @@ test('shows your city, friends out, tonight\'s events and nearby venues', async 
 });
 
 test('says which venue you\'re at, and that no friends are out yet', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), { json: { reportLocation: { now: { title: VENUE.name, venue: wireVenue({ ...VENUE, distance: 2400 }), events: [] } } } });
+  api.on(operation('ReportLocation'), {
+    json: { reportLocation: { venue: { ...wireVenue({ ...VENUE, distance: 2400 }), events: { upcoming: { nodes: [] } }, friends: { list: { nodes: [] } } }, nearby_venues: null } },
+  });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);
   await expect(page.locator('.ak-hero img')).toHaveAttribute('src', VENUE.hero_url);
@@ -62,7 +64,7 @@ test('opens a venue from Now without reloading, and Back returns', async ({ page
   expect(await page.evaluate(() => (window as any).__samePage)).toBe(true);
 
   await page.goBack();
-  await expect(page.locator('.ak-hero h1')).toHaveText('Capitol Hill');
+  await expect(page.locator('.ak-hero h1')).toHaveText(NOW_TITLE);
   expect(await page.evaluate(() => (window as any).__samePage)).toBe(true);
 });
 
@@ -89,8 +91,8 @@ test('says the server is unreachable when Now fails', async ({ page, api }) => {
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).not.toBeNull();
 });
 
-test('survives a sparse Now with nothing but a title', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), { json: { reportLocation: { now: {} } } });
+test('survives a sparse Now that knows nothing about where you are', async ({ page, api }) => {
+  api.on(operation('ReportLocation'), { json: { reportLocation: {} } });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText('Now');
   await expect(page.locator('.ak-hero img')).toHaveCount(0);
@@ -108,7 +110,7 @@ test('asks the audience in the session token, without looking it up', async ({ p
   const claims = Buffer.from(JSON.stringify({ id: 'u1', audience_id: 'b1111111-1111-4111-8111-111111111111' })).toString('base64url');
   await signedIn(`e2e.${claims}.sig`);
   await page.goto('/app/');
-  await expect(page.locator('.ak-hero h1')).toHaveText(NOW.title);
+  await expect(page.locator('.ak-hero h1')).toHaveText(NOW_TITLE);
   const [now] = api.calls(operation('ReportLocation'));
   expect(new URL(now.url()).pathname).toBe('/v1/audience/b1111111-1111-4111-8111-111111111111/graphql');
   expect(api.calls('GET /v1/branding')).toEqual([]);
@@ -116,7 +118,7 @@ test('asks the audience in the session token, without looking it up', async ({ p
 
 test('looks the audience up from its host when the token doesn\'t name it', async ({ page, api }) => {
   await page.goto('/app/');
-  await expect(page.locator('.ak-hero h1')).toHaveText(NOW.title);
+  await expect(page.locator('.ak-hero h1')).toHaveText(NOW_TITLE);
   const [branding] = api.calls('GET /v1/branding');
   expect(new URL(branding.url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
   expect(new URL(api.calls(operation('ReportLocation'))[0].url()).pathname).toBe(`/v1/audience/${AUDIENCE_ID}/graphql`);

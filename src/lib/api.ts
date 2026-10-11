@@ -2,7 +2,7 @@
 // HotMess/Networking/HotMessAPI.swift: sign-in and branding are REST, and
 // everything else goes through the audience's GraphQL endpoint, with fields
 // aliased to the snake_case keys the views read.
-import type { Event, Now, Person, PersonReference, SocialLink, Track, Venue } from '../sdk/types';
+import type { Event, Friend, Now, Person, PersonReference, SocialLink, Track, Venue } from '../sdk/types';
 import { API_BASE, AUDIENCE_HOST, AUDIENCEKIT_ENVIRONMENT, FACEBOOK_APP_ID } from './config';
 
 const TOKEN_KEY = 'hotmess.token';
@@ -159,16 +159,21 @@ function tracks(facet: MusicFacet | null | undefined): Track[] {
   return (facet?.tracks?.nodes ?? []).filter((track): track is Track => track != null);
 }
 
+const FRIEND = 'id name facebook_id: facebookId';
+
+// How many of the locale's upcoming events Now lists away from a venue.
+const LOCALE_EVENT_LIMIT = 5;
+
+// reportLocation says where you are; friends and events come from the venue's
+// or the locale's facets, whose lists are connections read as nodes.
 const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
   reportLocation(input: { position: $position }) {
-    now {
-      title image_url: imageUrl
-      locale { id name }
-      venue { ${VENUE} }
-      venues { ${VENUE} }
-      events { ${EVENT} }
-      friends { id name facebook_id: facebookId }
-      friend_venues: friendVenues { venue { id } friend_count: friendCount }
+    venue { ${VENUE} events { upcoming { nodes { ${EVENT} } } } friends { list { nodes { ${FRIEND} } } } }
+    nearby_venues: nearbyVenues { ${VENUE} }
+    locale {
+      id name hero_url: heroUrl
+      events { upcoming(first: ${LOCALE_EVENT_LIMIT}) { nodes { ${EVENT} } } }
+      friends { list { nodes { ${FRIEND} } } venues { nodes { venue { id } friend_count: friendCount } } }
     }
   }
 }`;
@@ -191,6 +196,12 @@ const PERSON_PAGE = `query Person($id: ID!) {
 }`;
 
 type FriendVenue = { venue: { id: string }; friend_count: number };
+type FriendsFacet = { list?: { nodes?: Friend[] | null } | null; venues?: { nodes?: FriendVenue[] | null } | null } | null;
+type LocationReport = {
+  venue?: (WireVenue & { events?: EventsFacet | null; friends?: FriendsFacet }) | null;
+  nearby_venues?: WireVenue[] | null;
+  locale?: { id: string; name: string; hero_url?: string | null; events?: EventsFacet | null; friends?: FriendsFacet } | null;
+};
 
 export const api = {
   signIn: (facebookToken: string) =>
@@ -212,20 +223,22 @@ export const api = {
     }, false),
   // Records where you are, which is how the API knows the venue you're at.
   now: async (latitude: number, longitude: number): Promise<Now> => {
-    type WireNow = Omit<Now, 'events' | 'venue' | 'venues'> & {
-      events?: WireEvent[];
-      venue?: WireVenue;
-      venues?: WireVenue[];
-      friend_venues?: FriendVenue[];
-    };
-    const data = await graphql<{ reportLocation: { now: WireNow } }>(NOW, { position: { latitude, longitude } });
-    const { friend_venues: friendVenues = [], ...now } = data.reportLocation.now;
-    const friendCount = new Map(friendVenues.map((f) => [f.venue.id, f.friend_count]));
+    const data = await graphql<{ reportLocation: LocationReport }>(NOW, { position: { latitude, longitude } });
+    const { venue: here, nearby_venues: nearby, locale: place } = data.reportLocation;
+    const locale = place ? { id: place.id, name: place.name } : undefined;
+    if (here) {
+      const { events, friends, ...wire } = here;
+      const venue = decodeVenue(wire);
+      return { title: venue.name, locale, venue, events: upcoming(events), friends: friends?.list?.nodes ?? [] };
+    }
+    const friendCount = new Map((place?.friends?.venues?.nodes ?? []).map((f) => [f.venue.id, f.friend_count]));
     return {
-      ...now,
-      events: now.events?.map(decodeEvent).map(withHost),
-      venue: now.venue && decodeVenue(now.venue),
-      venues: now.venues?.map(decodeVenue).map((venue) => ({ ...venue, friend_count: friendCount.get(venue.id) ?? 0 })),
+      title: place ? 'Happening Now' : undefined,
+      image_url: place?.hero_url,
+      locale,
+      events: upcoming(place?.events).slice(0, LOCALE_EVENT_LIMIT),
+      friends: place?.friends?.list?.nodes ?? [],
+      venues: nearby?.map(decodeVenue).map((venue) => ({ ...venue, friend_count: friendCount.get(venue.id) ?? 0 })),
     };
   },
   // A venue and its upcoming events, in one request.

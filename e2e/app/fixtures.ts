@@ -83,15 +83,21 @@ export function upcoming(events: AppEvent[], typename = 'EventsView') {
 
 export const FRIENDS = [{ id: 'f1', name: 'Dana K.' }, { id: 'f2', name: 'Sam Rivera' }];
 
+// What reportLocation answers away from a venue: the locale, with its facets,
+// and the venues near you. Now titles it "Happening Now" under the locale's name.
 export const NOW = {
-  title: 'Capitol Hill',
-  image_url: `${IMAGES}/capitol-hill.png`,
-  locale: { id: 'l1', name: 'Seattle' },
-  events: [wireEvent(EVENT)],
-  venues: [wireVenue(VENUE)],
-  friends: FRIENDS,
-  friend_venues: [{ venue: { id: VENUE.id }, friend_count: 2 }],
+  venue: null,
+  nearby_venues: [wireVenue(VENUE)],
+  locale: {
+    id: 'l1',
+    name: 'Seattle',
+    hero_url: `${IMAGES}/capitol-hill.png`,
+    events: upcoming([EVENT]),
+    friends: { list: { nodes: FRIENDS }, venues: { nodes: [{ venue: { id: VENUE.id }, friend_count: 2 }] } },
+  },
 };
+
+export const NOW_TITLE = 'Happening Now';
 
 type Reply = { status?: number; json?: unknown };
 type Handler = (request: Request) => Reply | Promise<Reply>;
@@ -111,7 +117,7 @@ export class MockAPI {
   constructor() {
     this.on('POST /v1/token', () => ({ json: { token: TOKEN, user: { id: 'u1', name: 'Dave S.' } } }));
     this.on('GET /v1/branding', () => ({ json: { audience: { id: AUDIENCE_ID, name: 'Hot Mess', subdomain: 'hotmess' } } }));
-    this.on(operation('ReportLocation'), () => ({ json: { reportLocation: { now: NOW } } }));
+    this.on(operation('ReportLocation'), () => ({ json: { reportLocation: NOW } }));
     // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
     const byID = (id: string, record: unknown) => (request: Request) =>
       request.postDataJSON().variables.id === id ? record : null;
