@@ -96,8 +96,8 @@ function found<T>(value: T | null | undefined): T {
 
 const VENUE = 'id name address phone distance description facebook_id: facebookId photo_url: photoUrl hero_url: heroUrl';
 const PERSON = 'id name facebook_id: facebookId photo_url: pictureUrl';
-// An event's venue comes through its venues facet (null when the audience has
-// the module off): its name, or "To be announced", and the venue, if any.
+// An event's venue comes through its venues facet: its name, or "To be
+// announced", and the venue, if any.
 const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId cover_photo_url: coverPhotoUrl
   rsvp: viewerRsvp venue { name venue { ${VENUE} } } people { ${PERSON} }`;
 
@@ -105,7 +105,7 @@ const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId c
 // flatten them back into the Event, Venue and Person shapes the views read.
 type EventVenueFacet = { name?: string | null; venue?: Venue | null };
 type WireEvent = Omit<Event, 'venue' | 'venue_name'> & { venue?: EventVenueFacet | null };
-type EventsFacet = { upcoming?: WireEvent[] | null };
+type EventsFacet = { upcoming?: { nodes?: WireEvent[] | null } | null };
 
 // Lists name an event's first act as its host ("with Aurora").
 function withHost(event: Event): Event {
@@ -117,7 +117,7 @@ function decodeEvent({ venue: facet, ...event }: WireEvent): Event {
 }
 
 function upcoming(facet: EventsFacet | null | undefined): Event[] {
-  return (facet?.upcoming ?? []).map(decodeEvent).map(withHost);
+  return (facet?.upcoming?.nodes ?? []).map(decodeEvent).map(withHost);
 }
 
 const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
@@ -135,7 +135,7 @@ const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
 }`;
 
 const VENUE_PAGE = `query Venue($id: ID!) {
-  venue(id: $id) { ${VENUE} events { upcoming { ${EVENT} } } }
+  venue(id: $id) { ${VENUE} events { upcoming { nodes { ${EVENT} } } } }
 }`;
 
 const EVENT_PAGE = `query Event($id: ID!) {
@@ -145,7 +145,7 @@ const EVENT_PAGE = `query Event($id: ID!) {
 const PERSON_PAGE = `query Person($id: ID!) {
   person(id: $id) {
     ${PERSON} cover_url: coverUrl
-    events { upcoming { ${EVENT} } }
+    events { upcoming { nodes { ${EVENT} } } }
     social_links: socialLinks { id handle provider url }
     tracks { id title provider provider_url: providerUrl artwork_url: artworkUrl }
   }

@@ -47,14 +47,14 @@ export const PERSON_PAGE = {
 };
 
 // GraphQL sends an event's venue, and a venue's or person's events, through
-// facets: nullable interface objects. These wrap the app-shaped records above
+// facets (interface objects), with lists as connections. These wrap the app-shaped records above
 // the way the API answers; venue_name stands in for the facet's name.
 type AppEvent = { venue?: { name?: string; [field: string]: unknown } | null; venue_name?: string | null; [field: string]: unknown };
 export function wireEvent({ venue, venue_name: name, ...event }: AppEvent) {
   return { ...event, venue: { __typename: 'EventVenueView', name: name ?? venue?.name ?? 'To be announced', venue: venue ?? null } };
 }
 export function upcoming(events: AppEvent[], typename = 'EventsView') {
-  return { __typename: typename, upcoming: events.map(wireEvent) };
+  return { __typename: typename, upcoming: { __typename: 'EventConnection', nodes: events.map(wireEvent) } };
 }
 
 export const FRIENDS = [{ id: 'f1', name: 'Dana K.' }, { id: 'f2', name: 'Sam Rivera' }];
