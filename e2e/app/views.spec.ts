@@ -1,4 +1,4 @@
-import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, PERSON_PAGE, VENUE, operation } from './fixtures';
+import { test, expect, section, EVENT, EVENT_PAGE, IMAGES, PERSON, TRACK, VENUE, operation, upcoming, wireEvent } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -27,7 +27,7 @@ test.describe('venue', () => {
 
   test('says when nothing is announced at a venue', async ({ page, api }) => {
     const closed = { ...VENUE, facebook_id: '', phone: null, description: null, hero_url: null };
-    api.on(operation('Venue'), { json: { venue: { ...closed, events: [] } } });
+    api.on(operation('Venue'), { json: { venue: { ...closed, events: upcoming([]) } } });
     await page.goto(`/venues/${VENUE.id}`);
     // With no photo of the place, the header falls back to the Page picture.
     await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', VENUE.photo_url);
@@ -38,7 +38,7 @@ test.describe('venue', () => {
 
   test('an event without its own photo uses a photo of the venue', async ({ page, api }) => {
     // Most venues have a photo of the place but no Page picture.
-    api.on(operation('Venue'), { json: { venue: { ...VENUE, photo_url: null, events: [{ ...EVENT, venue: { id: VENUE.id, name: VENUE.name } }] } } });
+    api.on(operation('Venue'), { json: { venue: { ...VENUE, photo_url: null, events: upcoming([{ ...EVENT, venue: { id: VENUE.id, name: VENUE.name } }]) } } });
     await page.goto(`/venues/${VENUE.id}`);
     await expect(section(page, 'Upcoming').locator('img')).toHaveAttribute('src', VENUE.hero_url);
   });
@@ -61,14 +61,14 @@ test.describe('event', () => {
   });
 
   test('links the venue on Facebook when the event has no Facebook event', async ({ page, api }) => {
-    api.on(operation('Event'), { json: { event: { ...EVENT_PAGE, facebook_id: 0 } } });
+    api.on(operation('Event'), { json: { event: wireEvent({ ...EVENT_PAGE, facebook_id: 0 }) } });
     await page.goto(`/events/${EVENT.id}`);
     await expect(page.getByRole('link', { name: 'Event on Facebook' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Venue on Facebook' })).toHaveAttribute('href', `https://www.facebook.com/${VENUE.facebook_id}`);
   });
 
   test('a venue to be announced is named without a link', async ({ page, api }) => {
-    api.on(operation('Event'), { json: { event: { ...EVENT_PAGE, venue: null, venue_name: 'Secret warehouse', facebook_id: null } } });
+    api.on(operation('Event'), { json: { event: wireEvent({ ...EVENT_PAGE, venue: null, venue_name: 'Secret warehouse', facebook_id: null }) } });
     await page.goto(`/events/${EVENT.id}`);
     await expect(page.getByText('At Secret warehouse (venue to be announced).')).toBeVisible();
     await expect(section(page, 'Where')).toHaveCount(0);
@@ -87,14 +87,14 @@ test.describe('event', () => {
 test.describe('person', () => {
   test('shows their gigs, tracks and links', async ({ page }) => {
     await page.goto(`/people/${PERSON.id}`);
-    await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', PERSON.cover_url);
+    await expect(page.locator('.ak-hero__image')).toHaveAttribute('src', PERSON.banner_url);
     await expect(page.locator('.ak-hero__avatar')).toHaveText('AB');
 
     await expect(section(page, 'Upcoming').getByRole('link')).toHaveAttribute('href', `/events/${EVENT.id}`);
 
     const track = section(page, 'Tracks').getByRole('link');
-    await expect(track).toHaveAttribute('href', PERSON_PAGE.tracks[0].provider_url);
-    await expect(track.locator('.ak-card__title')).toHaveText(PERSON_PAGE.tracks[0].title);
+    await expect(track).toHaveAttribute('href', TRACK.provider_url);
+    await expect(track.locator('.ak-card__title')).toHaveText(TRACK.title);
     await expect(track.locator('.ak-card__meta')).toHaveText('SoundCloud');
     await expect(track.locator('img')).toHaveAttribute('src', `${IMAGES}/track.png`);
 

@@ -11,9 +11,9 @@ export function venueHero(venue: VenueReference | null | undefined): string | un
   return venue?.hero_url || venue?.photo_url || undefined;
 }
 
-/** Most events have no cover of their own (and Now never sends one), so fall back to the venue's. */
+/** Most events have no banner of their own (and Now never sends one), so fall back to the venue's. */
 export function eventPhoto(event: Event): string | undefined {
-  return event.cover_photo_url || venuePhoto(event.venue);
+  return event.banner_url || venuePhoto(event.venue);
 }
 
 /** Where an event is, by name, even before its venue is announced. */

@@ -20,7 +20,7 @@ export interface Venue extends VenueReference {
   distance?: number | null;
   description?: string | null;
   friend_count?: number;
-  cover_photos?: { url: string }[];
+  banner_photos?: { url: string }[];
 }
 
 export interface PersonReference {
@@ -49,7 +49,7 @@ export interface Track {
 }
 
 export interface Person extends PersonReference {
-  cover_url?: string | null;
+  banner_url?: string | null;
   social_links?: SocialLink[];
   tracks?: Track[];
   events?: Event[];
@@ -61,7 +61,7 @@ export interface Event {
   start_at: string;
   end_at?: string | null;
   facebook_id?: string | number | null;
-  cover_photo_url?: string | null;
+  banner_url?: string | null;
   rsvp?: 'going' | 'interested' | 'not_going' | 'unsure' | string;
   /** Set when the event has no venue yet (an occurrence of a series still to be announced). */
   venue_name?: string | null;
