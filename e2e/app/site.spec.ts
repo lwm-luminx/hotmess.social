@@ -17,10 +17,10 @@ for (const path of ['/', '/app/', `/venues/${VENUE.id}`]) {
     await page.goto(path);
     const band = page.locator('.lovewins-band a');
     await expect(band).toHaveText('A Love Wins Media product');
-    await expect(band).toHaveAttribute('href', 'https://lovewinsmedia.com');
+    await expect(band).toHaveAttribute('href', 'https://lovewins.media');
     await expect(band).toHaveAttribute('target', '_blank');
     const footer = page.locator('.site-footer');
-    await expect(footer.getByRole('link', { name: 'A Love Wins Media product' })).toHaveAttribute('href', 'https://lovewinsmedia.com');
+    await expect(footer.getByRole('link', { name: 'A Love Wins Media product' })).toHaveAttribute('href', 'https://lovewins.media');
     await expect(footer).toContainText(`© ${new Date().getFullYear()} Love Wins Media, Inc.`);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   });
