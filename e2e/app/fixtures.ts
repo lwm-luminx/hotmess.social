@@ -49,9 +49,9 @@ export const PERSON_PAGE = {
 };
 
 // GraphQL sends an event's venue, a venue's or person's events and profile, and
-// a person's tracks through facets (interface objects), with lists as
+// a person's tracks through mixins (interface objects), with lists as
 // connections. These wrap the app-shaped records above the way the API
-// answers; venue_name stands in for the facet's name.
+// answers; venue_name stands in for the mixin's name.
 type AppRecord = { [field: string]: unknown };
 function facebookProfile(facebookId: unknown) {
   return { __typename: 'FacebookProfile', facebook_id: facebookId ?? null };
@@ -69,7 +69,7 @@ export function wirePerson({ facebook_id: facebookId, social_links: links, ...pe
     },
   };
 }
-// An event's people facet: its lineup.
+// An event's people mixin: its lineup.
 function lineup(people: AppRecord[]) {
   return { __typename: 'EventPeopleView', lineup: { __typename: 'PersonConnection', nodes: people.map(wirePerson) } };
 }
@@ -87,7 +87,7 @@ export function upcoming(events: AppEvent[], typename = 'EventsView') {
 
 export const FRIENDS = [{ id: 'f1', name: 'Dana K.' }, { id: 'f2', name: 'Sam Rivera' }];
 
-// What reportLocation answers away from a venue: the locale, with its facets,
+// What reportLocation answers away from a venue: the locale, with its mixins,
 // and the venues near you. Now titles it "Happening Now" under the locale's name.
 export const NOW = {
   venue: null,
