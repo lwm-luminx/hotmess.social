@@ -1,6 +1,8 @@
 ---
 import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
+import LoveWinsBand from '../components/LoveWinsBand.astro';
+import { LOVE_WINS_URL } from '../lib/config';
 
 interface Props {
   title?: string;
@@ -31,6 +33,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <Analytics />
   </head>
   <body>
+    <LoveWinsBand />
     <header class="site-header">
       <nav class="wrap">
         <a class="brand" href="/">Hot Mess</a>
@@ -40,6 +43,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <slot />
     <footer class="site-footer">
       <div class="wrap">
+        <p class="lovewins"><a href={LOVE_WINS_URL} target="_blank" rel="noopener">A Love Wins Media product</a> · © {new Date().getFullYear()} Love Wins Media, Inc.</p>
         <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>.</p>
         <p>
           <a href="https://audiencekit.com/privacy/">Privacy</a>{' · '}
@@ -61,4 +65,5 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
   .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
   .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
   .site-footer p { margin: .25rem 0; }
+  .site-footer .lovewins a { color: var(--ink); font-weight: 700; }
 </style>

@@ -25,3 +25,6 @@ export const AUDIENCEKIT_ENVIRONMENT: string =
 // Public TestFlight link for the Hot Mess 2.0 iPhone beta. Swap for the App
 // Store link once the app is released.
 export const IOS_BETA_URL = 'https://testflight.apple.com/join/mcPybJVN';
+
+// Hot Mess is a Love Wins Media product; every page links here (src/components/LoveWinsBand.astro).
+export const LOVE_WINS_URL = 'https://lovewinsmedia.com';
