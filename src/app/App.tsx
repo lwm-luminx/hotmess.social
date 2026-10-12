@@ -46,9 +46,9 @@ async function load(route: Route): Promise<Screen> {
 function titleFor(screen: Screen): string {
   switch (screen.state) {
     case 'now': return 'Now';
-    case 'venue': return screen.venue.name;
-    case 'event': return screen.event.name;
-    case 'person': return screen.person.name;
+    case 'venue': return screen.venue.name ?? 'Venue';
+    case 'event': return screen.event.name ?? 'Event';
+    case 'person': return screen.person.name ?? 'Person';
     default: return 'Hot Mess';
   }
 }
@@ -68,7 +68,7 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
           setBusy(true);
           setError(null);
           try {
-            session.token = (await api.signIn(await facebookAccessToken())).token;
+            session.start(await api.signIn(await facebookAccessToken()));
             onSignedIn();
           } catch (e) {
             setError(e instanceof Error ? e.message : 'Sign-in failed');
@@ -109,9 +109,11 @@ function HotMess() {
       (next) => { if (!cancelled) setScreen(next); },
       (e) => {
         if (cancelled) return;
-        if (e instanceof APIError && e.status === 401) return setScreen({ state: 'signed-out' });
-        if (e instanceof APIError && e.status === 404) return setScreen({ state: 'message', text: "We couldn't find that." });
-        if (!(e instanceof APIError) || e.status >= 500) reportError(e);
+        // The API says what went wrong with a code (src/lib/apiErrors.ts), never with its message.
+        if (e instanceof APIError && e.signedOut) return setScreen({ state: 'signed-out' });
+        if (e instanceof APIError && e.notFound) return setScreen({ state: 'message', text: "We couldn't find that." });
+        if (e instanceof APIError && e.code === 'FORBIDDEN') return setScreen({ state: 'message', text: "You can't see that." });
+        if (!(e instanceof APIError) || e.reportable) reportError(e);
         setScreen({ state: 'message', text: "Hot Mess couldn't reach its server. Try again in a moment." });
       },
     );
@@ -134,7 +136,7 @@ function HotMess() {
   }), [go]);
 
   const logOut = () => {
-    session.token = null;
+    session.end();
     history.replaceState(null, '', pathFor({ kind: 'now' }));
     setPath(location.pathname);
     setScreen({ state: 'signed-out' });

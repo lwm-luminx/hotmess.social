@@ -46,7 +46,7 @@ export function sessionToken(): Promise<string> {
     const facebookToken = await testUserAccessToken(appId, process.env.FB_TEST_APP_SECRET!);
     const response = await fetch(new URL('/v1/token', API_BASE), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-AudienceKit-API-Version': '2026-10-11' },
       body: JSON.stringify({
         facebook_token: facebookToken,
         host: AUDIENCE_HOST,
@@ -55,6 +55,7 @@ export function sessionToken(): Promise<string> {
         device: { type: 'web', identifier: 'hotmess-social-e2e-live', version: '1.0', build: '1', model: 'Playwright' },
       }),
     });
+    // The token JSON (doc/TOKENS.md): the site stores token and audienceId.
     return (await json(response, 'POST /v1/token')).token;
   })();
   return cached;
