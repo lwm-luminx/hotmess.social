@@ -7,3 +7,5 @@ dist/
 .DS_Store
 test-results/
 playwright-report/
+# Scratch for the GraphQL documents check (.github/workflows/graphql-documents.yml)
+.graphql-check/

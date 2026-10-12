@@ -1,27 +1,37 @@
 // Pure helpers the components share. No DOM or React, so they test with node --test.
-import type { Event, VenueReference } from './types';
+import type { Connection, Event, VenueReference } from './types';
 
-/** The photo to show for a venue: its Page picture, else a photo of the place. */
+/** The items of a connection the document selected `nodes` from; a missing or null one is empty. */
+export function nodes<T>(connection: Connection<T> | null | undefined): T[] {
+  return (connection?.nodes ?? []).filter((node): node is T => node != null);
+}
+
+/** The photo to show for a venue in a list: its own photo of the place, else its banner. */
 export function venuePhoto(venue: VenueReference | null | undefined): string | undefined {
-  return venue?.photo_url || venue?.hero_url || undefined;
+  return venue?.photoUrl || venue?.bannerUrl || undefined;
 }
 
-/** The wide photo for a venue's header: the place itself, else its Page picture. */
+/** The wide photo for a venue's header: its banner, else its own photo. */
 export function venueHero(venue: VenueReference | null | undefined): string | undefined {
-  return venue?.hero_url || venue?.photo_url || undefined;
+  return venue?.bannerUrl || venue?.photoUrl || undefined;
 }
 
-/** Most events have no cover of their own (and Now never sends one), so fall back to the venue's. */
+/** Most events have no banner of their own, so fall back to the venue's photo. */
 export function eventPhoto(event: Event): string | undefined {
-  return event.cover_photo_url || venuePhoto(event.venue);
+  return event.bannerUrl || venuePhoto(event.venue?.venue);
 }
 
-/** Where an event is, by name, even before its venue is announced. */
+/** Where an event is, by name: its venue's, else what its venue mixin calls the place. */
 export function eventPlace(event: Event): string | undefined {
-  return event.venue?.name || event.venue_name || undefined;
+  return event.venue?.venue?.name || event.venue?.name || undefined;
 }
 
-/** A Facebook ID the API sent, or undefined for "", 0, null and anything that isn't one. */
+/** The first act on an event's bill, whom lists name as its host ("with Aurora"). */
+export function eventHost(event: Event) {
+  return nodes(event.people?.lineup)[0];
+}
+
+/** A Facebook ID the API sent, or undefined for "", "0", null and anything that isn't one. */
 export function facebookID(id: string | number | null | undefined): string | undefined {
   const value = id == null ? '' : String(id);
   return /^[1-9][0-9]*$/.test(value) ? value : undefined;
@@ -34,14 +44,15 @@ export function facebookURL(id: string | number | null | undefined, kind: 'page'
   return kind === 'event' ? `https://www.facebook.com/events/${value}/` : `https://www.facebook.com/${value}`;
 }
 
-/** "Fri, Oct 9 · 8:00 PM – 11:00 PM", or with the end date when it ends on another day. */
-export function eventTime(event: Pick<Event, 'start_at' | 'end_at'>, locale?: string, timeZone?: string): string {
-  const start = new Date(event.start_at);
+/** "Fri, Oct 9 · 8:00 PM – 11:00 PM", or with the end date when it ends on another day; "" without a start. */
+export function eventTime(event: Pick<Event, 'startAt' | 'endAt'>, locale?: string, timeZone?: string): string {
+  if (!event.startAt) return '';
+  const start = new Date(event.startAt);
   const day = start.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', timeZone });
   const time = (date: Date) => date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', timeZone });
-  if (!event.end_at) return `${day} · ${time(start)}`;
+  if (!event.endAt) return `${day} · ${time(start)}`;
 
-  const end = new Date(event.end_at);
+  const end = new Date(event.endAt);
   const endDay = end.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', timeZone });
   // Nights out run past midnight; only name the end date when the event runs longer than a day.
   const sameNight = end.getTime() - start.getTime() < 24 * 60 * 60 * 1000;
@@ -50,8 +61,9 @@ export function eventTime(event: Pick<Event, 'start_at' | 'end_at'>, locale?: st
     : `${day} ${time(start)} – ${endDay} ${time(end)}`;
 }
 
-/** A short date badge for an event card: { month: "OCT", day: "9" }. */
-export function dateBadge(iso: string, locale?: string, timeZone?: string): { month: string; day: string } {
+/** A short date badge for an event card: { month: "OCT", day: "9" }; blank without a date. */
+export function dateBadge(iso: string | null | undefined, locale?: string, timeZone?: string): { month: string; day: string } {
+  if (!iso) return { month: '', day: '' };
   const date = new Date(iso);
   return {
     month: date.toLocaleDateString(locale, { month: 'short', timeZone }).toUpperCase(),
@@ -69,15 +81,17 @@ export function distance(metres: number | null | undefined): string | undefined 
 }
 
 /** Initials for a placeholder avatar: "Rick Mark" -> "RM". */
-export function initials(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
+export function initials(name: string | null | undefined): string {
+  return (name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
 }
 
 /** A human name for a social link's provider. */
 export function providerName(provider: string): string {
   const names: Record<string, string> = {
     facebook: 'Facebook', instagram: 'Instagram', soundcloud: 'SoundCloud', spotify: 'Spotify',
-    tiktok: 'TikTok', twitter: 'X', x: 'X', youtube: 'YouTube', mixcloud: 'Mixcloud', website: 'Website',
+    apple_music: 'Apple Music', tiktok: 'TikTok', twitter: 'X', x: 'X', threads: 'Threads', bluesky: 'Bluesky',
+    youtube: 'YouTube', mixcloud: 'Mixcloud', bandcamp: 'Bandcamp', cashapp: 'Cash App', venmo: 'Venmo',
+    website: 'Website', link: 'Website',
   };
   return names[provider.toLowerCase()] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }

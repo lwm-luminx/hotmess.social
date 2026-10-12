@@ -1,10 +1,10 @@
 // Cards for lists: a venue, an event, a person. Each is an <li> for use inside <Section>.
 import type { Event, Friend, PersonReference, Venue } from '../types';
-import { dateBadge, distance, eventPhoto, eventPlace, eventTime, venuePhoto } from '../format';
+import { dateBadge, distance, eventHost, eventPhoto, eventPlace, eventTime, venuePhoto } from '../format';
 import { Link } from '../navigation';
 import { Photo } from './Primitives';
 
-export function VenueCard({ venue }: { venue: Venue }) {
+export function VenueCard({ venue, friendCount }: { venue: Venue; friendCount?: number }) {
   const away = distance(venue.distance);
   return (
     <li className="ak-card ak-card--venue">
@@ -15,8 +15,8 @@ export function VenueCard({ venue }: { venue: Venue }) {
         </div>
         <div className="ak-card__body">
           <strong className="ak-card__title">{venue.name}</strong>
-          {venue.address ? <span className="ak-card__meta">{venue.address}</span> : null}
-          {venue.friend_count ? <span className="ak-card__meta ak-accent">{venue.friend_count} friends here</span> : null}
+          {venue.profile?.address ? <span className="ak-card__meta">{venue.profile.address}</span> : null}
+          {friendCount ? <span className="ak-card__meta ak-accent">{friendCount} friends here</span> : null}
         </div>
       </Link>
     </li>
@@ -24,20 +24,21 @@ export function VenueCard({ venue }: { venue: Venue }) {
 }
 
 export function EventCard({ event, showVenue = true }: { event: Event; showVenue?: boolean }) {
-  const badge = dateBadge(event.start_at);
+  const badge = dateBadge(event.startAt);
   const place = eventPlace(event);
+  const host = eventHost(event);
   return (
     <li className="ak-card ak-card--event">
       <Link to={{ kind: 'event', id: event.id }} className="ak-card__link">
         <div className="ak-card__media">
           <Photo src={eventPhoto(event)} />
-          <span className="ak-date" aria-hidden="true"><span>{badge.month}</span><strong>{badge.day}</strong></span>
+          {badge.day ? <span className="ak-date" aria-hidden="true"><span>{badge.month}</span><strong>{badge.day}</strong></span> : null}
         </div>
         <div className="ak-card__body">
           <strong className="ak-card__title">{event.name}</strong>
           <span className="ak-card__meta">{eventTime(event)}</span>
           {showVenue && place ? <span className="ak-card__meta">{place}</span> : null}
-          {event.person ? <span className="ak-card__meta">with {event.person.name}</span> : null}
+          {host ? <span className="ak-card__meta">with {host.name}</span> : null}
         </div>
       </Link>
     </li>
@@ -48,9 +49,8 @@ export function PersonCard({ person }: { person: PersonReference }) {
   return (
     <li className="ak-person">
       <Link to={{ kind: 'person', id: person.id }} className="ak-person__link">
-        <Photo src={person.photo_url} className="ak-avatar" name={person.name} />
+        <Photo src={person.avatarUrl} className="ak-avatar" name={person.name} />
         <span className="ak-person__name">{person.name}</span>
-        {person.role ? <span className="ak-person__role">{person.role}</span> : null}
       </Link>
     </li>
   );
@@ -61,7 +61,7 @@ export function FriendChip({ friend }: { friend: Friend }) {
   return (
     <li className="ak-person">
       <span className="ak-person__link">
-        <Photo className="ak-avatar" name={friend.name} />
+        <Photo src={friend.avatarUrl} className="ak-avatar" name={friend.name} />
         <span className="ak-person__name">{friend.name}</span>
       </span>
     </li>

@@ -4,11 +4,11 @@ import { facebookURL, initials } from '../format';
 
 /** An image that falls back to a tinted block (or initials) when there's no URL or it fails to load. */
 export function Photo({ src, alt = '', className, name }: {
-  src?: string | null; alt?: string; className?: string; name?: string;
+  src?: string | null; alt?: string; className?: string; name?: string | null;
 }) {
   if (!src) {
     return (
-      <div className={`ak-photo ak-photo--empty ${className ?? ''}`} role={name ? 'img' : undefined} aria-label={name}>
+      <div className={`ak-photo ak-photo--empty ${className ?? ''}`} role={name ? 'img' : undefined} aria-label={name ?? undefined}>
         {name ? <span aria-hidden="true">{initials(name)}</span> : null}
       </div>
     );
