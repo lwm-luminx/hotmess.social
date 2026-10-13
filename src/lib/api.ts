@@ -97,8 +97,8 @@ function found<T>(value: T | null | undefined): T {
 // A venue's address, phone and Facebook Page, and a person's Page, come
 // through their profile mixin; decodeVenue and decodePerson flatten it.
 const VENUE = `id name distance description photo_url: photoUrl hero_url: heroUrl
-  profile { address phone facebook { facebook_id: facebookId } }`;
-const PERSON = 'id name photo_url: pictureUrl profile { facebook { facebook_id: facebookId } }';
+  profile { address phone facebook { facebook_id: facebookId facebook_url: link } }`;
+const PERSON = 'id name photo_url: pictureUrl profile { facebook { facebook_id: facebookId facebook_url: link } }';
 // An event's venue comes through its venues mixin: its name, or "To be
 // announced", and the venue, if any. Its lineup comes through its people mixin.
 const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId banner_url: bannerUrl
@@ -111,10 +111,10 @@ type ProfileMixin = {
   address?: string | null;
   phone?: string | null;
   social_links?: { nodes?: (SocialLink | null)[] | null } | null;
-  facebook?: { facebook_id?: string | null } | null;
+  facebook?: { facebook_id?: string | null; facebook_url?: string | null } | null;
 };
-type WireVenue = Omit<Venue, 'address' | 'phone' | 'facebook_id'> & { profile?: ProfileMixin | null };
-type WirePerson<P extends PersonReference> = Omit<P, 'facebook_id' | 'social_links'> & { profile?: ProfileMixin | null };
+type WireVenue = Omit<Venue, 'address' | 'phone' | 'facebook_id' | 'facebook_url'> & { profile?: ProfileMixin | null };
+type WirePerson<P extends PersonReference> = Omit<P, 'facebook_id' | 'facebook_url' | 'social_links'> & { profile?: ProfileMixin | null };
 type EventVenueMixin = { name?: string | null; venue?: WireVenue | null };
 type EventPeopleMixin = { lineup?: { nodes?: (WirePerson<PersonReference> | null)[] | null } | null };
 type WireEvent = Omit<Event, 'venue' | 'venue_name' | 'people'> & {
@@ -125,7 +125,8 @@ type EventsMixin = { upcoming?: { nodes?: WireEvent[] | null } | null };
 type MusicMixin = { tracks?: { nodes?: (Track | null)[] | null } | null };
 
 function decodeVenue({ profile, ...venue }: WireVenue): Venue {
-  return { ...venue, address: profile?.address ?? null, phone: profile?.phone ?? null, facebook_id: profile?.facebook?.facebook_id ?? null };
+  return { ...venue, address: profile?.address ?? null, phone: profile?.phone ?? null,
+    facebook_url: profile?.facebook?.facebook_url ?? null, facebook_id: profile?.facebook?.facebook_id ?? null };
 }
 
 // A person's links come only when the document asks for them (their own page).
@@ -133,7 +134,7 @@ function decodePerson<P extends PersonReference>({ profile, ...person }: WirePer
   const links = profile?.social_links?.nodes;
   return {
     ...person,
-    facebook_id: profile?.facebook?.facebook_id ?? null,
+    facebook_url: profile?.facebook?.facebook_url ?? null, facebook_id: profile?.facebook?.facebook_id ?? null,
     ...(links ? { social_links: links.filter((link): link is SocialLink => link != null) } : {}),
   } as P;
 }

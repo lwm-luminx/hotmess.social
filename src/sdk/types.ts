@@ -6,6 +6,7 @@ export interface VenueReference {
   name: string;
   /** The venue's Facebook Page ID, or "" when it has none. */
   facebook_id?: string | number | null;
+  facebook_url?: string | null;
   /** The venue's Facebook Page picture. */
   photo_url?: string | null;
   /** A photo of the place itself; most venues have this rather than a Page picture. */
@@ -27,6 +28,7 @@ export interface PersonReference {
   id: string;
   name: string;
   facebook_id?: string | number | null;
+  facebook_url?: string | null;
   photo_url?: string | null;
   role?: string;
 }

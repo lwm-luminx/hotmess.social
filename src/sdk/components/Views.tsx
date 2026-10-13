@@ -55,7 +55,7 @@ export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event
             ) : null}
             {venue.phone ? <Fact label="Phone"><a href={`tel:${venue.phone}`}>{venue.phone}</a></Fact> : null}
           </dl>
-          <div className="ak-actions"><FacebookLink id={venue.facebook_id} /></div>
+          <div className="ak-actions"><FacebookLink id={venue.facebook_id} url={venue.facebook_url} /></div>
         </aside>
       </div>
     </div>
@@ -87,7 +87,7 @@ export function EventView({ event }: { event: Event }) {
           <div className="ak-actions">
             {facebookID(event.facebook_id)
               ? <FacebookLink id={event.facebook_id} kind="event" label="Event on Facebook" />
-              : <FacebookLink id={event.venue?.facebook_id} label="Venue on Facebook" />}
+              : <FacebookLink id={event.venue?.facebook_id} url={event.venue?.facebook_url} label="Venue on Facebook" />}
           </div>
         </aside>
       </div>
@@ -136,7 +136,7 @@ export function PersonView({ person }: { person: Person }) {
               ))}
             </ul>
           ) : null}
-          <div className="ak-actions"><FacebookLink id={person.facebook_id} /></div>
+          <div className="ak-actions"><FacebookLink id={person.facebook_id} url={person.facebook_url} /></div>
         </aside>
       </div>
     </div>
