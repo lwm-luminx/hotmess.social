@@ -23,14 +23,14 @@ export function VenueCard({ venue }: { venue: Venue }) {
   );
 }
 
-export function EventCard({ event, showVenue = true }: { event: Event; showVenue?: boolean }) {
+export function EventCard({ event, showVenue = true, photo }: { event: Event; showVenue?: boolean; photo?: string }) {
   const badge = dateBadge(event.start_at);
   const place = eventPlace(event);
   return (
     <li className="ak-card ak-card--event">
       <Link to={{ kind: 'event', id: event.id }} className="ak-card__link">
         <div className="ak-card__media">
-          <Photo src={eventPhoto(event)} />
+          <Photo src={photo ?? eventPhoto(event)} />
           <span className="ak-date" aria-hidden="true"><span>{badge.month}</span><strong>{badge.day}</strong></span>
         </div>
         <div className="ak-card__body">

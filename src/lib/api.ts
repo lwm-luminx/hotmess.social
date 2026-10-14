@@ -98,7 +98,7 @@ function found<T>(value: T | null | undefined): T {
 // through their profile mixin; decodeVenue and decodePerson flatten it.
 const VENUE = `id name distance description photo_url: photoUrl hero_url: heroUrl
   profile { address phone facebook { facebook_id: facebookId facebook_url: link } }`;
-const PERSON = 'id name photo_url: pictureUrl profile { facebook { facebook_id: facebookId facebook_url: link } }';
+const PERSON = 'id name photo_url: avatarUrl banner_url: bannerUrl profile { facebook { facebook_id: facebookId facebook_url: link } }';
 // An event's venue comes through its venues mixin: its name, or "To be
 // announced", and the venue, if any. Its lineup comes through its people mixin.
 const EVENT = `id name start_at: startAt end_at: endAt facebook_id: facebookId banner_url: bannerUrl
@@ -192,10 +192,10 @@ const EVENT_PAGE = `query Event($id: ID!) {
 const PERSON_PAGE = `query Person($id: ID!) {
   people {
     person(id: $id) {
-      ${PERSON} banner_url: bannerUrl
+      ${PERSON}
       events { upcoming { nodes { ${EVENT} } } }
       profile { social_links: socialLinks { nodes { id handle provider url } } }
-      music { tracks { nodes { id title provider provider_url: providerUrl artwork_url: artworkUrl } } }
+      music { tracks { nodes { id title provider provider_url: providerUrl stream_url: streamUrl artwork_url: artworkUrl } } }
     }
   }
 }`;

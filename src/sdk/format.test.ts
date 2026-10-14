@@ -15,6 +15,33 @@ test('events without a banner show their venue', () => {
   assert.equal(eventPhoto({ id: 'e', name: 'Bear Night', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue }), 'banner');
 });
 
+test('event photo fallback priority in person and venue views', () => {
+  const venue = { id: 'v', name: 'Milk+', hero_url: 'venue-hero' };
+  const person = { id: 'p', name: 'DJ Aurora', photo_url: 'person-photo' };
+  const fallbackPerson = { id: 'fp', name: 'Host', photo_url: 'fallback-person-photo' };
+  const fallbackVenue = { id: 'fv', name: 'Club', hero_url: 'fallback-venue-hero' };
+
+  // On a person page: event -> venue -> person
+  // 1. With event banner:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue, person }, 'venue-first', undefined, fallbackPerson), 'banner');
+  // 2. Without event banner, with venue:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', venue, person }, 'venue-first', undefined, fallbackPerson), 'venue-hero');
+  // 3. Without event banner and without event venue, with fallback venue:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', person }, 'venue-first', fallbackVenue, fallbackPerson), 'fallback-venue-hero');
+  // 4. Without event banner and without venue, falls back to person:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', person }, 'venue-first', undefined, fallbackPerson), 'person-photo');
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z' }, 'venue-first', undefined, fallbackPerson), 'fallback-person-photo');
+
+  // In a venue view: event -> person -> venue
+  // 1. With event banner:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue, person }, 'person-first', fallbackVenue), 'banner');
+  // 2. Without event banner, with person:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', venue, person }, 'person-first', fallbackVenue), 'person-photo');
+  // 3. Without event banner and without event person, falls back to venue:
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', venue }, 'person-first', fallbackVenue), 'venue-hero');
+  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z' }, 'person-first', fallbackVenue), 'fallback-venue-hero');
+});
+
 test('Facebook links skip IDs the API leaves empty', () => {
   assert.equal(facebookURL(''), undefined);
   assert.equal(facebookURL(null), undefined);
@@ -40,5 +67,6 @@ test('date badges, distances, initials and providers', () => {
   assert.equal(distance(null), undefined);
   assert.equal(initials('Rick Mark'), 'RM');
   assert.equal(providerName('soundcloud'), 'SoundCloud');
+  assert.equal(providerName('podcast_rss'), 'RSS');
   assert.equal(providerName('bandcamp'), 'Bandcamp');
 });

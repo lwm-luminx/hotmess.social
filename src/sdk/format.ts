@@ -1,5 +1,4 @@
-// Pure helpers the components share. No DOM or React, so they test with node --test.
-import type { Event, VenueReference } from './types';
+import type { Event, Person, PersonReference, VenueReference } from './types';
 
 /** The photo to show for a venue: its Page picture, else a photo of the place. */
 export function venuePhoto(venue: VenueReference | null | undefined): string | undefined {
@@ -11,9 +10,35 @@ export function venueHero(venue: VenueReference | null | undefined): string | un
   return venue?.hero_url || venue?.photo_url || undefined;
 }
 
-/** Most events have no banner of their own (and Now never sends one), so fall back to the venue's. */
-export function eventPhoto(event: Event): string | undefined {
-  return event.banner_url || venuePhoto(event.venue);
+/** The photo to show for a person: their avatar photo, else their banner photo. */
+export function personPhoto(person: PersonReference | Person | null | undefined): string | undefined {
+  if (!person) return undefined;
+  return person.photo_url || (person && 'banner_url' in person ? (person as Person).banner_url : undefined) || undefined;
+}
+
+export type EventPhotoPriority = 'standard' | 'venue-first' | 'person-first';
+
+/**
+ * Most events have no banner of their own (and Now never sends one).
+ * In a person page, falls back to venue, then person ('venue-first').
+ * In a venue view, falls back to person, then venue ('person-first').
+ * This prevents lists from showing the same photo repeatedly.
+ */
+export function eventPhoto(
+  event: Event,
+  priority: EventPhotoPriority = 'standard',
+  fallbackVenue?: VenueReference | null,
+  fallbackPerson?: PersonReference | Person | null,
+): string | undefined {
+  const venueBg = venuePhoto(event.venue) || venuePhoto(fallbackVenue);
+  const personBg = personPhoto(event.person) || personPhoto(fallbackPerson);
+  if (priority === 'venue-first') {
+    return event.banner_url || venueBg || personBg;
+  }
+  if (priority === 'person-first') {
+    return event.banner_url || personBg || venueBg;
+  }
+  return event.banner_url || venueBg || personBg;
 }
 
 /** Where an event is, by name, even before its venue is announced. */
@@ -78,6 +103,7 @@ export function providerName(provider: string): string {
   const names: Record<string, string> = {
     facebook: 'Facebook', instagram: 'Instagram', soundcloud: 'SoundCloud', spotify: 'Spotify',
     tiktok: 'TikTok', twitter: 'X', x: 'X', youtube: 'YouTube', mixcloud: 'Mixcloud', website: 'Website',
+    podcast_rss: 'RSS', apple_podcasts: 'Apple Podcasts', apple_music: 'Apple Music',
   };
   return names[provider.toLowerCase()] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }
