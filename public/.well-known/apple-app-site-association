@@ -2,13 +2,26 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["DWVXMLB45Y.social.hotmess.HotMess"],
+        "appIDs": [
+          "DWVXMLB45Y.social.hotmess.HotMess",
+          "DWVXMLB45Y.social.hotmess.HotMess.next",
+          "DWVXMLB45Y.social.hotmess.HotMessDevelopment"
+        ],
         "components": [
+          { "/": "/app/*", "exclude": true, "comment": "The web app stays in the browser" },
           { "/": "/venues/*", "comment": "Venue share links" },
           { "/": "/events/*", "comment": "Event share links" },
-          { "/": "/people/*", "comment": "Person share links" }
+          { "/": "/people/*", "comment": "Person share links" },
+          { "/": "/pings/*", "comment": "A Ping, opened on Now" }
         ]
       }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "DWVXMLB45Y.social.hotmess.HotMess",
+      "DWVXMLB45Y.social.hotmess.HotMess.next",
+      "DWVXMLB45Y.social.hotmess.HotMessDevelopment"
     ]
   }
 }
