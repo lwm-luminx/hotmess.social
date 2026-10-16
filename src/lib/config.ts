@@ -21,3 +21,6 @@ export const IOS_BETA_URL = 'https://testflight.apple.com/join/mcPybJVN';
 
 // Hot Mess is a Love Wins Media product; every page links here (src/components/LoveWinsBand.astro).
 export const LOVE_WINS_URL = 'https://lovewins.media';
+
+// Hot Mess on the App Store, for Safari's Smart App Banner (src/layouts/Base.astro).
+export const APP_STORE_ID = '1195758383';

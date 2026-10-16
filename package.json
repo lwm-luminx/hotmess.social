@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro check && astro build",
     "preview": "astro preview",
-    "test": "node --test --experimental-strip-types src/lib/*.test.ts src/sdk/*.test.ts",
+    "test": "node --test --experimental-strip-types src/lib/*.test.ts src/sdk/*.test.ts edge/src/*.test.ts",
     "e2e": "playwright test --project=app",
     "e2e:live": "E2E_SUITE=live playwright test --project=live"
   },

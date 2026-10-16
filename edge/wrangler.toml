@@ -1,0 +1,13 @@
+# Deploy with `npx wrangler deploy` from edge/ once hotmess.social's DNS is on Cloudflare (proxied, SSL "Full") with
+# GitHub Pages as the origin. See edge/README.md.
+name = "hotmess-social-edge"
+main = "src/worker.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [
+  { pattern = "hotmess.social/*", zone_name = "hotmess.social" },
+]
+
+[vars]
+API_BASE = "https://api.audiencekit.com"
+APP_STORE_ID = "1195758383"
