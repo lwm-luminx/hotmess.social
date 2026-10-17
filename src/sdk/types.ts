@@ -83,8 +83,8 @@ export interface Event {
   rsvp?: { mine: RSVPState };
   /** Its venue mixin: the venue's name (or "To be announced") and the venue itself while it has one. */
   venue: { name: string; venue: Venue | null };
-  /** Its people mixin: who is hosting or playing it. */
-  people?: { lineup: Connection<PersonReference> };
+  /** Its people mixin: who is hosting it, and its whole lineup (hosts included). */
+  people?: { hosts?: Connection<PersonReference>; lineup: Connection<PersonReference> };
 }
 
 export interface Friend {

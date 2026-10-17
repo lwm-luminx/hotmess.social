@@ -1,7 +1,7 @@
 // Whole-page views: Now, a venue, an event, a person. They take data and render it; fetching,
 // routing and sign-in belong to the host app.
 import type { Event, Now, Person, Venue } from '../types';
-import { eventPhoto, eventPlace, eventTime, facebookID, nodes, providerName, venueHero } from '../format';
+import { eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookID, nodes, providerName, venueHero } from '../format';
 import { Link } from '../navigation';
 import { EventCard, FriendChip, PersonCard, VenueCard } from './Cards';
 import { Fact, FacebookLink, Hero, Photo, Section } from './Primitives';
@@ -69,12 +69,16 @@ export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event
 export function EventView({ event }: { event: Event }) {
   const venue = event.venue?.venue ?? null;
   const place = eventPlace(event);
-  const people = nodes(event.people?.lineup);
+  const hosts = eventHosts(event);
+  const people = eventLineup(event);
   return (
     <div className="ak-view">
       <Hero src={eventPhoto(event)} title={event.name ?? ''} eyebrow={eventTime(event) || undefined} />
       <div className="ak-columns">
         <div>
+          <Section title={hosts.length === 1 ? 'Host' : 'Hosts'}>
+            {hosts.map((person) => <PersonCard key={person.id} person={person} />)}
+          </Section>
           <Section title="On the bill" count={people.length || undefined}>
             {people.map((person) => <PersonCard key={person.id} person={person} />)}
           </Section>
