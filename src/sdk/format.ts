@@ -26,9 +26,20 @@ export function eventPlace(event: Event): string | undefined {
   return event.venue?.venue?.name || event.venue?.name || undefined;
 }
 
-/** The first act on an event's bill, whom lists name as its host ("with Aurora"). */
+/** Who is hosting an event. */
+export function eventHosts(event: Event) {
+  return nodes(event.people?.hosts);
+}
+
+/** Who else is on an event's bill: its lineup without its hosts. */
+export function eventLineup(event: Event) {
+  const hosts = new Set(eventHosts(event).map((person) => person.id));
+  return nodes(event.people?.lineup).filter((person) => !hosts.has(person.id));
+}
+
+/** Whom lists name as an event's host ("with Aurora"): its first host, else the first act on its bill. */
 export function eventHost(event: Event) {
-  return nodes(event.people?.lineup)[0];
+  return eventHosts(event)[0] ?? nodes(event.people?.lineup)[0];
 }
 
 /** A Facebook ID the API sent, or undefined for "", "0", null and anything that isn't one. */

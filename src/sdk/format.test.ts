@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dateBadge, distance, eventHost, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, providerName, venueHero, venuePhoto } from './format.ts';
+import { dateBadge, distance, eventHost, eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, providerName, venueHero, venuePhoto } from './format.ts';
 import type { Event } from './types.ts';
 
 const venue = { id: 'v', name: 'Milk+', photoUrl: null, bannerUrl: 'banner' };
@@ -38,6 +38,15 @@ test('the first act on the bill hosts the event', () => {
   assert.equal(eventHost(event), undefined);
   const hosted = { ...event, people: { lineup: { nodes: [null, { id: 'p', name: 'Aurora' }] } } };
   assert.equal(eventHost(hosted)?.name, 'Aurora');
+});
+
+test("an event's hosts come first and stay off the rest of its bill", () => {
+  const host = { id: 'h', name: 'SLC Leather Pride' };
+  const act = { id: 'a', name: 'Aurora' };
+  const hosted = { ...event, people: { hosts: { nodes: [host] }, lineup: { nodes: [act, host] } } };
+  assert.equal(eventHost(hosted)?.name, 'SLC Leather Pride');
+  assert.deepEqual(eventHosts(hosted).map((person) => person.name), ['SLC Leather Pride']);
+  assert.deepEqual(eventLineup(hosted).map((person) => person.name), ['Aurora']);
 });
 
 test('Facebook links skip IDs the API leaves empty', () => {

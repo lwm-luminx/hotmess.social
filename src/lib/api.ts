@@ -112,7 +112,7 @@ const VENUE = 'id name distance description photoUrl bannerUrl profile { address
 const PERSON = 'id name avatarUrl profile { facebook { facebookId } }';
 const FRIEND = 'id name avatarUrl facebookId';
 const EVENT = `id name startAt endAt facebookId bannerUrl rsvp { mine }
-  venue { name venue { ${VENUE} } } people { lineup { nodes { ${PERSON} } } }`;
+  venue { name venue { ${VENUE} } } people { hosts { nodes { ${PERSON} } } lineup { nodes { ${PERSON} } } }`;
 const LINK = 'id handle provider url';
 
 // Where you are: the venue when you're at one, else your locale and its
