@@ -56,6 +56,21 @@ function titleFor(screen: Screen): string {
 function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The website signs in with Facebook only; AudienceKit can turn it off.
+  const [offersFacebook, setOffersFacebook] = useState(true);
+  useEffect(() => {
+    let current = true;
+    api.signInMethods().then((methods) => { if (current && methods) setOffersFacebook(methods.includes('facebook')); });
+    return () => { current = false; };
+  }, []);
+  if (!offersFacebook) {
+    return (
+      <section className="card signin">
+        <h1>Sign in to Hot Mess</h1>
+        <p className="muted">Signing in on the web isn't available right now. Use the Hot Mess app instead.</p>
+      </section>
+    );
+  }
   return (
     <section className="card signin">
       <h1>Sign in to Hot Mess</h1>

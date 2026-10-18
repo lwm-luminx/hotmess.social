@@ -169,6 +169,17 @@ export const api = {
         },
       }),
     }, false),
+  // The ways the audience lets people sign in (GET /v1/token/methods), which
+  // AudienceKit's admin chooses, or null when the API can't say (an API from
+  // before the setting answers 404): the sign-in card then shows Facebook.
+  signInMethods: async (): Promise<string[] | null> => {
+    try {
+      const query = new URLSearchParams({ host: AUDIENCE_HOST });
+      return (await send<{ methods?: string[] }>(`/v1/token/methods?${query}`, {}, false)).methods ?? null;
+    } catch {
+      return null;
+    }
+  },
   // Records where you are, which is how the API knows the venue you're at.
   now: async (latitude: number, longitude: number): Promise<Now> =>
     (await graphql<{ reportLocation: Now }>(NOW, { position: { latitude, longitude } })).reportLocation,
