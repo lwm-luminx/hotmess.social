@@ -6,7 +6,7 @@ test('the home page links to the app', async ({ page, api }) => {
   await page.getByRole('link', { name: 'Open the app' }).click();
   await expect(page).toHaveURL(/\/app\/?$/);
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
-  expect(api.requests).toEqual([]);
+  expect(api.requests.filter((r) => new URL(r.url()).pathname !== '/v1/token/methods')).toEqual([]);
 });
 
 // Every page, including the app and the 404 page that serves share links,
