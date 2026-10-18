@@ -8,6 +8,10 @@ import { nodes } from '../sdk/format';
 import { API_BASE, AUDIENCE_HOST, FACEBOOK_APP_ID } from './config';
 import { APIError, graphqlError, restError, type GraphQLError } from './apiErrors';
 
+// The sign-in methods an audience offers, and what to say before each one
+// that has a warning (shown with Cancel and Continue).
+export type SignInMethods = { methods: string[]; warnings: Record<string, string> };
+
 export { APIError } from './apiErrors';
 
 // The date the API contract was last broken (doc/TOKENS.md). Sent on every
@@ -170,12 +174,14 @@ export const api = {
       }),
     }, false),
   // The ways the audience lets people sign in (GET /v1/token/methods), which
-  // AudienceKit's admin chooses, or null when the API can't say (an API from
-  // before the setting answers 404): the sign-in card then shows Facebook.
-  signInMethods: async (): Promise<string[] | null> => {
+  // AudienceKit's admin chooses, with the warning to show before each one that
+  // has one, or null when the API can't say (an API from before the setting
+  // answers 404): the sign-in card then shows Facebook with no warning.
+  signInMethods: async (): Promise<SignInMethods | null> => {
     try {
       const query = new URLSearchParams({ host: AUDIENCE_HOST });
-      return (await send<{ methods?: string[] }>(`/v1/token/methods?${query}`, {}, false)).methods ?? null;
+      const answer = await send<{ methods?: string[]; warnings?: Record<string, string> }>(`/v1/token/methods?${query}`, {}, false);
+      return answer.methods ? { methods: answer.methods, warnings: answer.warnings ?? {} } : null;
     } catch {
       return null;
     }

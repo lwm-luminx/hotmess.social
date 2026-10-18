@@ -131,3 +131,20 @@ test('offers Facebook while the audience has it on, and says so when it is off',
   await expect(page.getByText("Signing in on the web isn't available right now.")).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toHaveCount(0);
 });
+
+test('shows the audience\'s warning before Facebook sign-in, with Cancel and Continue', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['facebook'], warnings: { facebook: 'Facebook login is only for testers' } } });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Facebook' }).click();
+  const warning = page.getByRole('alertdialog');
+  await expect(warning).toContainText('Facebook login is only for testers');
+
+  await warning.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
+  expect(api.calls('POST /v1/token')).toEqual([]);
+
+  await page.getByRole('button', { name: 'Continue with Facebook' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
+  expect(api.calls('POST /v1/token')).toHaveLength(1);
+});
