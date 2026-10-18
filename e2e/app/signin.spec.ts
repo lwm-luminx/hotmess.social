@@ -3,7 +3,8 @@ import { test, expect, TOKEN, AUDIENCE_ID, NOW, VENUE, EVENT, PERSON, operation 
 test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   await page.goto('/app/');
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
-  expect(api.requests).toEqual([]);
+  // Before sign-in the site only asks which sign-in methods the audience offers.
+  expect(api.requests.filter((r) => new URL(r.url()).pathname !== '/v1/token/methods')).toEqual([]);
 
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
   await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
@@ -115,5 +116,18 @@ test('shows an error when Facebook Login cannot load', async ({ page, api }) => 
   await page.goto('/app/');
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
   await expect(page.getByRole('alert')).toHaveText('Could not load Facebook Login');
-  expect(api.requests).toEqual([]);
+  expect(api.requests.filter((r) => new URL(r.url()).pathname !== '/v1/token/methods')).toEqual([]);
+});
+
+test('offers Facebook while the audience has it on, and says so when it is off', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'] } });
+  const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/v1/token/methods');
+  await page.goto('/app/');
+  expect(new URL((await asked).url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
+  await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeVisible();
+
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  await page.reload();
+  await expect(page.getByText("Signing in on the web isn't available right now.")).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toHaveCount(0);
 });
