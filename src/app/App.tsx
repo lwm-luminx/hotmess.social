@@ -56,18 +56,52 @@ function titleFor(screen: Screen): string {
 function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The website signs in with Facebook only; AudienceKit can turn it off.
+  // The website signs in with Facebook only; AudienceKit can turn it off, or
+  // ask to warn people first ("Facebook login is only for testers").
   const [offersFacebook, setOffersFacebook] = useState(true);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [warned, setWarned] = useState(false);
+  // Until the methods are known, so nobody skips a warning by clicking early.
+  const [asked, setAsked] = useState(false);
   useEffect(() => {
     let current = true;
-    api.signInMethods().then((methods) => { if (current && methods) setOffersFacebook(methods.includes('facebook')); });
+    api.signInMethods().then((offered) => {
+      if (current) setAsked(true);
+      if (!current || !offered) return;
+      setOffersFacebook(offered.methods.includes('facebook'));
+      setWarning(offered.warnings.facebook ?? null);
+    });
     return () => { current = false; };
   }, []);
+  const signIn = async () => {
+    setWarned(false);
+    setBusy(true);
+    setError(null);
+    try {
+      session.start(await api.signIn(await facebookAccessToken()));
+      onSignedIn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign-in failed');
+      setBusy(false);
+    }
+  };
   if (!offersFacebook) {
     return (
       <section className="card signin">
         <h1>Sign in to Hot Mess</h1>
         <p className="muted">Signing in on the web isn't available right now. Use the Hot Mess app instead.</p>
+      </section>
+    );
+  }
+  if (warned && warning) {
+    return (
+      <section className="card signin" role="alertdialog" aria-labelledby="signin-warning-title" aria-describedby="signin-warning">
+        <h1 id="signin-warning-title">Before you continue</h1>
+        <p id="signin-warning">{warning}</p>
+        <div className="signin-actions">
+          <button className="button secondary" type="button" onClick={() => setWarned(false)}>Cancel</button>
+          <button className="button" type="button" onClick={signIn}>Continue</button>
+        </div>
       </section>
     );
   }
@@ -78,18 +112,8 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
       <button
         className="button"
         type="button"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError(null);
-          try {
-            session.start(await api.signIn(await facebookAccessToken()));
-            onSignedIn();
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'Sign-in failed');
-            setBusy(false);
-          }
-        }}
+        disabled={busy || !asked}
+        onClick={() => (warning ? setWarned(true) : signIn())}
       >
         Continue with Facebook
       </button>
