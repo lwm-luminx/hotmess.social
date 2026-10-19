@@ -8,6 +8,8 @@ A Cloudflare Worker in front of the GitHub Pages site. It does two things GitHub
   200 with its title, photo, description and Smart App Banner `app-argument` in the `<head>`. An unknown record keeps
   the 404; if the API can't answer, the page is served with the site's generic card.
 - **`apple-app-site-association` as JSON.**
+- **`/download` redirects.** iPhone and Android visitors get a 302 to their store (`src/lib/download.ts`); the page's
+  own script does the same while the site is on GitHub Pages alone.
 
 The page body is untouched, so the web app still runs and routes the link (`src/lib/routes.ts`).
 

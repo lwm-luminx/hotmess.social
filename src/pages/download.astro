@@ -1,0 +1,42 @@
+---
+import Base from '../layouts/Base.astro';
+import { ANDROID_BETA_URL, APP_STORE_URL } from '../lib/download';
+---
+<Base title="Get the app" description="Get Hot Mess on the App Store or join the Android beta on Google Play.">
+  <main class="wrap download">
+    <p class="eyebrow">Get the app</p>
+    <h1>Take Hot Mess out with you.</h1>
+    <div class="stores">
+      <article class="card store">
+        <h2>iPhone</h2>
+        <p class="muted">Hot Mess on the App Store.</p>
+        <a class="button" href={APP_STORE_URL}>Get it on the App Store</a>
+      </article>
+      <article class="card store">
+        <h2>Android</h2>
+        <p class="muted">The Android beta is open on Google Play. Join, then install Hot Mess from the Play Store.</p>
+        <a class="button" href={ANDROID_BETA_URL}>Join the Android beta</a>
+      </article>
+    </div>
+    <p class="muted">On a computer? <a href="/app/">Hot Mess works on the web</a>.</p>
+  </main>
+</Base>
+
+<script>
+  // Phones leave for their store; desktops and anything unrecognised stay on the page with both links. The edge
+  // worker does the same with a 302 once it's in front of the site (edge/src/worker.ts).
+  import { downloadUrl } from '../lib/download';
+
+  const url = downloadUrl(navigator.userAgent, navigator.maxTouchPoints);
+  if (url) location.replace(url);
+</script>
+
+<style>
+  .download { padding: clamp(3rem, 8vw, 5rem) 0 2rem; }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 800; margin: 0 0 2rem; max-width: 16ch; }
+  .stores { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .store { padding: 1.5rem; display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; }
+  .store h2 { margin: 0; font-size: 1.4rem; }
+  .store p { margin: 0 0 .5rem; flex: 1; }
+</style>
