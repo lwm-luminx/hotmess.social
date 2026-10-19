@@ -3,6 +3,7 @@
 // share link this asks the API for the record's public card (GET /v1/share) and answers 200 with its title, photo and
 // description in the <head>; the page itself still runs the web app. Everything else passes straight through.
 import { pathFor, routeFor } from '../../src/lib/routes';
+import { downloadUrl } from '../../src/lib/download';
 import { headTags, rewriteHead, type ShareCard } from './shareCard';
 
 interface Env {
@@ -17,6 +18,13 @@ export default {
     // Apple's CDN wants JSON; GitHub Pages serves the extensionless file as application/octet-stream.
     if (url.pathname === '/.well-known/apple-app-site-association') {
       return withHeaders(await fetch(request), { 'content-type': 'application/json' });
+    }
+
+    // Phones go straight to their store; everyone else gets the page with both links.
+    if (url.pathname === '/download' || url.pathname === '/download/') {
+      const store = downloadUrl(request.headers.get('user-agent') ?? '');
+      if (store) return Response.redirect(store, 302);
+      return fetch(request);
     }
 
     const route = routeFor(url.pathname);
