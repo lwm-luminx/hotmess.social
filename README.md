@@ -29,13 +29,24 @@ publishes `main` to GitHub Pages (`.github/workflows/pages.yml`).
 ```sh
 npm ci
 npm run dev     # http://localhost:4321
-npm test        # route parser tests
+npm test        # route parser, formatting and API error tests
 npm run build   # type-check and build to dist/
 ```
 
+The app talks to the API's consumer GraphQL endpoint; its documents live in
+`src/lib/api.ts` and `src/sdk/types.ts` mirrors them. The `GraphQL documents`
+workflow validates them against the published schema
+(https://developer.audiencekit.com/api/validate-documents/). To run the check
+locally against a checkout of audience-kit:
+
+```sh
+node ../audience-kit/scripts/graphql-documents/check.mjs \
+  --schema ../audience-kit/api/schema.graphql --endpoint consumer src e2e
+```
+
 Configuration is public build-time values only (see `.env.example`):
-`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID`, `PUBLIC_AUDIENCE_HOST` and
-`PUBLIC_AUDIENCEKIT_ENVIRONMENT` (`staging` for a staging deployment). Never put a
+`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID` and `PUBLIC_AUDIENCE_HOST` (a staging
+deployment points them at the next preview and the staging app). Never put a
 secret in this repository or in a `PUBLIC_` variable; they ship to every visitor.
 
 ## End-to-end tests

@@ -46,9 +46,9 @@ async function load(route: Route): Promise<Screen> {
 function titleFor(screen: Screen): string {
   switch (screen.state) {
     case 'now': return 'Now';
-    case 'venue': return screen.venue.name;
-    case 'event': return screen.event.name;
-    case 'person': return screen.person.name;
+    case 'venue': return screen.venue.name ?? 'Venue';
+    case 'event': return screen.event.name ?? 'Event';
+    case 'person': return screen.person.name ?? 'Person';
     default: return 'Hot Mess';
   }
 }
@@ -56,6 +56,55 @@ function titleFor(screen: Screen): string {
 function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The website signs in with Facebook only; AudienceKit can turn it off, or
+  // ask to warn people first ("Facebook login is only for testers").
+  const [offersFacebook, setOffersFacebook] = useState(true);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [warned, setWarned] = useState(false);
+  // Until the methods are known, so nobody skips a warning by clicking early.
+  const [asked, setAsked] = useState(false);
+  useEffect(() => {
+    let current = true;
+    api.signInMethods().then((offered) => {
+      if (current) setAsked(true);
+      if (!current || !offered) return;
+      setOffersFacebook(offered.methods.includes('facebook'));
+      setWarning(offered.warnings.facebook ?? null);
+    });
+    return () => { current = false; };
+  }, []);
+  const signIn = async () => {
+    setWarned(false);
+    setBusy(true);
+    setError(null);
+    try {
+      session.start(await api.signIn(await facebookAccessToken()));
+      onSignedIn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign-in failed');
+      setBusy(false);
+    }
+  };
+  if (!offersFacebook) {
+    return (
+      <section className="card signin">
+        <h1>Sign in to Hot Mess</h1>
+        <p className="muted">Signing in on the web isn't available right now. Use the Hot Mess app instead.</p>
+      </section>
+    );
+  }
+  if (warned && warning) {
+    return (
+      <section className="card signin" role="alertdialog" aria-labelledby="signin-warning-title" aria-describedby="signin-warning">
+        <h1 id="signin-warning-title">Before you continue</h1>
+        <p id="signin-warning">{warning}</p>
+        <div className="signin-actions">
+          <button className="button secondary" type="button" onClick={() => setWarned(false)}>Cancel</button>
+          <button className="button" type="button" onClick={signIn}>Continue</button>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="card signin">
       <h1>Sign in to Hot Mess</h1>
@@ -63,18 +112,8 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
       <button
         className="button"
         type="button"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError(null);
-          try {
-            session.token = (await api.signIn(await facebookAccessToken())).token;
-            onSignedIn();
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'Sign-in failed');
-            setBusy(false);
-          }
-        }}
+        disabled={busy || !asked}
+        onClick={() => (warning ? setWarned(true) : signIn())}
       >
         Continue with Facebook
       </button>
@@ -109,9 +148,11 @@ function HotMess() {
       (next) => { if (!cancelled) setScreen(next); },
       (e) => {
         if (cancelled) return;
-        if (e instanceof APIError && e.status === 401) return setScreen({ state: 'signed-out' });
-        if (e instanceof APIError && e.status === 404) return setScreen({ state: 'message', text: "We couldn't find that." });
-        if (!(e instanceof APIError) || e.status >= 500) reportError(e);
+        // The API says what went wrong with a code (src/lib/apiErrors.ts), never with its message.
+        if (e instanceof APIError && e.signedOut) return setScreen({ state: 'signed-out' });
+        if (e instanceof APIError && e.notFound) return setScreen({ state: 'message', text: "We couldn't find that." });
+        if (e instanceof APIError && e.code === 'FORBIDDEN') return setScreen({ state: 'message', text: "You can't see that." });
+        if (!(e instanceof APIError) || e.reportable) reportError(e);
         setScreen({ state: 'message', text: "Hot Mess couldn't reach its server. Try again in a moment." });
       },
     );
@@ -134,7 +175,7 @@ function HotMess() {
   }), [go]);
 
   const logOut = () => {
-    session.token = null;
+    session.end();
     history.replaceState(null, '', pathFor({ kind: 'now' }));
     setPath(location.pathname);
     setScreen({ state: 'signed-out' });

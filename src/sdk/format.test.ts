@@ -1,63 +1,102 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dateBadge, distance, eventPhoto, eventTime, facebookURL, initials, providerName, venueHero, venuePhoto } from './format.ts';
+import { dateBadge, distance, eventHost, eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, personPhoto, providerName, venueHero, venuePhoto } from './format.ts';
+import type { Event } from './types.ts';
 
-test('venue photos fall back between the Page picture and the place', () => {
-  assert.equal(venuePhoto({ id: 'v', name: 'Milk+', photo_url: null, hero_url: 'hero' }), 'hero');
-  assert.equal(venuePhoto({ id: 'v', name: 'Milk+', photo_url: 'page', hero_url: 'hero' }), 'page');
-  assert.equal(venueHero({ id: 'v', name: 'Milk+', photo_url: 'page', hero_url: 'hero' }), 'hero');
+const venue = { id: 'v', name: 'Milk+', photoUrl: null, bannerUrl: 'banner' };
+const event: Event = {
+  id: 'e', name: 'Bear Night', startAt: '2026-10-09T02:00:00Z', endAt: null, facebookId: null, bannerUrl: null,
+  venue: { name: 'Milk+', venue },
+};
+
+test('connections read as their non-null nodes', () => {
+  assert.deepEqual(nodes({ nodes: [{ id: 'a' }, null, { id: 'b' }] }), [{ id: 'a' }, { id: 'b' }]);
+  assert.deepEqual(nodes({ nodes: null }), []);
+  assert.deepEqual(nodes(undefined), []);
+});
+
+test('venue photos fall back between the place and its banner', () => {
+  assert.equal(venuePhoto(venue), 'banner');
+  assert.equal(venuePhoto({ ...venue, photoUrl: 'place' }), 'place');
+  assert.equal(venueHero({ ...venue, photoUrl: 'place' }), 'banner');
+  assert.equal(venueHero({ ...venue, bannerUrl: null, photoUrl: 'place' }), 'place');
   assert.equal(venuePhoto(undefined), undefined);
 });
 
 test('events without a banner show their venue', () => {
-  const venue = { id: 'v', name: 'Milk+', hero_url: 'hero' };
-  assert.equal(eventPhoto({ id: 'e', name: 'Bear Night', start_at: '2026-10-09T02:00:00Z', venue }), 'hero');
-  assert.equal(eventPhoto({ id: 'e', name: 'Bear Night', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue }), 'banner');
+  assert.equal(eventPhoto(event), 'banner');
+  assert.equal(eventPhoto({ ...event, bannerUrl: 'cover' }), 'cover');
+  assert.equal(eventPhoto({ ...event, venue: { name: 'To be announced', venue: null } }), undefined);
 });
 
-test('event photo fallback priority in person and venue views', () => {
-  const venue = { id: 'v', name: 'Milk+', hero_url: 'venue-hero' };
-  const person = { id: 'p', name: 'DJ Aurora', photo_url: 'person-photo' };
-  const fallbackPerson = { id: 'fp', name: 'Host', photo_url: 'fallback-person-photo' };
-  const fallbackVenue = { id: 'fv', name: 'Club', hero_url: 'fallback-venue-hero' };
+test('people show their avatar, else their banner', () => {
+  assert.equal(personPhoto({ id: 'p', name: 'Aurora', avatarUrl: 'avatar', bannerUrl: 'banner' }), 'avatar');
+  assert.equal(personPhoto({ id: 'p', name: 'Aurora', avatarUrl: null, bannerUrl: 'banner' }), 'banner');
+  assert.equal(personPhoto(undefined), undefined);
+});
 
-  // On a person page: event -> venue -> person
-  // 1. With event banner:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue, person }, 'venue-first', undefined, fallbackPerson), 'banner');
-  // 2. Without event banner, with venue:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', venue, person }, 'venue-first', undefined, fallbackPerson), 'venue-hero');
-  // 3. Without event banner and without event venue, with fallback venue:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', person }, 'venue-first', fallbackVenue, fallbackPerson), 'fallback-venue-hero');
-  // 4. Without event banner and without venue, falls back to person:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', person }, 'venue-first', undefined, fallbackPerson), 'person-photo');
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z' }, 'venue-first', undefined, fallbackPerson), 'fallback-person-photo');
+test('a venue page prefers the host, and a person page the venue, for events without a banner', () => {
+  const host = { id: 'p', name: 'DJ Aurora', avatarUrl: 'person-photo' };
+  const hosted: Event = { ...event, venue: { name: 'Milk+', venue: { ...venue, photoUrl: 'venue-photo' } }, people: { lineup: { nodes: [host] } } };
+  const bare: Event = { ...event, venue: { name: 'To be announced', venue: null } };
+  const fallbackVenue = { id: 'fv', name: 'Club', photoUrl: 'fallback-venue-photo' };
+  const fallbackPerson = { id: 'fp', name: 'Host', avatarUrl: 'fallback-person-photo' };
 
-  // In a venue view: event -> person -> venue
-  // 1. With event banner:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', banner_url: 'banner', venue, person }, 'person-first', fallbackVenue), 'banner');
-  // 2. Without event banner, with person:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', venue, person }, 'person-first', fallbackVenue), 'person-photo');
-  // 3. Without event banner and without event person, falls back to venue:
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z', venue }, 'person-first', fallbackVenue), 'venue-hero');
-  assert.equal(eventPhoto({ id: 'e', name: 'Gig', start_at: '2026-10-09T02:00:00Z' }, 'person-first', fallbackVenue), 'fallback-venue-hero');
+  // A person's page: banner, then the venue, then the person.
+  assert.equal(eventPhoto({ ...hosted, bannerUrl: 'banner' }, 'venue-first', undefined, fallbackPerson), 'banner');
+  assert.equal(eventPhoto(hosted, 'venue-first', undefined, fallbackPerson), 'venue-photo');
+  assert.equal(eventPhoto({ ...bare, people: { lineup: { nodes: [host] } } }, 'venue-first', fallbackVenue, fallbackPerson), 'fallback-venue-photo');
+  assert.equal(eventPhoto({ ...bare, people: { lineup: { nodes: [host] } } }, 'venue-first', undefined, fallbackPerson), 'person-photo');
+  assert.equal(eventPhoto(bare, 'venue-first', undefined, fallbackPerson), 'fallback-person-photo');
+
+  // A venue's page: banner, then the person, then the venue.
+  assert.equal(eventPhoto({ ...hosted, bannerUrl: 'banner' }, 'person-first', fallbackVenue), 'banner');
+  assert.equal(eventPhoto(hosted, 'person-first', fallbackVenue), 'person-photo');
+  assert.equal(eventPhoto({ ...hosted, people: undefined }, 'person-first', fallbackVenue), 'venue-photo');
+  assert.equal(eventPhoto(bare, 'person-first', fallbackVenue), 'fallback-venue-photo');
+});
+
+test('an event is placed by its venue, else by what its venue mixin names', () => {
+  assert.equal(eventPlace(event), 'Milk+');
+  assert.equal(eventPlace({ ...event, venue: { name: 'Secret warehouse', venue: null } }), 'Secret warehouse');
+});
+
+test('the first act on the bill hosts the event', () => {
+  assert.equal(eventHost(event), undefined);
+  const hosted = { ...event, people: { lineup: { nodes: [null, { id: 'p', name: 'Aurora' }] } } };
+  assert.equal(eventHost(hosted)?.name, 'Aurora');
+});
+
+test("an event's hosts come first and stay off the rest of its bill", () => {
+  const host = { id: 'h', name: 'SLC Leather Pride' };
+  const act = { id: 'a', name: 'Aurora' };
+  const hosted = { ...event, people: { hosts: { nodes: [host] }, lineup: { nodes: [act, host] } } };
+  assert.equal(eventHost(hosted)?.name, 'SLC Leather Pride');
+  assert.deepEqual(eventHosts(hosted).map((person) => person.name), ['SLC Leather Pride']);
+  assert.deepEqual(eventLineup(hosted).map((person) => person.name), ['Aurora']);
 });
 
 test('Facebook links skip IDs the API leaves empty', () => {
   assert.equal(facebookURL(''), undefined);
   assert.equal(facebookURL(null), undefined);
-  assert.equal(facebookURL(0), undefined);
+  assert.equal(facebookURL('0'), undefined);
   assert.equal(facebookURL('100046536945318'), 'https://www.facebook.com/100046536945318');
-  assert.equal(facebookURL(123, 'event'), 'https://www.facebook.com/events/123/');
+  assert.equal(facebookURL('123', 'event'), 'https://www.facebook.com/events/123/');
 });
 
 test('an evening shows one date with its start and end times', () => {
-  const text = eventTime({ start_at: '2026-10-10T02:00:00Z', end_at: '2026-10-10T05:00:00Z' }, 'en-US', 'America/Denver');
+  const text = eventTime({ startAt: '2026-10-10T02:00:00Z', endAt: '2026-10-10T05:00:00Z' }, 'en-US', 'America/Denver');
   assert.equal(text, 'Fri, Oct 9 · 8:00 PM – 11:00 PM');
 });
 
 test('a night that runs past midnight still reads as one night', () => {
-  const text = eventTime({ start_at: '2026-10-10T04:00:00Z', end_at: '2026-10-10T08:00:00Z' }, 'en-US', 'America/Denver');
+  const text = eventTime({ startAt: '2026-10-10T04:00:00Z', endAt: '2026-10-10T08:00:00Z' }, 'en-US', 'America/Denver');
   assert.equal(text, 'Fri, Oct 9 · 10:00 PM – 2:00 AM');
+});
+
+test('an event with no start yet has no time or badge', () => {
+  assert.equal(eventTime({ startAt: null, endAt: null }), '');
+  assert.deepEqual(dateBadge(null), { month: '', day: '' });
 });
 
 test('date badges, distances, initials and providers', () => {
@@ -66,7 +105,9 @@ test('date badges, distances, initials and providers', () => {
   assert.equal(distance(1609.344 * 2.43), '2.4 mi');
   assert.equal(distance(null), undefined);
   assert.equal(initials('Rick Mark'), 'RM');
+  assert.equal(initials(null), '');
   assert.equal(providerName('soundcloud'), 'SoundCloud');
+  assert.equal(providerName('apple_music'), 'Apple Music');
   assert.equal(providerName('podcast_rss'), 'RSS');
-  assert.equal(providerName('bandcamp'), 'Bandcamp');
+  assert.equal(providerName('mixcloud'), 'Mixcloud');
 });

@@ -1,17 +1,26 @@
 ---
 import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
+import LoveWinsBand from '../components/LoveWinsBand.astro';
+import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
 
 interface Props {
   title?: string;
   description?: string;
+  /**
+   * False for a page that stands in for many URLs (404.html serves every share link), so it doesn't claim to be
+   * /404/. The edge proxy (edge/) writes the share link's own URL, title and image into those for link previews.
+   */
+  canonical?: boolean;
 }
 
 const {
   title = 'Hot Mess',
   description = 'Where your people are tonight: the venues, events and DJs of your queer nightlife scene.',
+  canonical: hasCanonical = true,
 } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site);
+const canonical = hasCanonical ? new URL(Astro.url.pathname, Astro.site) : undefined;
+const image = new URL('/og/hot-mess.png', Astro.site);
 ---
 <!doctype html>
 <html lang="en">
@@ -20,17 +29,27 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title === 'Hot Mess' ? title : `${title} · Hot Mess`}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {canonical && <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#a50000" />
+    <!-- Safari's Smart App Banner: Open when the app is installed, Get when it isn't. -->
+    <meta name="apple-itunes-app" content={`app-id=${APP_STORE_ID}${canonical ? `, app-argument=${canonical}` : ''}`} />
     <meta property="og:site_name" content="Hot Mess" />
+    <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
-    <meta property="fb:app_id" content="713525445368431" />
+    {canonical && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Hot Mess: where your people are tonight." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- The Hot Mess app, so Facebook attributes shares to it. -->
+    <meta property="fb:app_id" content={FACEBOOK_APP_ID} />
     <Analytics />
   </head>
   <body>
+    <LoveWinsBand />
     <header class="site-header">
       <nav class="wrap">
         <a class="brand" href="/">Hot Mess</a>
@@ -40,6 +59,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <slot />
     <footer class="site-footer">
       <div class="wrap">
+        <p class="lovewins"><a href={LOVE_WINS_URL} target="_blank" rel="noopener">A Love Wins Media product</a> · © {new Date().getFullYear()} Love Wins Media, Inc.</p>
         <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>.</p>
         <p>
           <a href="https://audiencekit.com/privacy/">Privacy</a>{' · '}
@@ -61,4 +81,5 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
   .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
   .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
   .site-footer p { margin: .25rem 0; }
+  .site-footer .lovewins a { color: var(--ink); font-weight: 700; }
 </style>

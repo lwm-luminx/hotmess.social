@@ -1,28 +1,33 @@
-import type { Event, Person, PersonReference, VenueReference } from './types';
+// Pure helpers the components share. No DOM or React, so they test with node --test.
+import type { Connection, Event, Person, PersonReference, VenueReference } from './types';
 
-/** The photo to show for a venue: its Page picture, else a photo of the place. */
+/** The items of a connection the document selected `nodes` from; a missing or null one is empty. */
+export function nodes<T>(connection: Connection<T> | null | undefined): T[] {
+  return (connection?.nodes ?? []).filter((node): node is T => node != null);
+}
+
+/** The photo to show for a venue in a list: its own photo of the place, else its banner. */
 export function venuePhoto(venue: VenueReference | null | undefined): string | undefined {
-  return venue?.photo_url || venue?.hero_url || undefined;
+  return venue?.photoUrl || venue?.bannerUrl || undefined;
 }
 
-/** The wide photo for a venue's header: the place itself, else its Page picture. */
+/** The wide photo for a venue's header: its banner, else its own photo. */
 export function venueHero(venue: VenueReference | null | undefined): string | undefined {
-  return venue?.hero_url || venue?.photo_url || undefined;
+  return venue?.bannerUrl || venue?.photoUrl || undefined;
 }
 
-/** The photo to show for a person: their avatar photo, else their banner photo. */
+/** The photo to show for a person: their avatar, else their banner. */
 export function personPhoto(person: PersonReference | Person | null | undefined): string | undefined {
-  if (!person) return undefined;
-  return person.photo_url || (person && 'banner_url' in person ? (person as Person).banner_url : undefined) || undefined;
+  return person?.avatarUrl || (person && 'bannerUrl' in person ? person.bannerUrl : undefined) || undefined;
 }
 
 export type EventPhotoPriority = 'standard' | 'venue-first' | 'person-first';
 
 /**
- * Most events have no banner of their own (and Now never sends one).
- * In a person page, falls back to venue, then person ('venue-first').
- * In a venue view, falls back to person, then venue ('person-first').
- * This prevents lists from showing the same photo repeatedly.
+ * Most events have no banner of their own, so fall back to their venue's photo, then their host's.
+ * A venue's page lists its own events, so it prefers the host ('person-first'), and a person's page
+ * prefers the venue ('venue-first'), so a list doesn't show the page's own photo over and over.
+ * fallbackVenue and fallbackPerson stand in for an event that doesn't carry its own.
  */
 export function eventPhoto(
   event: Event,
@@ -30,23 +35,33 @@ export function eventPhoto(
   fallbackVenue?: VenueReference | null,
   fallbackPerson?: PersonReference | Person | null,
 ): string | undefined {
-  const venueBg = venuePhoto(event.venue) || venuePhoto(fallbackVenue);
-  const personBg = personPhoto(event.person) || personPhoto(fallbackPerson);
-  if (priority === 'venue-first') {
-    return event.banner_url || venueBg || personBg;
-  }
-  if (priority === 'person-first') {
-    return event.banner_url || personBg || venueBg;
-  }
-  return event.banner_url || venueBg || personBg;
+  const venue = venuePhoto(event.venue?.venue) || venuePhoto(fallbackVenue);
+  const person = personPhoto(eventHost(event)) || personPhoto(fallbackPerson);
+  return event.bannerUrl || (priority === 'person-first' ? person || venue : venue || person);
 }
 
-/** Where an event is, by name, even before its venue is announced. */
+/** Where an event is, by name: its venue's, else what its venue mixin calls the place. */
 export function eventPlace(event: Event): string | undefined {
-  return event.venue?.name || event.venue_name || undefined;
+  return event.venue?.venue?.name || event.venue?.name || undefined;
 }
 
-/** A Facebook ID the API sent, or undefined for "", 0, null and anything that isn't one. */
+/** Who is hosting an event. */
+export function eventHosts(event: Event) {
+  return nodes(event.people?.hosts);
+}
+
+/** Who else is on an event's bill: its lineup without its hosts. */
+export function eventLineup(event: Event) {
+  const hosts = new Set(eventHosts(event).map((person) => person.id));
+  return nodes(event.people?.lineup).filter((person) => !hosts.has(person.id));
+}
+
+/** Whom lists name as an event's host ("with Aurora"): its first host, else the first act on its bill. */
+export function eventHost(event: Event) {
+  return eventHosts(event)[0] ?? nodes(event.people?.lineup)[0];
+}
+
+/** A Facebook ID the API sent, or undefined for "", "0", null and anything that isn't one. */
 export function facebookID(id: string | number | null | undefined): string | undefined {
   const value = id == null ? '' : String(id);
   return /^[1-9][0-9]*$/.test(value) ? value : undefined;
@@ -59,14 +74,15 @@ export function facebookURL(id: string | number | null | undefined, kind: 'page'
   return kind === 'event' ? `https://www.facebook.com/events/${value}/` : `https://www.facebook.com/${value}`;
 }
 
-/** "Fri, Oct 9 · 8:00 PM – 11:00 PM", or with the end date when it ends on another day. */
-export function eventTime(event: Pick<Event, 'start_at' | 'end_at'>, locale?: string, timeZone?: string): string {
-  const start = new Date(event.start_at);
+/** "Fri, Oct 9 · 8:00 PM – 11:00 PM", or with the end date when it ends on another day; "" without a start. */
+export function eventTime(event: Pick<Event, 'startAt' | 'endAt'>, locale?: string, timeZone?: string): string {
+  if (!event.startAt) return '';
+  const start = new Date(event.startAt);
   const day = start.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', timeZone });
   const time = (date: Date) => date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', timeZone });
-  if (!event.end_at) return `${day} · ${time(start)}`;
+  if (!event.endAt) return `${day} · ${time(start)}`;
 
-  const end = new Date(event.end_at);
+  const end = new Date(event.endAt);
   const endDay = end.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric', timeZone });
   // Nights out run past midnight; only name the end date when the event runs longer than a day.
   const sameNight = end.getTime() - start.getTime() < 24 * 60 * 60 * 1000;
@@ -75,8 +91,9 @@ export function eventTime(event: Pick<Event, 'start_at' | 'end_at'>, locale?: st
     : `${day} ${time(start)} – ${endDay} ${time(end)}`;
 }
 
-/** A short date badge for an event card: { month: "OCT", day: "9" }. */
-export function dateBadge(iso: string, locale?: string, timeZone?: string): { month: string; day: string } {
+/** A short date badge for an event card: { month: "OCT", day: "9" }; blank without a date. */
+export function dateBadge(iso: string | null | undefined, locale?: string, timeZone?: string): { month: string; day: string } {
+  if (!iso) return { month: '', day: '' };
   const date = new Date(iso);
   return {
     month: date.toLocaleDateString(locale, { month: 'short', timeZone }).toUpperCase(),
@@ -94,16 +111,17 @@ export function distance(metres: number | null | undefined): string | undefined 
 }
 
 /** Initials for a placeholder avatar: "Rick Mark" -> "RM". */
-export function initials(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
+export function initials(name: string | null | undefined): string {
+  return (name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
 }
 
 /** A human name for a social link's provider. */
 export function providerName(provider: string): string {
   const names: Record<string, string> = {
     facebook: 'Facebook', instagram: 'Instagram', soundcloud: 'SoundCloud', spotify: 'Spotify',
-    tiktok: 'TikTok', twitter: 'X', x: 'X', youtube: 'YouTube', mixcloud: 'Mixcloud', website: 'Website',
-    podcast_rss: 'RSS', apple_podcasts: 'Apple Podcasts', apple_music: 'Apple Music',
+    apple_music: 'Apple Music', tiktok: 'TikTok', twitter: 'X', x: 'X', threads: 'Threads', bluesky: 'Bluesky',
+    youtube: 'YouTube', mixcloud: 'Mixcloud', bandcamp: 'Bandcamp', cashapp: 'Cash App', venmo: 'Venmo',
+    website: 'Website', link: 'Website', podcast_rss: 'RSS', apple_podcasts: 'Apple Podcasts',
   };
   return names[provider.toLowerCase()] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }

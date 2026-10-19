@@ -1,4 +1,4 @@
-import { test, expect, VENUE, operation, upcoming, wireVenue } from './fixtures';
+import { test, expect, connection, VENUE, operation } from './fixtures';
 
 const REPORTS = 'POST /v1/client_errors';
 
@@ -23,7 +23,7 @@ test('uncaught errors and rejections are reported to the API', async ({ page, ap
 test('a view that fails to render is reported and offers a reload', async ({ page, api, signedIn }) => {
   await signedIn();
   // An address React can't render makes the view throw.
-  api.on(operation('Venue'), () => ({ json: { venues: { venue: { ...wireVenue({ ...VENUE, address: { street: 'not text' } }), events: upcoming([]) } } } }));
+  api.on(operation('Venue'), () => ({ json: { venues: { venue: { ...VENUE, description: { text: 'not text' }, events: { upcoming: connection() } } } } }));
 
   await page.goto(`/venues/${VENUE.id}`);
 

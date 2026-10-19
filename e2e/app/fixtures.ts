@@ -1,117 +1,94 @@
 // Mocks for the app suite: a stand-in Facebook JS SDK and an in-memory
-// AudienceKit API, so the built site runs with no network.
+// AudienceKit API, so the built site runs with no network. The records are
+// shaped as the consumer GraphQL schema answers them (src/sdk/types.ts).
 import { test as base, expect, type Page, type Request } from '@playwright/test';
 
 export const API = 'https://api.audiencekit.com';
 export const TOKEN = 'e2e.session.jwt';
+export const AUDIENCE_ID = 'a0000000-0000-4000-8000-000000000000';
 export const SEATTLE = { latitude: 47.6062, longitude: -122.3321 };
 
 // Photos load from images.test; any URL with "broken" in it fails to load.
 export const IMAGES = 'https://images.test';
 
+/** A connection as the documents select it. */
+export function connection<T>(...items: T[]) {
+  return { nodes: items };
+}
+
 export const VENUE = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Neighbours',
-  address: '1509 Broadway, Seattle',
-  phone: '+12063245358',
   description: 'Capitol Hill\'s dance club since 1983.',
-  facebook_id: '108155092546395',
-  photo_url: `${IMAGES}/neighbours-page.png`,
-  hero_url: `${IMAGES}/neighbours-hero.png`,
+  photoUrl: `${IMAGES}/neighbours-place.png`,
+  bannerUrl: `${IMAGES}/neighbours-banner.png`,
   distance: 120,
+  profile: { address: '1509 Broadway, Seattle', phone: '+12063245358', facebook: { facebookId: '108155092546395' } },
 };
 export const PERSON = {
   id: '33333333-3333-4333-8333-333333333333',
   name: 'Aurora Borealis',
-  role: 'DJ',
-  facebook_id: '100064000000001',
-  photo_url: null,
-  banner_url: `${IMAGES}/aurora-banner.png`,
+  avatarUrl: null,
+  profile: { facebook: { facebookId: '100064000000001' } },
 };
 export const EVENT = {
   id: '22222222-2222-4222-8222-222222222222',
   name: 'Mess Hall Fridays',
-  start_at: '2026-10-09T22:00:00-07:00',
-  end_at: '2026-10-10T02:00:00-07:00',
-  facebook_id: '1234567890123',
-  venue: VENUE,
-  person: { id: PERSON.id, name: PERSON.name },
+  startAt: '2026-10-09T22:00:00-07:00',
+  endAt: '2026-10-10T02:00:00-07:00',
+  facebookId: '1234567890123',
+  bannerUrl: null,
+  rsvp: { mine: 'UNSURE' },
+  venue: { name: VENUE.name, venue: VENUE },
+  people: { lineup: connection(PERSON) },
 };
-// How the API renders an event on its own page: everyone on the bill.
-export const EVENT_PAGE = { ...EVENT, people: [{ id: PERSON.id, name: PERSON.name, role: 'DJ' }] };
-export const TRACK = { id: 't1', title: 'Northern Lights (Extended Mix)', provider: 'soundcloud', provider_url: 'https://soundcloud.com/aurora/northern-lights', artwork_url: `${IMAGES}/track.png` };
-export const SOCIAL_LINKS = [{ id: 's1', provider: 'instagram', handle: '@aurora', url: 'https://www.instagram.com/aurora' }];
 export const PERSON_PAGE = {
-  // A null node stands for a link GraphQL couldn't resolve; the client drops it.
-  ...wirePerson({ ...PERSON, social_links: [...SOCIAL_LINKS, null] }),
-  events: upcoming([EVENT], 'PersonEventsView'),
-  music: { __typename: 'PersonMusicView', tracks: { __typename: 'TrackConnection', nodes: [TRACK] } },
-};
-
-// GraphQL sends an event's venue, a venue's or person's events and profile, and
-// a person's tracks through mixins (interface objects), with lists as
-// connections. These wrap the app-shaped records above the way the API
-// answers; venue_name stands in for the mixin's name.
-type AppRecord = { [field: string]: unknown };
-function facebookProfile(facebookId: unknown) {
-  return { __typename: 'FacebookProfile', facebook_id: facebookId ?? null };
-}
-export function wireVenue({ address, phone, facebook_id: facebookId, ...venue }: AppRecord) {
-  return { ...venue, profile: { __typename: 'ListingProfile', address: address ?? null, phone: phone ?? null, facebook: facebookProfile(facebookId) } };
-}
-export function wirePerson({ facebook_id: facebookId, social_links: links, ...person }: AppRecord) {
-  return {
-    ...person,
-    profile: {
-      __typename: 'ListingProfile',
-      facebook: facebookProfile(facebookId),
-      ...(Array.isArray(links) ? { social_links: { __typename: 'SocialLinkConnection', nodes: links } } : {}),
-    },
-  };
-}
-// An event's people mixin: its lineup.
-function lineup(people: AppRecord[]) {
-  return { __typename: 'EventPeopleView', lineup: { __typename: 'PersonConnection', nodes: people.map(wirePerson) } };
-}
-type AppEvent = { venue?: { name?: string; [field: string]: unknown } | null; venue_name?: string | null; people?: AppRecord[]; [field: string]: unknown };
-export function wireEvent({ venue, venue_name: name, people, ...event }: AppEvent) {
-  return {
-    ...event,
-    ...(people ? { people: lineup(people) } : {}),
-    venue: { __typename: 'EventVenueView', name: name ?? venue?.name ?? 'To be announced', venue: venue ? wireVenue(venue) : null },
-  };
-}
-export function upcoming(events: AppEvent[], typename = 'EventsView') {
-  return { __typename: typename, upcoming: { __typename: 'EventConnection', nodes: events.map(wireEvent) } };
-}
-
-export const FRIENDS = [{ id: 'f1', name: 'Dana K.' }, { id: 'f2', name: 'Sam Rivera' }];
-
-// What reportLocation answers away from a venue: the locale, with its mixins,
-// and the venues near you. Now titles it "Happening Now" under the locale's name.
-export const NOW = {
-  venue: null,
-  nearby_venues: [wireVenue(VENUE)],
-  locale: {
-    id: 'l1',
-    name: 'Seattle',
-    hero_url: `${IMAGES}/capitol-hill.png`,
-    events: upcoming([EVENT]),
-    friends: { list: { nodes: FRIENDS }, venues: { nodes: [{ venue: { id: VENUE.id }, friend_count: 2 }] } },
+  ...PERSON,
+  bannerUrl: `${IMAGES}/aurora-banner.png`,
+  events: { upcoming: connection(EVENT) },
+  profile: { ...PERSON.profile, socialLinks: connection({ id: 's1', provider: 'instagram', handle: '@aurora', url: 'https://www.instagram.com/aurora' }) },
+  music: {
+    links: connection({ id: 's2', provider: 'soundcloud', handle: 'aurora', url: 'https://soundcloud.com/aurora' }),
+    tracks: connection({ id: 't1', title: 'Northern Lights (Extended Mix)', provider: 'soundcloud', providerUrl: 'https://soundcloud.com/aurora/northern-lights', artworkUrl: `${IMAGES}/track.png` }),
   },
 };
+export const FRIENDS = [{ id: 'f1', name: 'Dana K.', avatarUrl: null, facebookId: null }, { id: 'f2', name: 'Sam Rivera', avatarUrl: null, facebookId: '100064000000002' }];
 
-export const NOW_TITLE = 'Happening Now';
+export const LOCALE = {
+  id: 'l1',
+  name: 'Seattle',
+  label: 'Capitol Hill',
+  bannerUrl: `${IMAGES}/capitol-hill.png`,
+  events: { upcoming: connection(EVENT) },
+  friends: { list: connection(...FRIENDS), venues: connection({ venue: { id: VENUE.id }, friendCount: 2 }) },
+};
 
-type Reply = { status?: number; json?: unknown };
+// What reportLocation answers when you're in the city but not at a venue.
+export const NOW = { venue: null, locale: LOCALE, nearbyVenues: [VENUE] };
+
+// The token JSON every sign-in answers (doc/TOKENS.md).
+export const TOKEN_RESPONSE = {
+  token: TOKEN,
+  userId: 'u1',
+  audienceId: AUDIENCE_ID,
+  role: 'member',
+  endpoint: `${API}/v1/audience/${AUDIENCE_ID}/graphql`,
+  venueDeviceId: null,
+  expiresAt: null,
+};
+
+type Reply = { status?: number; json?: unknown; errors?: { message: string; extensions?: Record<string, unknown> }[] };
 type Handler = (request: Request) => Reply | Promise<Reply>;
 
-export const AUDIENCE_ID = 'a0000000-0000-4000-8000-000000000000';
-
 // GraphQL operations are mocked by name ("Venue", "ReportLocation"); a reply's
-// json is the operation's data.
+// json is the operation's data, or its errors are the response's `errors`.
 export function operation(name: string) {
   return `graphql ${name}`;
+}
+
+/** A GraphQL error with the API's code, as the server sends it. */
+export function graphqlError(code: string, message = code, extensions: Record<string, unknown> = {}): Reply {
+  return { errors: [{ message, extensions: { code, ...extensions } }] };
 }
 
 export class MockAPI {
@@ -119,14 +96,14 @@ export class MockAPI {
   private readonly handlers = new Map<string, Handler>();
 
   constructor() {
-    this.on('POST /v1/token', () => ({ json: { token: TOKEN, user: { id: 'u1', name: 'Dave S.' } } }));
+    this.on('POST /v1/token', () => ({ json: TOKEN_RESPONSE }));
     this.on('GET /v1/branding', () => ({ json: { audience: { id: AUDIENCE_ID, name: 'Hot Mess', subdomain: 'hotmess' } } }));
     this.on(operation('ReportLocation'), () => ({ json: { reportLocation: NOW } }));
     // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
     const byID = (id: string, record: unknown) => (request: Request) =>
       request.postDataJSON().variables.id === id ? record : null;
-    this.on(operation('Venue'), (r) => ({ json: { venues: { venue: byID(VENUE.id, { ...wireVenue(VENUE), events: upcoming([EVENT]) })(r) } } }));
-    this.on(operation('Event'), (r) => ({ json: { events: { event: byID(EVENT.id, wireEvent(EVENT_PAGE))(r) } } }));
+    this.on(operation('Venue'), (r) => ({ json: { venues: { venue: byID(VENUE.id, { ...VENUE, events: { upcoming: connection(EVENT) } })(r) } } }));
+    this.on(operation('Event'), (r) => ({ json: { events: { event: byID(EVENT.id, EVENT)(r) } } }));
     this.on(operation('Person'), (r) => ({ json: { people: { person: byID(PERSON.id, PERSON_PAGE)(r) } } }));
   }
 
@@ -151,16 +128,21 @@ export class MockAPI {
       const request = route.request();
       const cors = {
         'access-control-allow-origin': '*',
-        'access-control-allow-headers': 'Authorization, Content-Type, Accept, X-AudienceKit-Environment',
+        'access-control-allow-headers': 'Authorization, Content-Type, Accept, X-AudienceKit-API-Version',
         'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+        'access-control-expose-headers': 'X-AudienceKit-API-Version',
+        'x-audiencekit-api-version': '2026-10-11',
       };
       if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
 
       this.requests.push(request);
       const key = MockAPI.key(request);
       const handler = this.handlers.get(key);
-      const reply = handler ? await handler(request) : { status: 404, json: {} };
-      const json = key.startsWith('graphql ') && (reply.status ?? 200) < 400 ? { data: reply.json ?? null } : reply.json ?? {};
+      const reply = handler ? await handler(request) : { status: 404, json: { error: 'NOT_FOUND', message: 'Not found' } };
+      const graphql = key.startsWith('graphql ') && (reply.status ?? 200) < 400;
+      const json = graphql
+        ? (reply.errors ? { data: null, errors: reply.errors } : { data: reply.json ?? null })
+        : reply.json ?? {};
       await route.fulfill({ status: reply.status ?? 200, headers: cors, contentType: 'application/json', json });
     });
   }
@@ -182,7 +164,7 @@ const FACEBOOK_SDK = `
   window.fbAsyncInit && window.fbAsyncInit();
 `;
 
-export const test = base.extend<{ api: MockAPI; signedIn: (token?: string) => Promise<void> }>({
+export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audienceId?: string | null) => Promise<void> }>({
   // Automatic, so no test can reach the network by forgetting to ask for it.
   api: [async ({ page }, use) => {
     const api = new MockAPI();
@@ -209,9 +191,14 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string) => Pr
     await use(page);
     expect(errors, 'uncaught page errors').toEqual([]);
   },
+  // A session as the site stores it after sign-in: the token and the audience
+  // the token JSON named (null for a session that didn't record one).
   signedIn: async ({ page }, use) => {
-    await use(async (token = TOKEN) => {
-      await page.addInitScript((t) => localStorage.setItem('hotmess.token', t), token);
+    await use(async (token = TOKEN, audienceId: string | null = AUDIENCE_ID) => {
+      await page.addInitScript(([t, a]) => {
+        localStorage.setItem('hotmess.token', t);
+        if (a) localStorage.setItem('hotmess.audience', a); else localStorage.removeItem('hotmess.audience');
+      }, [token, audienceId] as const);
     });
   },
 });

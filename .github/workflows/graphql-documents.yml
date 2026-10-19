@@ -1,0 +1,42 @@
+name: GraphQL documents
+
+# Validates the GraphQL operations in src/lib/api.ts (and the e2e fixtures)
+# against the AudienceKit consumer schema, so a renamed field fails here
+# instead of in the browser. The validator and the schema dump come from
+# developer.audiencekit.com/graphql/, which is published from audience-kit's
+# main (https://developer.audiencekit.com/api/validate-documents/).
+#
+# Until the first publish of those dumps the download fails, and while this
+# site tracks the API's next branch the published schema can lag behind the
+# documents, so the step is advisory (continue-on-error) for now. Make it
+# blocking once the dumps are published and the API has shipped.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphql-documents-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: GraphQL documents match the API schema
+        continue-on-error: true
+        run: |
+          mkdir -p .graphql-check && cd .graphql-check
+          curl -fsSLO https://developer.audiencekit.com/graphql/check.mjs
+          curl -fsSLO https://developer.audiencekit.com/graphql/schema.graphql
+          npm install --silent --no-save --no-package-lock graphql@16
+          node check.mjs --schema schema.graphql --endpoint consumer ../src ../e2e

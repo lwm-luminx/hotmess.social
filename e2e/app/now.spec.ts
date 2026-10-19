@@ -1,12 +1,12 @@
-import { test, expect, section, EVENT, FRIENDS, IMAGES, SEATTLE, VENUE, NOW_TITLE, AUDIENCE_ID, operation, wireVenue } from './fixtures';
+import { test, expect, section, connection, graphqlError, EVENT, FRIENDS, IMAGES, LOCALE, SEATTLE, VENUE, NOW, AUDIENCE_ID, operation } from './fixtures';
 
 test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
 test('shows your city, friends out, tonight\'s events and nearby venues', async ({ page, api }) => {
   await page.goto('/app/');
   const hero = page.locator('.ak-hero');
-  await expect(hero.getByRole('heading', { level: 1 })).toHaveText(NOW_TITLE);
-  await expect(hero.locator('.ak-hero__eyebrow')).toHaveText('Seattle');
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Seattle');
+  await expect(hero.locator('.ak-hero__eyebrow')).toHaveText('Capitol Hill');
   await expect(hero.locator('img')).toHaveAttribute('src', `${IMAGES}/capitol-hill.png`);
   await expect(page).toHaveTitle('Now · Hot Mess');
 
@@ -23,29 +23,30 @@ test('shows your city, friends out, tonight\'s events and nearby venues', async 
   await expect(event.locator('.ak-card__title')).toHaveText(EVENT.name);
   await expect(event.locator('.ak-card__meta')).toHaveText([/^Fri, Oct 9 · 10:00\sPM – 2:00\sAM$/, VENUE.name, 'with Aurora Borealis']);
   await expect(event.locator('.ak-date')).toHaveText('OCT9');
-  // Now never sends event banners, so the card shows the venue's photo.
-  await expect(event.locator('img')).toHaveAttribute('src', VENUE.photo_url);
+  // The event has no banner of its own, so the card shows the venue's photo.
+  await expect(event.locator('img')).toHaveAttribute('src', VENUE.photoUrl);
 
   const venues = section(page, 'Venues near you');
   const venue = venues.getByRole('link');
   await expect(venue).toHaveAttribute('href', `/venues/${VENUE.id}`);
   await expect(venue.locator('.ak-card__title')).toHaveText(VENUE.name);
-  await expect(venue.locator('.ak-card__meta')).toHaveText([VENUE.address, '2 friends here']);
+  await expect(venue.locator('.ak-card__meta')).toHaveText([VENUE.profile.address, '2 friends here']);
   await expect(venue.locator('.ak-card__badge')).toHaveText('390 ft');
 
   const [now] = api.calls(operation('ReportLocation'));
   const { position } = now.postDataJSON().variables;
   expect(position.latitude).toBeCloseTo(SEATTLE.latitude);
   expect(position.longitude).toBeCloseTo(SEATTLE.longitude);
+  expect(now.headers()['x-audiencekit-api-version']).toBe('2026-10-11');
 });
 
 test('says which venue you\'re at, and that no friends are out yet', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), {
-    json: { reportLocation: { venue: { ...wireVenue({ ...VENUE, distance: 2400 }), events: { upcoming: { nodes: [] } }, friends: { list: { nodes: [] } } }, nearby_venues: null } },
-  });
+  const quiet = { ...LOCALE, events: { upcoming: connection() }, friends: { list: connection(), venues: connection() } };
+  api.on(operation('ReportLocation'), { json: { reportLocation: { venue: { ...VENUE, distance: 2400 }, locale: quiet, nearbyVenues: null } } });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText(VENUE.name);
-  await expect(page.locator('.ak-hero img')).toHaveAttribute('src', VENUE.hero_url);
+  await expect(page.locator('.ak-hero__eyebrow')).toHaveText('Seattle');
+  await expect(page.locator('.ak-hero img')).toHaveAttribute('src', VENUE.bannerUrl);
   await expect(page.locator('.ak-lede')).toHaveText(`You're at ${VENUE.name}.`);
   await expect(page.locator('.ak-lede').getByRole('link')).toHaveAttribute('href', `/venues/${VENUE.id}`);
   await expect(section(page, 'Friends out tonight')).toContainText('None of your friends are out yet.');
@@ -64,7 +65,7 @@ test('opens a venue from Now without reloading, and Back returns', async ({ page
   expect(await page.evaluate(() => (window as any).__samePage)).toBe(true);
 
   await page.goBack();
-  await expect(page.locator('.ak-hero h1')).toHaveText(NOW_TITLE);
+  await expect(page.locator('.ak-hero h1')).toHaveText('Seattle');
   expect(await page.evaluate(() => (window as any).__samePage)).toBe(true);
 });
 
@@ -91,8 +92,17 @@ test('says the server is unreachable when Now fails', async ({ page, api }) => {
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).not.toBeNull();
 });
 
-test('survives a sparse Now that knows nothing about where you are', async ({ page, api }) => {
-  api.on(operation('ReportLocation'), { json: { reportLocation: {} } });
+test('says the server is unreachable when the API is temporarily unavailable', async ({ page, api }) => {
+  api.on(operation('ReportLocation'), graphqlError('UNAVAILABLE', 'Try again later'));
+  await page.goto('/app/');
+  await expect(page.getByText("Hot Mess couldn't reach its server. Try again in a moment.")).toBeVisible();
+  // Nothing is wrong with the request, so it isn't reported as the site's fault.
+  expect(api.calls('POST /v1/client_errors')).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).not.toBeNull();
+});
+
+test('survives a sparse Now with nowhere known', async ({ page, api }) => {
+  api.on(operation('ReportLocation'), { json: { reportLocation: { venue: null, locale: null, nearbyVenues: null } } });
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText('Now');
   await expect(page.locator('.ak-hero img')).toHaveCount(0);
@@ -106,19 +116,27 @@ test('signs out and asks to sign in again when the session has expired', async (
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBeNull();
 });
 
-test('asks the audience in the session token, without looking it up', async ({ page, api, signedIn }) => {
-  const claims = Buffer.from(JSON.stringify({ id: 'u1', audience_id: 'b1111111-1111-4111-8111-111111111111' })).toString('base64url');
-  await signedIn(`e2e.${claims}.sig`);
+test('signs out when GraphQL says nobody is signed in', async ({ page, api }) => {
+  api.on(operation('ReportLocation'), graphqlError('UNAUTHENTICATED', 'Sign in first'));
   await page.goto('/app/');
-  await expect(page.locator('.ak-hero h1')).toHaveText(NOW_TITLE);
+  await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.audience'))).toBeNull();
+});
+
+test('asks the audience the sign-in named, without looking it up', async ({ page, api, signedIn }) => {
+  await signedIn('e2e.other.jwt', 'b1111111-1111-4111-8111-111111111111');
+  await page.goto('/app/');
+  await expect(page.locator('.ak-hero h1')).toHaveText(LOCALE.name);
   const [now] = api.calls(operation('ReportLocation'));
   expect(new URL(now.url()).pathname).toBe('/v1/audience/b1111111-1111-4111-8111-111111111111/graphql');
   expect(api.calls('GET /v1/branding')).toEqual([]);
 });
 
-test('looks the audience up from its host when the token doesn\'t name it', async ({ page, api }) => {
+test('looks the audience up from its host when the session doesn\'t name it', async ({ page, api, signedIn }) => {
+  await signedIn('e2e.session.jwt', null);
   await page.goto('/app/');
-  await expect(page.locator('.ak-hero h1')).toHaveText(NOW_TITLE);
+  await expect(page.locator('.ak-hero h1')).toHaveText(NOW.locale.name);
   const [branding] = api.calls('GET /v1/branding');
   expect(new URL(branding.url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
   expect(new URL(api.calls(operation('ReportLocation'))[0].url()).pathname).toBe(`/v1/audience/${AUDIENCE_ID}/graphql`);
