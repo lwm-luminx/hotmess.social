@@ -1,9 +1,26 @@
 import { test, expect, VENUE } from './fixtures';
 
+test('the home page leads with the stores', async ({ page }) => {
+  await page.goto('/');
+  const hero = page.locator('.hero');
+  await expect(hero.getByRole('link', { name: 'Download on the App Store' })).toHaveAttribute('href', /apps\.apple\.com\/.*id1195758383/);
+  await expect(hero.getByRole('link', { name: 'Get it on Google Play' })).toHaveAttribute('href', /play\.google\.com\/store\/apps\/details\?id=social\.hotmess\.android\.app/);
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Get the app' })).toHaveAttribute('href', '/download');
+});
+
+test('the poster page offers the printable poster', async ({ page, request }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: /Get the poster/ }).click();
+  await expect(page).toHaveURL(/\/poster\/?$/);
+  const pdf = page.getByRole('link', { name: 'Download the PDF' });
+  await expect(pdf).toHaveAttribute('href', '/poster/hot-mess-poster.pdf');
+  expect((await request.get('/poster/hot-mess-poster.pdf')).headers()['content-type']).toContain('pdf');
+});
+
 test('the home page links to the app', async ({ page, api }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Hot Mess');
-  await page.getByRole('link', { name: 'Open the app' }).click();
+  await page.getByRole('link', { name: 'Peek on the web' }).click();
   await expect(page).toHaveURL(/\/app\/?$/);
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   expect(api.requests.filter((r) => new URL(r.url()).pathname !== '/v1/token/methods')).toEqual([]);

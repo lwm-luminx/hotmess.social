@@ -24,7 +24,7 @@ function watchAPI(page: Page) {
 
 test('the home page and the app load', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Open the app' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Get the app' })).toBeVisible();
   await page.goto('/app/');
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeEnabled();

@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
-import StoreBadges from '../components/StoreBadges.astro';
+import StoreButtons from '../components/StoreButtons.astro';
+import PosterCallout from '../components/PosterCallout.astro';
 ---
 <Base title="Get the app" description="Get Hot Mess on the App Store or Google Play.">
   <main class="wrap download">
@@ -10,11 +11,12 @@ import StoreBadges from '../components/StoreBadges.astro';
       <div class="copy">
         <h2>On iPhone and Android</h2>
         <p class="muted">Scan the code with your phone's camera. It opens the App Store on iPhone and Google Play on Android.</p>
-        <StoreBadges />
+        <StoreButtons />
       </div>
       <img class="qr" src="/download-qr.svg" alt="QR code for hotmess.social/download" width="220" height="220" />
     </div>
-    <p class="muted">On a computer? <a href="/app/">Hot Mess works on the web</a>.</p>
+    <PosterCallout />
+    <p class="web muted">No phone handy? <a href="/app/">Peek on the web</a>.</p>
   </main>
 </Base>
 
@@ -31,9 +33,10 @@ import StoreBadges from '../components/StoreBadges.astro';
   .download { padding: clamp(3rem, 8vw, 5rem) 0 2rem; }
   .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
   h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 800; margin: 0 0 2rem; max-width: 16ch; }
-  .get { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.5rem 2rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .get { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.5rem 2rem; padding: 1.5rem; }
   .copy { flex: 1 1 32ch; }
   .copy h2 { margin: 0 0 .5rem; font-size: 1.4rem; }
-  .copy p { margin: 0 0 1.25rem; }
+  .copy p { margin: 0 0 1.5rem; }
   .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border-radius: 12px; }
+  .web { margin-top: 2rem; font-size: .95rem; }
 </style>
