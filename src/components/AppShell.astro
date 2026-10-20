@@ -16,5 +16,14 @@ import App from '../app/App';
   .signin { max-width: 420px; margin: 2rem auto; padding: 1.5rem; }
   .signin h1 { margin-top: 0; }
   .signin-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .signin-methods { display: grid; gap: 0.75rem; }
+  .signin-methods .button { justify-content: center; }
+  /* Apple's button style: black on light pages, white on dark. */
+  .button.apple { background: #000; color: #fff; }
+  .button.apple:hover { background: #222; }
+  @media (prefers-color-scheme: dark) {
+    .button.apple { background: #fff; color: #000; }
+    .button.apple:hover { background: #e8e8e8; }
+  }
   .error { color: var(--danger); }
 </style>

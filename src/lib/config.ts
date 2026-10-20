@@ -9,6 +9,13 @@ export const API_BASE: string =
 export const FACEBOOK_APP_ID: string =
   import.meta.env.PUBLIC_FACEBOOK_APP_ID ?? '1168782378316790';
 
+// The Services ID Sign in with Apple JS signs in with (src/lib/apple.ts), the
+// Hot Mess one the Android app shares (primary App ID social.hotmess.HotMess).
+// Apple accepts it only on the domains and return URLs it lists: hotmess.social
+// and https://hotmess.social/app/. Empty leaves Apple off.
+export const APPLE_SERVICES_ID: string =
+  import.meta.env.PUBLIC_APPLE_SERVICES_ID ?? 'social.hotmess.signin';
+
 // The host that names the Hot Mess audience to the API at sign-in.
 // hotmess.admin.audiencekit.com resolves by subdomain today; switch to
 // hotmess.social once that domain is verified in AudienceKit.

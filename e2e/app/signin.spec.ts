@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { test, expect, TOKEN, AUDIENCE_ID, NOW, VENUE, EVENT, PERSON, operation } from './fixtures';
 
 test('signs in with Facebook, then shows Now', async ({ page, api }) => {
@@ -119,17 +120,112 @@ test('shows an error when Facebook Login cannot load', async ({ page, api }) => 
   expect(api.requests.filter((r) => new URL(r.url()).pathname !== '/v1/token/methods')).toEqual([]);
 });
 
-test('offers Facebook while the audience has it on, and says so when it is off', async ({ page, api }) => {
+test('offers the methods the audience has on, and says so when none is', async ({ page, api }) => {
   api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'] } });
   const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/v1/token/methods');
   await page.goto('/app/');
   expect(new URL((await asked).url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
+  await expect(page.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeVisible();
 
   api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
   await page.reload();
-  await expect(page.getByText("Signing in on the web isn't available right now.")).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toHaveCount(0);
+
+  api.on('GET /v1/token/methods', { json: { methods: ['google'] } });
+  await page.reload();
+  await expect(page.getByText("Signing in on the web isn't available right now.")).toBeVisible();
+  await expect(page.getByRole('button')).toHaveCount(0);
+});
+
+test('offers only Facebook when the API cannot say which methods are on', async ({ page }) => {
+  await page.goto('/app/');
+  await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Continue with Apple' })).toHaveCount(0);
+});
+
+test('signs in with Apple, bound to a nonce, then shows Now', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'] } });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
+
+  const init = await page.evaluate(() => (window as any).__appleInit);
+  expect(init).toMatchObject({
+    clientId: 'social.hotmess.signin',
+    scope: 'name email',
+    redirectURI: `${new URL(page.url()).origin}/app/`,
+    usePopup: true,
+  });
+  const [signIn] = api.calls('POST /v1/token/apple');
+  const body = signIn.postDataJSON();
+  expect(body).toMatchObject({
+    identity_token: 'apple-identity-token',
+    authorization_code: 'apple-code',
+    first_name: 'Dana',
+    last_name: 'Kim',
+    redirect_uri: init.redirectURI,
+    host: 'hotmess.admin.audiencekit.com',
+    device: { type: 'web', identifier: expect.any(String) },
+  });
+  // Apple gets the SHA-256 of the nonce; only the site has the nonce itself.
+  expect(body.nonce).toMatch(/^[0-9a-f]{64}$/);
+  expect(init.nonce).toBe(createHash('sha256').update(body.nonce).digest('hex'));
+  expect(signIn.headers()['authorization']).toBeUndefined();
+  expect(api.calls('POST /v1/token')).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBe(TOKEN);
+});
+
+test('shows an error when Apple sign-in is cancelled', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  await page.addInitScript(() => { (window as any).__appleError = { error: 'popup_closed_by_user' }; });
+  await page.goto('/app/');
+  const button = page.getByRole('button', { name: 'Continue with Apple' });
+  await button.click();
+  await expect(page.getByRole('alert')).toHaveText('Apple sign-in was cancelled');
+  await expect(button).toBeEnabled();
+  expect(api.calls('POST /v1/token/apple')).toEqual([]);
+});
+
+test('refuses an Apple answer for another sign-in', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  await page.addInitScript(() => { (window as any).__appleState = 'someone-elses-state'; });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page.getByRole('alert')).toHaveText("Apple sign-in didn't finish");
+  expect(api.calls('POST /v1/token/apple')).toEqual([]);
+});
+
+test('shows an error when Sign in with Apple cannot load', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  await page.route('https://appleid.cdn-apple.com/**', (route) => route.abort());
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Could not load Sign in with Apple');
+});
+
+test('shows the API\'s refusal of an Apple sign-in', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  api.on('POST /v1/token/apple', { status: 401, json: { error: 'UNAUTHENTICATED', message: "Apple didn't vouch for that sign-in" } });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page.getByRole('alert')).toHaveText("Apple didn't vouch for that sign-in");
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBeNull();
+});
+
+test('shows the audience\'s warning before Apple sign-in, and only before Apple', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'], warnings: { apple: 'Apple sign-in is new, tell us if it breaks' } } });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  const warning = page.getByRole('alertdialog');
+  await expect(warning).toContainText('Apple sign-in is new, tell us if it breaks');
+  await warning.getByRole('button', { name: 'Cancel' }).click();
+  expect(api.calls('POST /v1/token/apple')).toEqual([]);
+
+  await page.getByRole('button', { name: 'Continue with Facebook' }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
+  expect(api.calls('POST /v1/token')).toHaveLength(1);
 });
 
 test('shows the audience\'s warning before Facebook sign-in, with Cancel and Continue', async ({ page, api }) => {
