@@ -5,7 +5,12 @@ test('the home page leads with the stores', async ({ page }) => {
   const hero = page.locator('.hero');
   await expect(hero.getByRole('link', { name: 'Download on the App Store' })).toHaveAttribute('href', /apps\.apple\.com\/.*id1195758383/);
   await expect(hero.getByRole('link', { name: 'Get it on Google Play' })).toHaveAttribute('href', /play\.google\.com\/store\/apps\/details\?id=social\.hotmess\.android\.app/);
-  await expect(page.getByRole('banner').getByRole('link', { name: 'Get the app' })).toHaveAttribute('href', '/download');
+  const getApp = page.getByRole('banner').getByRole('link', { name: 'Get the app' });
+  await expect(getApp).toHaveAttribute('href', '/download');
+  // The Apple and Google Play marks, drawn at icon size.
+  await expect(getApp.locator('svg')).toHaveCount(2);
+  for (const mark of await getApp.locator('svg').all()) expect((await mark.boundingBox())!.width).toBeLessThan(24);
+  for (const glyph of await hero.locator('.store svg').all()) expect((await glyph.boundingBox())!.width).toBeGreaterThan(20);
 });
 
 test('the poster page offers the printable poster', async ({ page, request }) => {
