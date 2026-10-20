@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, session, APIError } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
 import { appleSignIn, offersApple } from '../lib/apple';
-import { routeFor, pathFor, type Route } from '../lib/routes';
+import { routeFor, pathFor, linkCheck, type Route } from '../lib/routes';
 import { reportError, startErrorReporting } from '../lib/errorReporting';
 import ErrorBoundary from './ErrorBoundary';
 import { EventView, NavigationProvider, NowView, PersonView, VenueView, type Navigation } from '../sdk';
@@ -16,6 +16,7 @@ type Screen =
   | { state: 'loading' }
   | { state: 'signed-out' }
   | { state: 'message'; text: string }
+  | { state: 'expired' }
   | { state: 'now'; now: Now }
   | { state: 'venue'; venue: Venue; events: Event[] }
   | { state: 'event'; event: Event }
@@ -50,8 +51,21 @@ function titleFor(screen: Screen): string {
     case 'venue': return screen.venue.name ?? 'Venue';
     case 'event': return screen.event.name ?? 'Event';
     case 'person': return screen.person.name ?? 'Person';
+    case 'expired': return 'Link expired';
     default: return 'Hot Mess';
   }
+}
+
+// Shown instead of the record for a share link past its expiry; the web app has no venue search, so it offers Now,
+// which lists the venues around you.
+function Expired({ onFindVenues }: { onFindVenues: () => void }) {
+  return (
+    <section className="card signin">
+      <h1>This link has expired</h1>
+      <p className="muted">Ask whoever sent it for a new one, or find a venue near you.</p>
+      <button className="button" type="button" onClick={onFindVenues}>Find venues</button>
+    </section>
+  );
 }
 
 type Method = 'apple' | 'facebook';
@@ -158,24 +172,34 @@ export default function App() {
 }
 
 function HotMess() {
-  const [path, setPath] = useState(() => location.pathname);
+  // The path and query: a share link's query carries its signed expiry (?e=).
+  const [path, setPath] = useState(() => location.pathname + location.search);
   const [screen, setScreen] = useState<Screen>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const onPop = () => setPath(location.pathname);
+    const onPop = () => setPath(location.pathname + location.search);
     addEventListener('popstate', onPop);
     return () => removeEventListener('popstate', onPop);
   }, []);
 
   useEffect(() => {
-    const route = routeFor(path);
+    const url = new URL(path, location.origin);
+    const route = routeFor(url.pathname);
     if (!route) return setScreen({ state: 'message', text: "That page doesn't exist." });
-    if (!session.token) return setScreen({ state: 'signed-out' });
+    // An expired link never opens its record, signed in or not.
+    const check = route.kind === 'now' ? 'open' : linkCheck(url.search);
+    if (check === 'expired') return setScreen({ state: 'expired' });
+    if (check === 'open' && !session.token) return setScreen({ state: 'signed-out' });
 
     let cancelled = false;
     setScreen({ state: 'loading' });
-    load(route).then(
+    const expired = check === 'ask' ? api.shareLinkExpired(pathFor(route), url.searchParams.get('e') ?? '') : Promise.resolve(false);
+    expired.then(async (isExpired): Promise<Screen> => {
+      if (isExpired) return { state: 'expired' };
+      if (!session.token) return { state: 'signed-out' };
+      return load(route);
+    }).then(
       (next) => { if (!cancelled) setScreen(next); },
       (e) => {
         if (cancelled) return;
@@ -219,6 +243,7 @@ function HotMess() {
     case 'loading': content = <p className="muted">Loading…</p>; break;
     case 'signed-out': content = <SignIn onSignedIn={() => setAttempt((n) => n + 1)} />; break;
     case 'message': content = <p className="muted">{screen.text}</p>; break;
+    case 'expired': content = <Expired onFindVenues={() => go({ kind: 'now' })} />; break;
     case 'now': content = <NowView now={screen.now} />; break;
     case 'venue': content = <VenueView venue={screen.venue} events={screen.events} />; break;
     case 'event': content = <EventView event={screen.event} />; break;

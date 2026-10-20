@@ -1,10 +1,11 @@
 // Cloudflare Worker in front of hotmess.social (GitHub Pages). GitHub Pages serves every share link from 404.html with
 // a 404 status and the site's generic tags, so link previews show nothing about the venue, event or person. For a
 // share link this asks the API for the record's public card (GET /v1/share) and answers 200 with its title, photo and
-// description in the <head>; the page itself still runs the web app. Everything else passes straight through.
+// description in the <head>; the page itself still runs the web app. A signed link (?e=) past its expiry gets the
+// generic card titled "This link has expired" instead. Everything else passes straight through.
 import { pathFor, routeFor } from '../../src/lib/routes';
 import { downloadUrl } from '../../src/lib/download';
-import { headTags, rewriteHead, type ShareCard } from './shareCard';
+import { expiredTags, headTags, rewriteHead, type ShareCard } from './shareCard';
 
 interface Env {
   API_BASE: string;
@@ -32,11 +33,13 @@ export default {
     if (!isShareLink || (request.method !== 'GET' && request.method !== 'HEAD')) return fetch(request);
 
     const path = pathFor(route);
-    const [page, card] = await Promise.all([fetch(request), shareCard(env, url.hostname, path)]);
+    const e = url.searchParams.get('e');
+    const [page, card] = await Promise.all([fetch(request), shareCard(env, url.hostname, path, e)]);
     if (card === 'missing') return page; // GitHub Pages' 404 stands: there's nothing at this link.
 
     const html = await page.text();
-    const body = card ? rewriteHead(html, headTags(card, env.APP_STORE_ID)) : html;
+    const tags = card === 'expired' ? expiredTags(env.APP_STORE_ID) : card ? headTags(card, env.APP_STORE_ID) : null;
+    const body = tags ? rewriteHead(html, tags) : html;
     return new Response(request.method === 'HEAD' ? null : body, {
       status: 200,
       headers: {
@@ -48,15 +51,20 @@ export default {
   },
 };
 
-/** The record's card, 'missing' when the API says there's no such record, or null when the API couldn't answer. */
-async function shareCard(env: Env, host: string, path: string): Promise<ShareCard | 'missing' | null> {
+/**
+ * The record's card, 'missing' when the API says there's no such record, 'expired' when the link's signed expiry (`e`)
+ * has passed or doesn't check out, or null when the API couldn't answer.
+ */
+async function shareCard(env: Env, host: string, path: string, e: string | null): Promise<ShareCard | 'missing' | 'expired' | null> {
   const query = new URLSearchParams({ host, path });
+  if (e != null) query.set('e', e);
   try {
     const response = await fetch(`${env.API_BASE}/v1/share?${query}`, {
       headers: { accept: 'application/json' },
       cf: { cacheTtl: 300, cacheEverything: true },
     } as RequestInit);
     if (response.status === 404) return 'missing';
+    if (response.status === 410) return 'expired';
     if (!response.ok) return null;
     return (await response.json()) as ShareCard;
   } catch {

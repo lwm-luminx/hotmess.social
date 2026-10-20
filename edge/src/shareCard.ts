@@ -38,14 +38,38 @@ export function headTags(card: ShareCard, appStoreId: string): string {
 }
 
 /**
+ * The tags for a share link that has expired (GET /v1/share answers 410): the site's generic card under a title saying
+ * so. Nothing about the record, and no `app-argument`, so Safari's banner doesn't deep-link the app to it.
+ */
+export function expiredTags(appStoreId: string, siteName = 'Hot Mess'): string {
+  const title = 'This link has expired';
+  const description = 'Ask whoever sent it for a new one, or find a venue near you on Hot Mess.';
+  return [
+    `<title>${escape(`${title} · ${siteName}`)}</title>`,
+    meta('name', 'description', description),
+    meta('name', 'apple-itunes-app', `app-id=${appStoreId}`),
+    meta('name', 'robots', 'noindex'),
+    meta('property', 'og:site_name', siteName),
+    meta('property', 'og:type', 'website'),
+    meta('property', 'og:title', title),
+    meta('property', 'og:description', description),
+    meta('property', 'og:image', DEFAULT_IMAGE.url),
+    meta('property', 'og:image:width', String(DEFAULT_IMAGE.width)),
+    meta('property', 'og:image:height', String(DEFAULT_IMAGE.height)),
+    meta('property', 'og:image:alt', siteName),
+    meta('name', 'twitter:card', 'summary_large_image'),
+  ].join('\n    ');
+}
+
+/**
  * Swaps the page's generic preview tags for the card's. The page is our own 404.html (src/layouts/Base.astro), so the
- * tags it replaces are known: the title, description, canonical, Smart App Banner, og:* (but fb:app_id) and twitter:*.
+ * tags it replaces are known: the title, description, robots, canonical, Smart App Banner, og:* (but fb:app_id) and twitter:*.
  */
 export function rewriteHead(html: string, tags: string): string {
   const stripped = html
     .replace(/<title>[\s\S]*?<\/title>/i, '')
     .replace(/<link rel="canonical"[^>]*>/gi, '')
-    .replace(/<meta (?:name|property)="(?:description|apple-itunes-app|og:[^"]+|twitter:[^"]+)"[^>]*>/gi, '');
+    .replace(/<meta (?:name|property)="(?:description|robots|apple-itunes-app|og:[^"]+|twitter:[^"]+)"[^>]*>/gi, '');
   return stripped.replace(/<head>/i, `<head>\n    ${tags}`);
 }
 

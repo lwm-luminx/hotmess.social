@@ -207,6 +207,16 @@ export const api = {
       return null;
     }
   },
+  // Whether a signed share link (?e=) has expired or been tampered with, which GET /v1/share answers with 410
+  // (audience-kit api/doc/SHARE_CARDS.md). Anything else, a network failure included, opens the link as before.
+  shareLinkExpired: async (path: string, e: string): Promise<boolean> => {
+    try {
+      await send(`/v1/share?${new URLSearchParams({ host: location.hostname, path, e })}`, {}, false);
+      return false;
+    } catch (error) {
+      return error instanceof APIError && error.status === 410;
+    }
+  },
   // Records where you are, which is how the API knows the venue you're at.
   now: async (latitude: number, longitude: number): Promise<Now> =>
     (await graphql<{ reportLocation: Now }>(NOW, { position: { latitude, longitude } })).reportLocation,
