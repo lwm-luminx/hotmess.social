@@ -11,6 +11,13 @@ test('the home page leads with the stores', async ({ page }) => {
   await expect(getApp.locator('svg')).toHaveCount(2);
   for (const mark of await getApp.locator('svg').all()) expect((await mark.boundingBox())!.width).toBeLessThan(24);
   for (const glyph of await hero.locator('.store svg').all()) expect((await glyph.boundingBox())!.width).toBeGreaterThan(20);
+  // Each mark's artwork fits its viewBox, so nothing is clipped.
+  const clipped = await page.evaluate(() => [...document.querySelectorAll('.get-app svg, .store svg')].filter((svg) => {
+    const box = (svg as SVGSVGElement).getBBox();
+    const view = (svg as SVGSVGElement).viewBox.baseVal;
+    return box.x < view.x || box.y < view.y || box.x + box.width > view.x + view.width || box.y + box.height > view.y + view.height;
+  }).length);
+  expect(clipped).toBe(0);
 });
 
 test('the poster page offers the printable poster', async ({ page, request }) => {
