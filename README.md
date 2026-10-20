@@ -11,7 +11,7 @@ The Hot Mess web app and marketing site. Hot Mess is an audience on
 | Path | What it is |
 | --- | --- |
 | `/` | Marketing page (`src/pages/index.astro`) |
-| `/app/` | The web app: Facebook sign-in, then Now (`src/components/AppShell.astro`) |
+| `/app/` | The web app: Apple or Facebook sign-in (whichever AudienceKit has on), then Now (`src/components/AppShell.astro`) |
 | `/venues/<id>`, `/events/<id>`, `/people/<id>` | Share links. GitHub Pages serves `404.html` for them, which runs the app and routes the same way the iOS app's `DeepLink` parser does (`src/lib/routes.ts`). |
 | `/.well-known/apple-app-site-association` | Universal links for the Hot Mess iOS apps, so share links open the app when it's installed |
 | `/.well-known/assetlinks.json` | Android App Links for `social.hotmess.android.app` (Play app signing) and the staging and development builds (debug key) |
@@ -51,8 +51,16 @@ node ../audience-kit/scripts/graphql-documents/check.mjs \
 ```
 
 Configuration is public build-time values only (see `.env.example`):
-`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID` and `PUBLIC_AUDIENCE_HOST` (a staging
-deployment points them at the next preview and the staging app). Never put a
+`PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID`, `PUBLIC_APPLE_SERVICES_ID` and
+`PUBLIC_AUDIENCE_HOST` (a staging deployment points them at the next preview and
+the staging app).
+
+Sign in with Apple uses Apple's JS in a popup with the Services ID
+`social.hotmess.signin`, which the Android app shares. Apple only accepts it on
+the domains and return URLs that Services ID lists, so it needs
+`hotmess.social` and `https://hotmess.social/app/` (add a staging host the same
+way to try it there). The API accepts its tokens only with the nonce the site
+sent Apple (api/doc/TOKENS.md in audience-kit). Never put a
 secret in this repository or in a `PUBLIC_` variable; they ship to every visitor.
 
 ## End-to-end tests
