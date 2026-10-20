@@ -13,7 +13,13 @@ The Hot Mess web app and marketing site. Hot Mess is an audience on
 | `/` | Marketing page (`src/pages/index.astro`) |
 | `/app/` | The web app: Facebook sign-in, then Now (`src/components/AppShell.astro`) |
 | `/venues/<id>`, `/events/<id>`, `/people/<id>` | Share links. GitHub Pages serves `404.html` for them, which runs the app and routes the same way the iOS app's `DeepLink` parser does (`src/lib/routes.ts`). |
-| `/.well-known/apple-app-site-association` | Universal links for `DWVXMLB45Y.social.hotmess.HotMess`, so share links open the iOS app when it's installed |
+| `/.well-known/apple-app-site-association` | Universal links for the Hot Mess iOS apps, so share links open the app when it's installed |
+| `/.well-known/assetlinks.json` | Android App Links for `social.hotmess.android.app` (Play app signing) and the staging and development builds (debug key) |
+
+Both link files come from AudienceKit: the Pages build fetches them from
+`https://api.audiencekit.com/.well-known/<file>?host=hotmess.social`, which lists
+the Hot Mess audience's apps (console → Settings → Apps). The copies in
+`public/.well-known/` are what ships when the API can't answer.
 
 Privacy, terms and data deletion link to the shared AudienceKit pages at
 `audiencekit.com`, which the Hot Mess Facebook app (713525445368431) uses.
@@ -78,5 +84,6 @@ only checks the signed-out pages.
   include 1168782378316790 with its secret, or `/v1/token` answers 401.
 - **Facebook**: add `hotmess.social` to the Hot Mess app's App Domains and as a
   Website platform so the JavaScript SDK can log in.
-- **Android App Links**: `/.well-known/assetlinks.json` needs the release
-  signing certificate's SHA-256 fingerprint, which isn't in the repo yet.
+- **Android App Links**: `/.well-known/assetlinks.json` lists Play's app-signing
+  certificates (from Play Console → App integrity). A new signing key goes into the
+  audience's Android app in AudienceKit, then into this file on the next build.
