@@ -31,6 +31,20 @@ const features = [
       ))}
     </section>
 
+    <section class="wrap safety" aria-labelledby="safety">
+      <article class="card safety-card">
+        <p class="eyebrow">Safety, built in</p>
+        <h2 id="safety">You choose who sees you.</h2>
+        <ul>
+          <li><strong>18+ and real names.</strong> People who aren't your friends see your first name and last initial.</li>
+          <li><strong>Report or block anyone.</strong> Blocking works both ways, and moderators act on reports within 24 hours.</li>
+          <li><strong>Chat stays in the room.</strong> A venue's chat opens only for the people who are there.</li>
+          <li><strong>Bans stick.</strong> Someone banned from a venue can't see it, its events or its chat.</li>
+        </ul>
+        <a class="go" href="/safety">How Hot Mess keeps you safe →</a>
+      </article>
+    </section>
+
     <section id="get-the-app" class="wrap get">
       <h2>Take it out with you</h2>
       <article class="card get-card">
@@ -59,6 +73,12 @@ const features = [
   .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 2rem; }
   .feature { padding: 1.25rem 1.25rem .5rem; }
   .feature h2 { margin: 0 0 .5rem; font-size: 1.3rem; }
+  .safety { margin-top: 3rem; }
+  .safety-card { padding: 1.5rem; }
+  .safety-card .eyebrow { margin-bottom: .4rem; }
+  .safety-card h2 { margin: 0 0 1rem; font-size: 1.6rem; }
+  .safety-card ul { margin: 0 0 1.25rem; padding-left: 1.2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: .5rem 2rem; }
+  .safety-card .go { font-weight: 700; }
   .get { margin-top: 4rem; }
   .get h2 { font-size: 1.8rem; margin-bottom: 1rem; }
   .get-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem; padding: 1.5rem; background: linear-gradient(135deg, var(--accent-soft), var(--surface-raised) 70%); }
