@@ -62,6 +62,7 @@ test('the home page links to the safety page', async ({ page }) => {
   await expect(page).toHaveURL(/\/safety\/?$/);
   await expect(page).toHaveTitle('Safety · Hot Mess');
   await expect(page.getByRole('heading', { name: 'Block, both ways' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Where we are tonight is not public information' })).toBeVisible();
   await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety' })).toHaveAttribute('href', '/safety');
 });
 
