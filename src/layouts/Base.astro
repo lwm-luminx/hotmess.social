@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
 import LoveWinsBand from '../components/LoveWinsBand.astro';
+import NewRelic from '../components/NewRelic.astro';
 import StoreGlyph from '../components/StoreGlyph.astro';
 import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
 
@@ -36,6 +37,8 @@ const path = Astro.url.pathname;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- First, so it times the whole page load. -->
+    <NewRelic />
     <title>{title === 'Hot Mess' ? title : `${title} · Hot Mess`}</title>
     <meta name="description" content={description} />
     {canonical && <link rel="canonical" href={canonical} />}

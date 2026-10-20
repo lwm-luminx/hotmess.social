@@ -1,0 +1,8 @@
+---
+// New Relic browser monitoring: the "hotmess.social" browser app (Pro + SPA, distributed tracing on) in the Hot Mess
+// Productions account. new-relic-browser.html is New Relic's copy/paste snippet as generated; its licenseKey is the
+// account's browser key, which every page using it ships, so it isn't a secret. Replace the file with a fresh copy
+// from the browser app's settings to update the agent. Production builds only, like Analytics.
+import snippet from './new-relic-browser.html?raw';
+---
+{import.meta.env.PROD && <Fragment set:html={snippet} />}
