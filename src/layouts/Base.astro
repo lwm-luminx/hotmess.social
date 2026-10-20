@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
 import LoveWinsBand from '../components/LoveWinsBand.astro';
+import StoreGlyph from '../components/StoreGlyph.astro';
 import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
 
 interface Props {
@@ -64,7 +65,10 @@ const path = Astro.url.pathname;
         <ul class="links">
           {nav.map((n) => <li><a href={n.href} aria-current={n.current(path) ? 'page' : undefined}>{n.label}</a></li>)}
         </ul>
-        <a class="button" href="/download">Get the app</a>
+        <a class="button get-app" href="/download">
+          <span class="marks"><StoreGlyph store="ios" class="mark" /><StoreGlyph store="android" class="mark" /></span>
+          Get the app
+        </a>
       </nav>
     </header>
     <slot />
@@ -99,6 +103,9 @@ const path = Astro.url.pathname;
     .site-header nav { justify-content: space-between; padding-top: .5rem; }
     .links { order: 3; flex-basis: 100%; margin: 0; }
   }
+  /* The store marks tell people up front that the app is on the App Store and Google Play. */
+  .get-app .marks { display: inline-flex; gap: .35rem; }
+  .get-app :global(.mark) { width: 1.05rem; height: 1.15rem; flex: none; }
   .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
   .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
   .site-footer p { margin: .25rem 0; }
