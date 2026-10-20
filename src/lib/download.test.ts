@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANDROID_BETA_URL, APP_STORE_URL, downloadUrl } from './download.ts';
+import { APP_STORE_URL, PLAY_STORE_URL, downloadUrl } from './download.ts';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const IPAD_DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
@@ -14,8 +14,8 @@ test('iOS devices go to the App Store', () => {
   assert.equal(downloadUrl(IPAD_DESKTOP, 5), APP_STORE_URL);
 });
 
-test('Android goes to the Play beta', () => {
-  assert.equal(downloadUrl(ANDROID), ANDROID_BETA_URL);
+test('Android goes to Google Play', () => {
+  assert.equal(downloadUrl(ANDROID), PLAY_STORE_URL);
 });
 
 test('desktops get the page with both links', () => {

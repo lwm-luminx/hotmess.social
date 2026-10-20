@@ -3,16 +3,15 @@
 // import.meta.env and so can't load in the worker.
 export const APP_STORE_URL = 'https://apps.apple.com/us/app/hot-mess-gay-nightlife/id1195758383';
 
-// Google Play open-testing beta; swap for the Play Store listing once Android is released.
-export const ANDROID_BETA_URL = 'https://play.google.com/apps/testing/social.hotmess.android.app';
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=social.hotmess.android.app';
 
 /**
- * The store for this browser: iPhone, iPad and iPod get the App Store, Android the Play beta, and anything else null
+ * The store for this browser: iPhone, iPad and iPod get the App Store, Android Google Play, and anything else null
  * (the page with both links). iPadOS Safari reports a Mac user agent; pass `touchPoints` (navigator.maxTouchPoints)
  * to tell it from a real Mac.
  */
 export function downloadUrl(userAgent: string, touchPoints = 0): string | null {
-  if (/android/i.test(userAgent)) return ANDROID_BETA_URL;
+  if (/android/i.test(userAgent)) return PLAY_STORE_URL;
   if (/iphone|ipad|ipod/i.test(userAgent)) return APP_STORE_URL;
   if (/macintosh/i.test(userAgent) && touchPoints > 1) return APP_STORE_URL;
   return null;

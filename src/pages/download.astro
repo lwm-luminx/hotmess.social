@@ -1,22 +1,18 @@
 ---
 import Base from '../layouts/Base.astro';
-import { ANDROID_BETA_URL, APP_STORE_URL } from '../lib/download';
+import StoreBadges from '../components/StoreBadges.astro';
 ---
-<Base title="Get the app" description="Get Hot Mess on the App Store or join the Android beta on Google Play.">
+<Base title="Get the app" description="Get Hot Mess on the App Store or Google Play.">
   <main class="wrap download">
     <p class="eyebrow">Get the app</p>
     <h1>Take Hot Mess out with you.</h1>
-    <div class="stores">
-      <article class="card store">
-        <h2>iPhone</h2>
-        <p class="muted">Hot Mess on the App Store.</p>
-        <a class="button" href={APP_STORE_URL}>Get it on the App Store</a>
-      </article>
-      <article class="card store">
-        <h2>Android</h2>
-        <p class="muted">The Android beta is open on Google Play. Join, then install Hot Mess from the Play Store.</p>
-        <a class="button" href={ANDROID_BETA_URL}>Join the Android beta</a>
-      </article>
+    <div class="card get">
+      <div class="copy">
+        <h2>On iPhone and Android</h2>
+        <p class="muted">Scan the code with your phone's camera. It opens the App Store on iPhone and Google Play on Android.</p>
+        <StoreBadges />
+      </div>
+      <img class="qr" src="/download-qr.svg" alt="QR code for hotmess.social/download" width="220" height="220" />
     </div>
     <p class="muted">On a computer? <a href="/app/">Hot Mess works on the web</a>.</p>
   </main>
@@ -35,8 +31,9 @@ import { ANDROID_BETA_URL, APP_STORE_URL } from '../lib/download';
   .download { padding: clamp(3rem, 8vw, 5rem) 0 2rem; }
   .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
   h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 800; margin: 0 0 2rem; max-width: 16ch; }
-  .stores { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-  .store { padding: 1.5rem; display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; }
-  .store h2 { margin: 0; font-size: 1.4rem; }
-  .store p { margin: 0 0 .5rem; flex: 1; }
+  .get { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.5rem 2rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .copy { flex: 1 1 32ch; }
+  .copy h2 { margin: 0 0 .5rem; font-size: 1.4rem; }
+  .copy p { margin: 0 0 1.25rem; }
+  .qr { width: 200px; height: 200px; padding: 10px; background: #fff; border-radius: 12px; }
 </style>
