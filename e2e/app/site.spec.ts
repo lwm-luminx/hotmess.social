@@ -42,3 +42,13 @@ for (const path of ['/', '/app/', `/venues/${VENUE.id}`]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   });
 }
+
+test('the home page links to the safety page', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'You choose who sees you.' })).toBeVisible();
+  await page.getByRole('link', { name: /How Hot Mess keeps you safe/ }).click();
+  await expect(page).toHaveURL(/\/safety\/?$/);
+  await expect(page).toHaveTitle('Safety · Hot Mess');
+  await expect(page.getByRole('heading', { name: 'Block, both ways' })).toBeVisible();
+  await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety' })).toHaveAttribute('href', '/safety');
+});
