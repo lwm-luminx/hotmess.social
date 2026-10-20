@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Print the poster" description="A printable Hot Mess poster with one QR code for iPhone and Android. Print it and put it up in your queer spaces.">
+  <main class="wrap poster">
+    <div class="copy">
+      <p class="eyebrow">Print it. Post it.</p>
+      <h1>Put Hot Mess up where your people are.</h1>
+      <p class="lede">Hot Mess grows one bar, one dance floor and one bathroom mirror at a time. Print our poster and put it up in the queer spaces you love.</p>
+      <div class="actions">
+        <a class="button" href="/poster/hot-mess-poster.pdf" download>Download the PDF</a>
+        <a class="button secondary" href="/poster/hot-mess-poster.png" download>PNG image</a>
+      </div>
+      <p class="muted size">US Letter (8.5 × 11 in). Prints fine on A4 with "fit to page", in color or black and white.</p>
+
+      <h2>Where it belongs</h2>
+      <ul>
+        <li>Gay bars and clubs: the entrance, the coat check, the bathroom</li>
+        <li>LGBTQ+ community centers and resource boards</li>
+        <li>Queer bookstores, coffee shops and gyms</li>
+        <li>Drag brunches, Pride events and your own party</li>
+      </ul>
+      <p class="muted">Ask the venue before you put it up, and use tape that comes off clean. One QR code covers everyone: iPhones land on the App Store and Android phones on Google Play.</p>
+    </div>
+    <a class="preview" href="/poster/hot-mess-poster.pdf">
+      <img src="/poster/hot-mess-poster-preview.png" alt="The Hot Mess poster: the app icon, the words Hot Mess, a QR code for hotmess.social/download, and notes for iPhone and Android." width="800" height="1035" />
+    </a>
+  </main>
+</Base>
+
+<style>
+  .poster { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(2rem, 5vw, 4rem); align-items: start; padding: clamp(3rem, 8vw, 5rem) 0 2rem; }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2rem, 5.5vw, 3.3rem); font-weight: 800; margin: 0 0 1rem; }
+  .lede { font-size: 1.15rem; color: var(--ink-muted); margin: 0 0 1.75rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+  .size { font-size: .9rem; margin: .75rem 0 0; }
+  h2 { font-size: 1.4rem; margin: 2.5rem 0 .75rem; }
+  ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+  li { margin: .35rem 0; }
+  .preview { display: block; line-height: 0; }
+  .preview img { width: 100%; height: auto; border-radius: 6px; box-shadow: 8px 8px 0 #ff3d9a, 16px 16px 0 #1e8cff; transform: rotate(2deg); }
+  @media (max-width: 760px) {
+    .poster { grid-template-columns: 1fr; }
+    .preview { max-width: 360px; margin: 0 auto; order: -1; }
+  }
+</style>
