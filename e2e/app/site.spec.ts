@@ -52,3 +52,18 @@ test('the home page links to the safety page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Block, both ways' })).toBeVisible();
   await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety' })).toHaveAttribute('href', '/safety');
 });
+
+test('the top nav links every page and marks the current one', async ({ page }) => {
+  for (const width of [1280, 360]) {
+    await page.setViewportSize({ width, height: 740 });
+    await page.goto('/safety');
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    for (const [name, href] of [['Safety', '/safety'], ['Poster', '/poster'], ['Web app', '/app/'], ['Get the app', '/download']]) {
+      await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+      await expect(nav.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
+    }
+    await expect(nav.getByRole('link', { name: 'Safety' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Poster' })).not.toHaveAttribute('aria-current', 'page');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
