@@ -71,22 +71,45 @@ export async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Opens Apple's popup and resolves with what the API needs, or rejects when
-// the person closes it or Apple refuses.
-export async function appleSignIn(): Promise<AppleSignIn> {
+// One sign-in, ready to open: Apple's script loaded and initialised with a
+// fresh state and the nonce's hash. A click may only open a popup while
+// nothing has been awaited since (Safari blocks it otherwise), so the card
+// gets one ready before the click (prepareAppleSignIn) and the click opens
+// Apple's window straight away (appleSignIn).
+interface Prepared { auth: AppleAuth; state: string; nonce: string; redirectUri: string }
+
+let ready: Prepared | null = null;
+
+// Gets the next sign-in ready; the card waits for it before enabling Apple's button.
+export async function prepareAppleSignIn(): Promise<void> {
   const auth = await sdk();
   const state = random();
   const nonce = random();
   const redirectUri = appleRedirectUri();
   auth.init({ clientId: APPLE_SERVICES_ID, scope: 'name email', redirectURI: redirectUri, state, nonce: await sha256Hex(nonce), usePopup: true });
+  ready = { auth, state, nonce, redirectUri };
+}
+
+// Opens Apple's popup and resolves with what the API needs, or rejects when
+// the person closes it or Apple refuses. Each prepared sign-in is used once,
+// and the next one is made ready for another try.
+export async function appleSignIn(): Promise<AppleSignIn> {
+  if (!ready) await prepareAppleSignIn();
+  const { auth, state, nonce, redirectUri } = ready!;
+  ready = null;
+  const opening = auth.signIn();
   let response: AppleAuthResponse;
   try {
-    response = await auth.signIn();
+    response = await opening;
   } catch (error) {
     const reason = (error as { error?: string } | null)?.error;
     throw new Error(reason === 'popup_closed_by_user' || reason === 'user_cancelled_authorize'
       ? 'Apple sign-in was cancelled'
-      : "Apple sign-in didn't finish", { cause: error });
+      : reason === 'popup_blocked_by_browser'
+        ? 'Your browser blocked the Apple sign-in window. Allow pop-ups for hotmess.social and try again.'
+        : "Apple sign-in didn't finish", { cause: error });
+  } finally {
+    void prepareAppleSignIn().catch(() => {});
   }
   const authorization = response.authorization;
   if (!authorization?.id_token || authorization.state !== state) throw new Error("Apple sign-in didn't finish");
