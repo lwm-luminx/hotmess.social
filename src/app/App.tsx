@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, session, APIError } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
-import { appleSignIn, offersApple } from '../lib/apple';
+import { appleSignIn, offersApple, prepareAppleSignIn } from '../lib/apple';
 import { routeFor, pathFor, linkCheck, type Route } from '../lib/routes';
 import { reportError, startErrorReporting } from '../lib/errorReporting';
 import ErrorBoundary from './ErrorBoundary';
@@ -102,9 +102,12 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
     api.signInMethods().then((answer) => {
       if (current) setAsked(true);
       if (!current || !answer) return;
-      setOffered((['apple', 'facebook'] as const).filter((method) =>
-        answer.methods.includes(method) && (method !== 'apple' || offersApple)));
+      const methods = (['apple', 'facebook'] as const).filter((method) =>
+        answer.methods.includes(method) && (method !== 'apple' || offersApple));
+      setOffered(methods);
       setWarnings(answer.warnings);
+      // Ready before the click, so the click can open Apple's window (src/lib/apple.ts).
+      if (methods.includes('apple')) prepareAppleSignIn().catch(() => {});
     });
     return () => { current = false; };
   }, []);

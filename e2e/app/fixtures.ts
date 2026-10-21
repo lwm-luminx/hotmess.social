@@ -165,13 +165,19 @@ const FACEBOOK_SDK = `
   window.fbAsyncInit && window.fbAsyncInit();
 `;
 
-// Sign in with Apple JS: init records its config in window.__appleInit, and
+// Sign in with Apple JS: init records its config in window.__appleInit (and
+// every config in window.__appleInits), and
 // signIn answers with window.__appleSignIn (default: a first sign-in, with the
-// name), echoing the state, or rejects with window.__appleError.
+// name), echoing the state, or rejects with window.__appleError. Like Safari,
+// it refuses to open its popup unless the click is still being handled, so a
+// sign-in that awaits anything between the click and signIn() fails.
 const APPLE_SDK = `
+  let clicking = false;
+  addEventListener('click', () => { clicking = true; setTimeout(() => { clicking = false; }); }, true);
   window.AppleID = { auth: {
-    init(config) { window.__appleInit = config; },
+    init(config) { window.__appleInit = config; (window.__appleInits ??= []).push(config); },
     async signIn() {
+      if (!clicking) throw { error: 'popup_blocked_by_browser' };
       if (window.__appleError) throw window.__appleError;
       const state = window.__appleState ?? window.__appleInit.state;
       return window.__appleSignIn ?? {

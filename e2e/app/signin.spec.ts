@@ -151,7 +151,8 @@ test('signs in with Apple, bound to a nonce, then shows Now', async ({ page, api
   await page.getByRole('button', { name: 'Continue with Apple' }).click();
   await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
 
-  const init = await page.evaluate(() => (window as any).__appleInit);
+  // The sign-in is prepared before the click; the next one is prepared after it.
+  const init = await page.evaluate(() => (window as any).__appleInits[0]);
   expect(init).toMatchObject({
     clientId: 'social.hotmess.signin',
     scope: 'name email',
@@ -175,6 +176,23 @@ test('signs in with Apple, bound to a nonce, then shows Now', async ({ page, api
   expect(signIn.headers()['authorization']).toBeUndefined();
   expect(api.calls('POST /v1/token')).toEqual([]);
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBe(TOKEN);
+});
+
+test('opens Apple\'s window from the click itself, so the browser allows it', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  await page.goto('/app/');
+  // The fake Apple script refuses a popup that isn't opened while the click is handled, as Safari does.
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
+  expect(api.calls('POST /v1/token/apple')).toHaveLength(1);
+});
+
+test('says so when the browser blocks Apple\'s window', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  await page.addInitScript(() => { (window as any).__appleError = { error: 'popup_blocked_by_browser' }; });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Your browser blocked the Apple sign-in window. Allow pop-ups for hotmess.social and try again.');
 });
 
 test('shows an error when Apple sign-in is cancelled', async ({ page, api }) => {
