@@ -1,0 +1,161 @@
+---
+import Base from '../layouts/Base.astro';
+import StoreButtons from '../components/StoreButtons.astro';
+import { API_BASE } from '../lib/config';
+import { formatNightPrice, loadRateCard } from '../lib/rateCard';
+
+// The rules come before the money: this page is published before the first promoted listing appears
+// (api/doc/PROMOTED_PLACEMENT.md). Keep it in step with what the apps and the API actually do.
+const card = await loadRateCard(API_BASE);
+const floor = card.viewer_floor;
+const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
+const count = (n: number) => words[n] ?? String(n);
+
+const rules = [
+  {
+    title: 'A flat price for the spot',
+    body: 'Venues pay a fixed price for a night in a city, from the public rate card below. Never per click, tap or view, so nobody gains anything from tracking you.',
+  },
+  {
+    title: 'Placed by the city and the night',
+    body: 'A promoted listing shows to everyone in its city on its nights. We never use anything about you to choose it: not your profile, not your tribes, not where you have been.',
+  },
+  {
+    title: 'Always labelled',
+    body: 'Every promoted venue or event says “Promoted”. Tap the label and we tell you why it is there.',
+  },
+  {
+    title: 'Nothing hidden',
+    body: `You see at most ${count(card.shown_at_once)} promoted listings at a time, shown first. Every promoted venue and event also stays in its usual place in the list, and nobody can pay to push anyone else down or out.`,
+  },
+  {
+    title: 'Fair turns',
+    body: `Each city sells at most ${count(card.slots_per_night)} promoted spots a night, and a venue can hold one of them, for at most ${count(card.venue_nights_per_week)} nights a week. When more are booked than fit on screen, they take turns through the night.`,
+  },
+];
+
+const venuesSee = [
+  `One number: how many different people saw their promoted listing each week, counted the same way every week so they can tell which nights draw interest.`,
+  `Under ${floor}, it just says “fewer than ${floor}”, so a small town’s count can’t point at anyone.`,
+  'Only weeks that are over. No live count, no hours, and no breakdowns by age, tribe or anything else.',
+  'Never who you are. We count views with a code that changes every week and delete it once the week is counted.',
+];
+
+const neverDo = [
+  'Sell or share your data with advertisers.',
+  'Let anyone target you by who you are, what you look like or who you’re into.',
+  'Let advertisers put tracking pixels or ad networks in Hot Mess.',
+  'Charge you to use Hot Mess.',
+];
+---
+<Base title="How Hot Mess makes money" description="Hot Mess is free. It's paid for by promoted listings that work like a poster on the wall: a flat price, labelled Promoted, placed by city and night, never by anything about you.">
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">How Hot Mess makes money</p>
+        <h1>Like a poster on the wall.</h1>
+        <p class="lede">Hot Mess is free. It's paid for by venues that promote a night, the way they'd put up a poster or take an ad in a queer magazine. Here are the rules, and the prices, before you ever see an ad.</p>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="rules">
+      <h2 id="rules">How promoted listings work</h2>
+      <div class="grid">
+        {rules.map((r) => (
+          <article class="card item">
+            <h3>{r.title}</h3>
+            <p class="muted">{r.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="wrap split" aria-labelledby="venues">
+      <div>
+        <h2 id="venues">What venues see</h2>
+        <ul>{venuesSee.map((l) => <li>{l}</li>)}</ul>
+      </div>
+      <div>
+        <h2 id="never">What we never do</h2>
+        <ul>{neverDo.map((l) => <li>{l}</li>)}</ul>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="different">
+      <h2 id="different">Why it works this way</h2>
+      <div class="why-grid">
+        <p>A lot of free apps are paid for by learning about the people who use them and selling chances to reach them. For a community where being found by the wrong person can mean harassment or being outed, that's the wrong trade.</p>
+        <p>So Hot Mess sells space, not you. A venue buys a spot in a city on a night, everyone there sees the same thing, and the venue learns one weekly number. That's the whole deal.</p>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="rates">
+      <h2 id="rates">Rate card</h2>
+      <p class="muted">Per night, per city, in US dollars.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Venue</th>
+              {card.city_sizes.map((size) => <th scope="col">{size.name}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {card.tiers.map((tier) => (
+              <tr>
+                <th scope="row">{tier.name}<span class="muted">{tier.description}</span></th>
+                {card.city_sizes.map((size) => <td>{formatNightPrice(tier.prices[size.key])}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul class="discounts">
+        {card.discounts.filter((d) => d.key !== 'comp').map((d) => (
+          <li><strong>{d.name}:</strong> {d.percent === 0 ? 'free' : `${100 - d.percent}% off`}. <span class="muted">{d.description}</span></li>
+        ))}
+      </ul>
+      <p class="muted">A booking runs from one night up to {card.max_nights}. It keeps the price it was booked at if the rate card changes.</p>
+    </section>
+
+    <section class="wrap" aria-labelledby="where">
+      <article class="card where">
+        <h2 id="where">Where the money goes</h2>
+        <p>Promoted listings pay for what keeps Hot Mess running and free: hosting, moderation and development. It's run by <a href="https://lovewins.media">Love Wins Media</a>, and what's left supports the community work built on top of it.</p>
+      </article>
+    </section>
+
+    <section class="wrap get">
+      <h2>Get Hot Mess</h2>
+      <p class="muted">See also <a href="/safety">Safety</a>, our <a href="https://audiencekit.com/privacy/">Privacy Policy</a> and <a href="https://audiencekit.com/terms/">Terms</a>.</p>
+      <StoreButtons />
+    </section>
+  </main>
+</Base>
+
+<style>
+  .hero { padding: clamp(3rem, 9vw, 6rem) 0 clamp(1.5rem, 4vw, 3rem); background: radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%); }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2.2rem, 6.5vw, 4rem); font-weight: 800; margin: 0 0 1rem; max-width: 16ch; }
+  .lede { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--ink-muted); max-width: 52ch; margin: 0; }
+  h2 { font-size: 1.6rem; margin: 3rem 0 1rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+  .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 2rem; }
+  .why-grid p { margin: 0 0 1rem; max-width: 60ch; }
+  .item { padding: 1.25rem 1.25rem .5rem; }
+  .item h3 { margin: 0 0 .5rem; font-size: 1.15rem; }
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 2rem; }
+  ul { margin: 0; padding-left: 1.2rem; }
+  li { margin: .5rem 0; }
+  .table-wrap { overflow-x: auto; margin: 1rem 0; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .75rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td { font-weight: 700; white-space: nowrap; }
+  tbody th span { display: block; font-weight: 400; font-size: .9rem; }
+  .discounts { margin: 0 0 1rem; }
+  .where { margin-top: 3rem; padding: 1.5rem; background: linear-gradient(135deg, var(--accent-soft), var(--surface-raised) 70%); }
+  .where h2 { margin: 0 0 .75rem; font-size: 1.4rem; }
+  .where p { margin: 0; }
+  .get h2 { margin-bottom: .5rem; }
+  .get p { margin: 0 0 1.25rem; }
+</style>
