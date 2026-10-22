@@ -15,12 +15,14 @@ for (const path of ['/', '/app/', `/venues/${VENUE.id}`]) {
   test(`${path} credits Love Wins Media`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto(path);
+    await expect(page.locator('.lovewins-band')).toHaveText('A Love Wins Media product');
     const band = page.locator('.lovewins-band a');
-    await expect(band).toHaveText('A Love Wins Media product');
+    await expect(band).toHaveText('Love Wins Media');
     await expect(band).toHaveAttribute('href', 'https://lovewins.media');
     await expect(band).toHaveAttribute('target', '_blank');
     const footer = page.locator('.site-footer');
-    await expect(footer.getByRole('link', { name: 'A Love Wins Media product' })).toHaveAttribute('href', 'https://lovewins.media');
+    await expect(footer).toContainText('A Love Wins Media product');
+    await expect(footer.getByRole('link', { name: 'Love Wins Media', exact: true })).toHaveAttribute('href', 'https://lovewins.media');
     await expect(footer).toContainText(`© ${new Date().getFullYear()} Love Wins Media, Inc.`);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   });
