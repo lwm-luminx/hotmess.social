@@ -26,6 +26,7 @@ const image = new URL('/og/hot-mess.png', Astro.site);
 
 // Top nav. The web app also serves share links (/venues/<id> etc.) through 404.html.
 const nav = [
+  { href: '/discover', label: 'Discover', current: (p: string) => p === '/discover' },
   { href: '/safety', label: 'Safety', current: (p: string) => p.startsWith('/safety') },
   { href: '/poster', label: 'Poster', current: (p: string) => p.startsWith('/poster') },
   { href: '/app/', label: 'Web app', current: (p: string) => /^\/(app|venues|events|people)(\/|$)/.test(p) },
@@ -41,6 +42,7 @@ const path = Astro.url.pathname;
     <NewRelic />
     <title>{title === 'Hot Mess' ? title : `${title} · Hot Mess`}</title>
     <meta name="description" content={description} />
+    {(/^\/app(?:\/|$)/.test(path) || path === "/404") && <meta name="robots" content="noindex" />}
     {canonical && <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#a50000" />

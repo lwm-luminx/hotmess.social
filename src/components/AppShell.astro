@@ -1,13 +1,12 @@
 ---
-// The client-side Hot Mess app (src/app/App.tsx), a React island built from the AudienceKit
-// components in src/sdk. It renders /app/ and, through the 404 page, the share links
-// /venues/<id>, /events/<id> and /people/<id>, which GitHub Pages cannot route statically.
+// Public basics render on the server; authenticated details load only after hydration.
 import App from '../app/App';
+import type { PublicListing } from '../lib/publicListing';
+interface Props { initialPath?: string; publicListing?: PublicListing; expired?: boolean }
+const { initialPath = Astro.url.pathname + Astro.url.search, publicListing, expired } = Astro.props;
 ---
 <main class="wrap app" id="app" aria-live="polite">
-  <App client:only="react">
-    <p slot="fallback" class="muted">Loading…</p>
-  </App>
+  <App initialPath={initialPath} publicListing={publicListing} expired={expired} client:load />
 </main>
 
 <style is:global>

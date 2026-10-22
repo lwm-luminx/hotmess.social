@@ -1,6 +1,6 @@
 import { test, expect, API, EVENT, PERSON, VENUE, operation } from './fixtures';
 
-// Share links are served by the 404 page, as on GitHub Pages.
+// Share links render public HTML, then hydrate into the authenticated SPA.
 test.describe('signed in', () => {
   test.beforeEach(async ({ signedIn }) => { await signedIn(); });
 
@@ -25,7 +25,7 @@ test.describe('signed in', () => {
 
   test('a malformed link says the page doesn\'t exist', async ({ page, api }) => {
     await page.goto('/venues/not-a-uuid');
-    await expect(page.getByText("That page doesn't exist.")).toBeVisible();
+    await expect(page.getByText('Not found', { exact: true })).toBeVisible();
     expect(api.requests).toEqual([]);
   });
 });

@@ -1,6 +1,4 @@
-// The Hot Mess web app: routing, sign-in and data loading around the AudienceKit components in
-// src/sdk. It renders /app/ and, through the 404 page, the share links /venues/<id>,
-// /events/<id> and /people/<id>, which GitHub Pages cannot route statically.
+// Shared React app: public SSR basics hydrate here; user-authorized details come directly from the API.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, session, APIError } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
@@ -11,6 +9,8 @@ import ErrorBoundary from './ErrorBoundary';
 import { EventView, NavigationProvider, NowView, PersonView, VenueView, type Navigation } from '../sdk';
 import type { Event, Now, Person, TokenResponse, Venue } from '../sdk';
 import '../sdk/styles.css';
+import PublicBasics from './PublicBasics';
+import type { PublicListing } from '../lib/publicListing';
 
 type Screen =
   | { state: 'loading' }
@@ -170,15 +170,19 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   );
 }
 
-export default function App() {
-  return <ErrorBoundary><HotMess /></ErrorBoundary>;
+interface AppProps { initialPath?: string; publicListing?: PublicListing; expired?: boolean }
+export default function App(props: AppProps) {
+  return <ErrorBoundary><HotMess {...props} /></ErrorBoundary>;
 }
 
-function HotMess() {
+function HotMess({ initialPath, publicListing, expired }: AppProps) {
   // The path and query: a share link's query carries its signed expiry (?e=).
-  const [path, setPath] = useState(() => location.pathname + location.search);
-  const [screen, setScreen] = useState<Screen>({ state: 'loading' });
+  const [path, setPath] = useState(() => initialPath ?? (typeof location === 'undefined' ? '/app/' : location.pathname + location.search));
+  const [screen, setScreen] = useState<Screen>({ state: expired ? 'expired' : publicListing ? 'signed-out' : 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); setPath(location.pathname + location.search); }, []);
+  const basics = publicListing && path.split('?')[0] === publicListing.path ? publicListing : undefined;
 
   useEffect(() => {
     const onPop = () => setPath(location.pathname + location.search);
@@ -218,9 +222,9 @@ function HotMess() {
   }, [path, attempt]);
 
   useEffect(() => {
-    document.title = `${titleFor(screen)} · Hot Mess`;
+    document.title = `${screen.state === 'signed-out' && basics ? basics.title : titleFor(screen)} · Hot Mess`;
     if (screen.state !== 'loading') window.scrollTo(0, 0);
-  }, [screen]);
+  }, [screen, basics]);
 
   const go = useCallback((route: Route) => {
     history.pushState(null, '', pathFor(route));
@@ -244,7 +248,7 @@ function HotMess() {
   let content;
   switch (screen.state) {
     case 'loading': content = <p className="muted">Loading…</p>; break;
-    case 'signed-out': content = <SignIn onSignedIn={() => setAttempt((n) => n + 1)} />; break;
+    case 'signed-out': content = <>{basics && <PublicBasics listing={basics} />}<SignIn onSignedIn={() => setAttempt((n) => n + 1)} /></>; break;
     case 'message': content = <p className="muted">{screen.text}</p>; break;
     case 'expired': content = <Expired onFindVenues={() => go({ kind: 'now' })} />; break;
     case 'now': content = <NowView now={screen.now} />; break;
@@ -254,7 +258,7 @@ function HotMess() {
   }
 
   return <NavigationProvider value={navigation}>
-    {session.token ? <div className="app-account">
+    {mounted && session.token ? <div className="app-account">
       <button className="button secondary" type="button" onClick={logOut}>Log out</button>
     </div> : null}
     {content}
