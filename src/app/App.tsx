@@ -6,10 +6,10 @@ import { api, session, APIError } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
 import { appleSignIn, offersApple, prepareAppleSignIn } from '../lib/apple';
 import { routeFor, pathFor, linkCheck, type Route } from '../lib/routes';
-import { reportError, startErrorReporting } from '../lib/errorReporting';
+import { reportError } from '../lib/errorReporting';
 import ErrorBoundary from './ErrorBoundary';
 import { EventView, NavigationProvider, NowView, PersonView, VenueView, type Navigation } from '../sdk';
-import type { Event, Now, Person, TokenResponse, Venue } from '../sdk/types';
+import type { Event, Now, Person, TokenResponse, Venue } from '../sdk';
 import '../sdk/styles.css';
 
 type Screen =
