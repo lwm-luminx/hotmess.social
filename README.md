@@ -3,7 +3,7 @@
 ## Public pages on Cloudflare Workers
 
 The website now builds a Workers application with `@astrojs/cloudflare`. Marketing pages and `/app/` remain
-prerendered; `/venues/<uuid>` and `/events/<uuid>` render approved public content and hydrate the same React app.
+prerendered; `/venues/<uuid>` and `/events/<uuid>` render visibility-filtered public content and hydrate the same React app.
 The anonymous HTML never reads visitor cookies or tokens. Sign-in enriches the same URL via direct browser API calls.
 
 This rollout defaults to `https://api.next.audiencekit.com`, the Next audience host and staging Facebook app.
@@ -12,7 +12,7 @@ variables. Change both together when promoting. Verify Apple Services ID and all
 
 Set the Worker secret `AUDIENCEKIT_SERVICE_TOKEN` to an audience service token with only `public:read`.
 See the parent repository's `api/doc/PUBLIC_LISTINGS.md` for API migration, publication and global purge setup.
-An unconfigured/unavailable public API returns 503, never an indexable fallback. Unpublished records show a
+An unconfigured/unavailable public API returns 503, never an indexable fallback. Unavailable records show a
 noindex sign-in shell; they are absent from discovery and sitemaps. `/people/<uuid>` remains a noindex SPA route.
 
 ```sh
@@ -142,3 +142,5 @@ only checks the signed-out pages.
 - **Android App Links**: `/.well-known/assetlinks.json` lists Play's app-signing
   certificates (from Play Console → App integrity). A new signing key goes into the
   audience's Android app in AudienceKit, then into this file on the next build.
+
+Discover and sitemaps include every existing venue/event UUID, including Community and past events. Hidden/archived records have minimal content. Community events omit schedule/location; Public events expose editorial details. Chat is never rendered.

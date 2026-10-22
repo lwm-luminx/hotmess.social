@@ -54,7 +54,7 @@ for (const path of [`/venues/${VENUE.id}`, `/events/${EVENT.id}`, `/people/${PER
   test(`logs out from ${path} and returns to sign-in`, async ({ page, signedIn }) => {
     await signedIn();
     await page.goto(path);
-    await expect(page.locator('#app h1')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Log out', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Log out', exact: true }).click();
     await expect(page).toHaveURL(/\/app\/$/);
     await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();

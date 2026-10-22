@@ -26,3 +26,18 @@ test('cache excludes private responses, errors and cookies and preserves browser
   assert.equal(cached.headers.get('cache-control'), 'public, max-age=86400');
   assert.equal(browserResponse(cached, 'GET').headers.get('cache-control'), 'public, max-age=300, s-maxage=86400');
 });
+
+test('full editorial details require explicit public mode; user and chat data are always discarded', () => {
+  const details = { kind: 'event', id, title: 'Music', description: '', start_at: '2026-10-23T20:00:00Z',
+    address: '123 Main', image: 'https://example.com/flyer.jpg', chat: 'private', attendees: ['private'] };
+  const community = publicListing({ ...details, visibility: 'community' });
+  assert.equal(community.start_at, undefined);
+  assert.equal(community.address, undefined);
+  assert.equal(community.image, undefined);
+  const published = publicListing({ ...details, visibility: 'public' });
+  assert.equal(published.start_at, details.start_at);
+  assert.equal(published.address, details.address);
+  assert.equal(published.image, details.image);
+  assert.equal('chat' in published, false);
+  assert.equal('attendees' in published, false);
+});
