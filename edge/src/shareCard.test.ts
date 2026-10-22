@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { headTags, rewriteHead, type ShareCard } from './shareCard.ts';
+import { expiredTags, headTags, rewriteHead, type ShareCard } from './shareCard.ts';
 
 const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Hot Mess</title>
 <meta name="description" content="Where your people are tonight"><meta name="apple-itunes-app" content="app-id=1195758383">
@@ -36,4 +36,17 @@ test('falls back to the site card without a photo', () => {
   assert.match(tags, /og:image" content="https:\/\/hotmess.social\/og\/hot-mess.png"/);
   assert.match(tags, /og:type" content="profile"/);
   assert.match(tags, /twitter:card" content="summary_large_image"/);
+});
+
+test('an expired link gets the site card under an expired title, with nothing about the record', () => {
+  const html = rewriteHead(page, expiredTags('1195758383'));
+
+  assert.equal(html.match(/<title>/g)?.length, 1);
+  assert.match(html, /<title>This link has expired · Hot Mess<\/title>/);
+  assert.equal(html.match(/property="og:title"/g)?.length, 1);
+  assert.match(html, /property="og:title" content="This link has expired"/);
+  assert.match(html, /property="og:image" content="https:\/\/hotmess.social\/og\/hot-mess.png"/);
+  assert.match(html, /name="apple-itunes-app" content="app-id=1195758383">/, 'no app-argument deep link');
+  assert.doesNotMatch(html, /app-argument|og:url|canonical|venues\//);
+  assert.match(html, /property="fb:app_id"/, 'keeps the app id');
 });

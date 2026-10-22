@@ -33,3 +33,24 @@ export function pathFor(route: Route): string {
     case 'person': return `/people/${route.id}`;
   }
 }
+
+// Signed share links carry ?e=<expiry>.<signature>: the expiry in Unix seconds, base36, and the API's signature over
+// the path and expiry (audience-kit api/doc/SHARE_CARDS.md). Links without one are from before signing and still open.
+const EXPIRY_TOKEN = /^([0-9a-z]{1,10})\.[A-Za-z0-9_-]{16}$/i;
+
+/** When a share link's `e` token says it expires, or null when the token can't be read. */
+export function linkExpiry(token: string): Date | null {
+  const match = EXPIRY_TOKEN.exec(token);
+  return match ? new Date(parseInt(match[1], 36) * 1000) : null;
+}
+
+/**
+ * What to do about a share link's `e` before opening it: nothing for an unsigned link, 'expired' when its own expiry
+ * has passed (no need to ask), else 'ask' the API, which alone can check the signature.
+ */
+export function linkCheck(search: string, now: number = Date.now()): 'open' | 'expired' | 'ask' {
+  const token = new URLSearchParams(search).get('e');
+  if (token == null) return 'open';
+  const expiry = linkExpiry(token);
+  return expiry && expiry.getTime() <= now ? 'expired' : 'ask';
+}

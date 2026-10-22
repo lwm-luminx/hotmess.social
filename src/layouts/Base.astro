@@ -1,7 +1,9 @@
 ---
 import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
-import LoveWinsBand from '../components/LoveWinsBand.astro';
+import { BrandBand, BrandCredit, Container } from '@lwm-luminx/astro-components';
+import NewRelic from '../components/NewRelic.astro';
+import StoreGlyph from '../components/StoreGlyph.astro';
 import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
 
 interface Props {
@@ -21,12 +23,22 @@ const {
 } = Astro.props;
 const canonical = hasCanonical ? new URL(Astro.url.pathname, Astro.site) : undefined;
 const image = new URL('/og/hot-mess.png', Astro.site);
+
+// Top nav. The web app also serves share links (/venues/<id> etc.) through 404.html.
+const nav = [
+  { href: '/safety', label: 'Safety', current: (p: string) => p.startsWith('/safety') },
+  { href: '/poster', label: 'Poster', current: (p: string) => p.startsWith('/poster') },
+  { href: '/app/', label: 'Web app', current: (p: string) => /^\/(app|venues|events|people)(\/|$)/.test(p) },
+];
+const path = Astro.url.pathname;
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- First, so it times the whole page load. -->
+    <NewRelic />
     <title>{title === 'Hot Mess' ? title : `${title} · Hot Mess`}</title>
     <meta name="description" content={description} />
     {canonical && <link rel="canonical" href={canonical} />}
@@ -49,24 +61,31 @@ const image = new URL('/og/hot-mess.png', Astro.site);
     <Analytics />
   </head>
   <body>
-    <LoveWinsBand />
+    <BrandBand href={LOVE_WINS_URL} />
     <header class="site-header">
-      <nav class="wrap">
+      <nav class="wrap" aria-label="Main">
         <a class="brand" href="/">Hot Mess</a>
-        <a class="button" href="/app/">Open the app</a>
+        <ul class="links">
+          {nav.map((n) => <li><a href={n.href} aria-current={n.current(path) ? 'page' : undefined}>{n.label}</a></li>)}
+        </ul>
+        <a class="button get-app" href="/download">
+          <span class="marks"><StoreGlyph store="ios" class="mark" /><StoreGlyph store="android" class="mark" /></span>
+          Get the app
+        </a>
       </nav>
     </header>
     <slot />
     <footer class="site-footer">
-      <div class="wrap">
-        <p class="lovewins">A <a href={LOVE_WINS_URL} target="_blank" rel="noopener">Love Wins Media</a> product · © {new Date().getFullYear()} Love Wins Media, Inc.</p>
+      <Container>
+        <BrandCredit href={LOVE_WINS_URL} />
         <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>.</p>
         <p>
+          <a href="/safety">Safety</a>{' · '}
           <a href="https://audiencekit.com/privacy/">Privacy</a>{' · '}
           <a href="https://audiencekit.com/terms/">Terms</a>{' · '}
           <a href="https://audiencekit.com/data-deletion/">Data deletion</a>
         </p>
-      </div>
+      </Container>
     </footer>
     <script>
       import { startErrorReporting } from '../lib/errorReporting';
@@ -77,10 +96,20 @@ const image = new URL('/og/hot-mess.png', Astro.site);
 
 <style>
   .site-header { border-bottom: 1px solid var(--border); background: var(--surface-raised); }
-  .site-header nav { display: flex; align-items: center; justify-content: space-between; min-height: 64px; gap: 1rem; }
+  .site-header nav { display: flex; flex-wrap: wrap; align-items: center; min-height: 64px; gap: .25rem 1.5rem; }
+  .links { display: flex; gap: 1.25rem; margin: 0 auto 0 0; padding: 0; list-style: none; }
+  .links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-muted); font-weight: 600; text-decoration: none; border-bottom: 2px solid transparent; }
+  .links a:hover { color: var(--ink); }
+  .links a[aria-current='page'] { color: var(--ink); border-bottom-color: var(--accent); }
+  /* Phones: brand and button on top, the links on their own row. */
+  @media (max-width: 560px) {
+    .site-header nav { justify-content: space-between; padding-top: .5rem; }
+    .links { order: 3; flex-basis: 100%; margin: 0; }
+  }
+  /* The store marks tell people up front that the app is on the App Store and Google Play. */
+  .get-app .marks { display: inline-flex; gap: .35rem; }
+  .get-app :global(.mark) { width: 1rem; height: 1.2rem; flex: none; }
   .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
   .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
   .site-footer p { margin: .25rem 0; }
-  .site-footer .lovewins a { color: #be185d; font-weight: 700; }
-  @media (prefers-color-scheme: dark) { .site-footer .lovewins a { color: #f472b6; } }
 </style>

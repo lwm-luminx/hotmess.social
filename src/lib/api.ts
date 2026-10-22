@@ -7,6 +7,7 @@ import type { Event, Now, Person, TokenResponse, Venue } from '../sdk/types';
 import { nodes } from '../sdk/format';
 import { API_BASE, AUDIENCE_HOST, FACEBOOK_APP_ID } from './config';
 import { APIError, graphqlError, restError, type GraphQLError } from './apiErrors';
+import type { AppleSignIn } from './apple';
 
 // The sign-in methods an audience offers, and what to say before each one
 // that has a warning (shown with Cancel and Continue).
@@ -56,6 +57,16 @@ function deviceIdentifier(): string {
     s?.setItem(DEVICE_KEY, id);
   }
   return id;
+}
+
+function device() {
+  return {
+    type: 'web',
+    identifier: deviceIdentifier(),
+    version: '1.0',
+    build: '1',
+    model: navigator.userAgent.slice(0, 120),
+  };
 }
 
 async function send<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
@@ -164,13 +175,23 @@ export const api = {
         // host picks the audience; facebook_app_id is the app the token is for.
         host: AUDIENCE_HOST,
         facebook_app_id: FACEBOOK_APP_ID,
-        device: {
-          type: 'web',
-          identifier: deviceIdentifier(),
-          version: '1.0',
-          build: '1',
-          model: navigator.userAgent.slice(0, 120),
-        },
+        device: device(),
+      }),
+    }, false),
+  // Signs in with Apple's identity token (POST /v1/token/apple). A token Apple
+  // didn't vouch for, or whose nonce doesn't match, is 401.
+  signInWithApple: (apple: AppleSignIn) =>
+    send<TokenResponse>('/v1/token/apple', {
+      method: 'POST',
+      body: JSON.stringify({
+        identity_token: apple.identityToken,
+        authorization_code: apple.authorizationCode,
+        first_name: apple.firstName,
+        last_name: apple.lastName,
+        redirect_uri: apple.redirectUri,
+        nonce: apple.nonce,
+        host: AUDIENCE_HOST,
+        device: device(),
       }),
     }, false),
   // The ways the audience lets people sign in (GET /v1/token/methods), which
@@ -184,6 +205,16 @@ export const api = {
       return answer.methods ? { methods: answer.methods, warnings: answer.warnings ?? {} } : null;
     } catch {
       return null;
+    }
+  },
+  // Whether a signed share link (?e=) has expired or been tampered with, which GET /v1/share answers with 410
+  // (audience-kit api/doc/SHARE_CARDS.md). Anything else, a network failure included, opens the link as before.
+  shareLinkExpired: async (path: string, e: string): Promise<boolean> => {
+    try {
+      await send(`/v1/share?${new URLSearchParams({ host: location.hostname, path, e })}`, {}, false);
+      return false;
+    } catch (error) {
+      return error instanceof APIError && error.status === 410;
     }
   },
   // Records where you are, which is how the API knows the venue you're at.

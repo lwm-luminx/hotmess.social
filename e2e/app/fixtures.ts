@@ -97,6 +97,7 @@ export class MockAPI {
 
   constructor() {
     this.on('POST /v1/token', () => ({ json: TOKEN_RESPONSE }));
+    this.on('POST /v1/token/apple', () => ({ json: TOKEN_RESPONSE }));
     this.on('GET /v1/branding', () => ({ json: { audience: { id: AUDIENCE_ID, name: 'Hot Mess', subdomain: 'hotmess' } } }));
     this.on(operation('ReportLocation'), () => ({ json: { reportLocation: NOW } }));
     // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
@@ -164,6 +165,29 @@ const FACEBOOK_SDK = `
   window.fbAsyncInit && window.fbAsyncInit();
 `;
 
+// Sign in with Apple JS: init records its config in window.__appleInit (and
+// every config in window.__appleInits), and
+// signIn answers with window.__appleSignIn (default: a first sign-in, with the
+// name), echoing the state, or rejects with window.__appleError. Like Safari,
+// it refuses to open its popup unless the click is still being handled, so a
+// sign-in that awaits anything between the click and signIn() fails.
+const APPLE_SDK = `
+  let clicking = false;
+  addEventListener('click', () => { clicking = true; setTimeout(() => { clicking = false; }); }, true);
+  window.AppleID = { auth: {
+    init(config) { window.__appleInit = config; (window.__appleInits ??= []).push(config); },
+    async signIn() {
+      if (!clicking) throw { error: 'popup_blocked_by_browser' };
+      if (window.__appleError) throw window.__appleError;
+      const state = window.__appleState ?? window.__appleInit.state;
+      return window.__appleSignIn ?? {
+        authorization: { id_token: 'apple-identity-token', code: 'apple-code', state },
+        user: { email: 'dana@example.com', name: { firstName: 'Dana', lastName: 'Kim' } },
+      };
+    },
+  } };
+`;
+
 export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audienceId?: string | null) => Promise<void> }>({
   // Automatic, so no test can reach the network by forgetting to ask for it.
   api: [async ({ page }, use) => {
@@ -172,6 +196,8 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audie
     await page.route((url) => url.hostname !== 'localhost', (route) => route.abort('blockedbyclient'));
     await page.route('https://connect.facebook.net/**', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: FACEBOOK_SDK }));
+    await page.route('https://appleid.cdn-apple.com/**', (route) =>
+      route.fulfill({ contentType: 'text/javascript', body: APPLE_SDK }));
     await page.route('https://www.googletagmanager.com/**', (route) => route.abort());
     await page.route(`${IMAGES}/**`, (route) => route.request().url().includes('broken')
       ? route.fulfill({ status: 404 })
