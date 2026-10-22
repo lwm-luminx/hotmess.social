@@ -32,6 +32,14 @@ publishes `main` to GitHub Pages (`.github/workflows/pages.yml`).
 
 ## Develop
 
+Use Node 22.23.4 or newer. Shared branding and marketing components come from
+[`@lwm-luminx/astro-components`](https://github.com/lwm-luminx/astro-components/pkgs/npm/astro-components).
+The checked-in `.npmrc` maps that scope to GitHub Packages. Before installing,
+set `NODE_AUTH_TOKEN` to a GitHub personal access token (classic) with
+`read:packages` and access to the package. Keep the token out of source control.
+GitHub Actions uses `GITHUB_TOKEN` with `packages: read`; grant this repository
+Actions access in the package's settings before running CI.
+
 ```sh
 npm ci
 npm run dev     # http://localhost:4321

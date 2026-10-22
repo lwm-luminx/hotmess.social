@@ -33,6 +33,12 @@
   --radius: 14px;
   --gutter: 16px;
   --max: 1080px;
+  --lwm-content-width: var(--max);
+  --lwm-gutter: var(--gutter);
+  --lwm-ink: var(--ink);
+  --lwm-muted: var(--ink-muted);
+  --lwm-accent: var(--accent);
+  --lwm-band-line: var(--border);
   color-scheme: light;
 }
 

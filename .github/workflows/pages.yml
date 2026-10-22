@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -30,6 +31,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm test
       # The link files list the Hot Mess audience's apps as AudienceKit has them; the committed copies ship when the
       # API can't answer or answers with something that isn't JSON.

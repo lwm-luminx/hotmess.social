@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: e2e-${{ github.event_name }}-${{ github.ref }}
@@ -38,6 +39,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: npm run e2e
@@ -60,6 +63,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e:live
         env:
