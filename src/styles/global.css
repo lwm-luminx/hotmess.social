@@ -33,6 +33,10 @@
   --radius: 14px;
   --gutter: 16px;
   --max: 1080px;
+  /* @lwm-luminx/astro-components (BrandBand) */
+  --lwm-band-ink: var(--ink);
+  --lwm-band-line: var(--border);
+  --lwm-gutter: var(--gutter);
   color-scheme: light;
 }
 

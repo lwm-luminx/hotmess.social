@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
-import LoveWinsBand from '../components/LoveWinsBand.astro';
+import { BrandBand, BrandCredit } from '@lwm-luminx/astro-components';
 import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
 
 interface Props {
@@ -49,7 +49,7 @@ const image = new URL('/og/hot-mess.png', Astro.site);
     <Analytics />
   </head>
   <body>
-    <LoveWinsBand />
+    <BrandBand href={LOVE_WINS_URL} />
     <header class="site-header">
       <nav class="wrap">
         <a class="brand" href="/">Hot Mess</a>
@@ -59,7 +59,7 @@ const image = new URL('/og/hot-mess.png', Astro.site);
     <slot />
     <footer class="site-footer">
       <div class="wrap">
-        <p class="lovewins">A <a href={LOVE_WINS_URL} target="_blank" rel="noopener">Love Wins Media</a> product · © {new Date().getFullYear()} Love Wins Media, Inc.</p>
+        <BrandCredit href={LOVE_WINS_URL} />
         <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>.</p>
         <p>
           <a href="https://audiencekit.com/privacy/">Privacy</a>{' · '}
@@ -81,6 +81,4 @@ const image = new URL('/og/hot-mess.png', Astro.site);
   .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
   .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
   .site-footer p { margin: .25rem 0; }
-  .site-footer .lovewins a { color: #be185d; font-weight: 700; }
-  @media (prefers-color-scheme: dark) { .site-footer .lovewins a { color: #f472b6; } }
 </style>

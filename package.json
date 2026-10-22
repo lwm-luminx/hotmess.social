@@ -17,6 +17,7 @@
   "dependencies": {
     "@astrojs/check": "^0.9.10",
     "@astrojs/react": "^7.0.1",
+    "@lwm-luminx/astro-components": "github:lwm-luminx/astro-components#c5b11d73b174827586cd8035fdf21daa864a5b11",
     "astro": "^7.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
