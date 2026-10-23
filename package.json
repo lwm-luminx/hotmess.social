@@ -20,7 +20,7 @@
     "@astrojs/check": "^0.9.10",
     "@astrojs/cloudflare": "^14.4.2",
     "@astrojs/react": "^7.0.1",
-    "@lwm-luminx/astro-components": "^0.2.0",
+    "@lwm-luminx/astro-components": "file:vendor/lwm-luminx-astro-components-0.2.0.tgz",
     "astro": "^7.3.5",
     "qrcode-generator": "^2.0.4",
     "react": "^19.3.0",
