@@ -11,6 +11,14 @@
     "binding": "ASSETS",
     "directory": "./dist/client"
   },
+  // Astro's Cloudflare adapter stores sessions in the SESSION KV binding. Naming the namespace here stops each
+  // deploy from trying to create "hotmess-social-session" again, which fails once it exists.
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "460daca6aea64a7880374bd34fd8b047"
+    }
+  ],
   "observability": {
     "enabled": true
   },
