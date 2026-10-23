@@ -87,6 +87,16 @@ test('the home page links to the safety page', async ({ page }) => {
   await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety' })).toHaveAttribute('href', '/safety');
 });
 
+test('the money page explains promoted listings and shows the rate card', async ({ page }) => {
+  await page.goto('/money');
+  await expect(page).toHaveTitle('How Hot Mess makes money · Hot Mess');
+  await expect(page.getByRole('heading', { name: 'Like a poster on the wall.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Placed by the city and the night' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What venues see' })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Small venue/ })).toBeVisible();
+  await expect(page.locator('.site-footer').getByRole('link', { name: 'How we make money' })).toHaveAttribute('href', '/money');
+});
+
 test('the top nav links every page and marks the current one', async ({ page }) => {
   for (const width of [1280, 360]) {
     await page.setViewportSize({ width, height: 740 });
