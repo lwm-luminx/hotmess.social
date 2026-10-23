@@ -6,11 +6,12 @@ export type Route =
   | { kind: 'now' }
   | { kind: 'venue'; id: string }
   | { kind: 'event'; id: string }
-  | { kind: 'person'; id: string };
+  | { kind: 'person'; id: string }
+  | { kind: 'safety-alert'; id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const KINDS = { venues: 'venue', events: 'event', people: 'person' } as const;
+const KINDS = { venues: 'venue', events: 'event', people: 'person', 'safety-alerts': 'safety-alert' } as const;
 
 export function routeFor(pathname: string): Route | null {
   const segments = pathname.split('/').filter(Boolean);
@@ -31,6 +32,7 @@ export function pathFor(route: Route): string {
     case 'venue': return `/venues/${route.id}`;
     case 'event': return `/events/${route.id}`;
     case 'person': return `/people/${route.id}`;
+    case 'safety-alert': return `/safety-alerts/${route.id}`;
   }
 }
 

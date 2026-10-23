@@ -10,6 +10,7 @@ import { EventView, NavigationProvider, NowView, PersonView, VenueView, type Nav
 import type { Event, Now, Person, TokenResponse, Venue } from '../sdk';
 import '../sdk/styles.css';
 import PublicBasics from './PublicBasics';
+import { GetHelpEntry, SafetyAlertPage, SupportEntry } from './GetHelp';
 import type { PublicListing } from '../lib/publicListing';
 
 type Screen =
@@ -20,7 +21,8 @@ type Screen =
   | { state: 'now'; now: Now }
   | { state: 'venue'; venue: Venue; events: Event[] }
   | { state: 'event'; event: Event }
-  | { state: 'person'; person: Person };
+  | { state: 'person'; person: Person }
+  | { state: 'safety-alert'; id: string };
 
 // The API picks the venue you're at, or your city, from where you are.
 function here(): Promise<{ latitude: number; longitude: number } | null> {
@@ -42,6 +44,8 @@ async function load(route: Route): Promise<Screen> {
     case 'venue': return { state: 'venue', ...await api.venue(route.id) };
     case 'event': return { state: 'event', event: await api.event(route.id) };
     case 'person': return { state: 'person', person: await api.person(route.id) };
+    // The alert loads itself, and keeps itself fresh while it's open.
+    case 'safety-alert': return { state: 'safety-alert', id: route.id };
   }
 }
 
@@ -51,6 +55,7 @@ function titleFor(screen: Screen): string {
     case 'venue': return screen.venue.name ?? 'Venue';
     case 'event': return screen.event.name ?? 'Event';
     case 'person': return screen.person.name ?? 'Person';
+    case 'safety-alert': return 'Get help';
     case 'expired': return 'Link expired';
     default: return 'Hot Mess';
   }
@@ -251,14 +256,17 @@ function HotMess({ initialPath, publicListing, expired }: AppProps) {
     case 'signed-out': content = <>{basics && <PublicBasics listing={basics} />}<SignIn onSignedIn={() => setAttempt((n) => n + 1)} /></>; break;
     case 'message': content = <p className="muted">{screen.text}</p>; break;
     case 'expired': content = <Expired onFindVenues={() => go({ kind: 'now' })} />; break;
-    case 'now': content = <NowView now={screen.now} />; break;
-    case 'venue': content = <VenueView venue={screen.venue} events={screen.events} />; break;
+    // "Get help" shows only where the API places the user at the venue (GetHelp.tsx).
+    case 'now': content = <>{screen.now.venue ? <GetHelpEntry venue={screen.now.venue} /> : null}<NowView now={screen.now} /></>; break;
+    case 'venue': content = <><GetHelpEntry venue={screen.venue} /><VenueView venue={screen.venue} events={screen.events} /></>; break;
     case 'event': content = <EventView event={screen.event} />; break;
     case 'person': content = <PersonView person={screen.person} />; break;
+    case 'safety-alert': content = <SafetyAlertPage id={screen.id} />; break;
   }
 
   return <NavigationProvider value={navigation}>
     {mounted && session.token ? <div className="app-account">
+      <SupportEntry />
       <button className="button secondary" type="button" onClick={logOut}>Log out</button>
     </div> : null}
     {content}
