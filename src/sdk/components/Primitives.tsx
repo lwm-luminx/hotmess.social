@@ -42,10 +42,10 @@ export function Hero({ src, title, eyebrow, children }: {
 }
 
 /** "View on Facebook", or nothing when there's no Facebook Page or event to link to. */
-export function FacebookLink({ id, kind = 'page', label = 'View on Facebook' }: {
-  id?: string | number | null; kind?: 'page' | 'event'; label?: string;
+export function FacebookLink({ id, url, kind = 'page', label = 'View on Facebook' }: {
+  id?: string | number | null; url?: string | null; kind?: 'page' | 'event'; label?: string;
 }) {
-  const href = facebookURL(id, kind);
+  const href = url || facebookURL(id, kind);
   if (!href) return null;
   return (
     <a className="ak-button ak-button--secondary" href={href} target="_blank" rel="noopener noreferrer">

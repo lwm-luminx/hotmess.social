@@ -123,8 +123,8 @@ function found<T>(value: T | null | undefined): T {
 
 // Fragments. A venue's address, phone and Facebook Page live on its listing
 // profile; a person's Facebook Page likewise.
-const VENUE = 'id name distance description photoUrl bannerUrl profile { address phone facebook { facebookId } }';
-const PERSON = 'id name avatarUrl profile { facebook { facebookId } }';
+const VENUE = 'id name distance description photoUrl bannerUrl profile { address phone facebook { facebookId link } }';
+const PERSON = 'id name avatarUrl profile { facebook { facebookId link } }';
 const FRIEND = 'id name avatarUrl facebookId';
 const EVENT = `id name startAt endAt facebookId bannerUrl rsvp { mine }
   venue { name venue { ${VENUE} } } people { hosts { nodes { ${PERSON} } } lineup { nodes { ${PERSON} } } }`;
@@ -158,7 +158,7 @@ const PERSON_PAGE = `query Person($id: ID!) {
       ${PERSON} bannerUrl
       events { upcoming { nodes { ${EVENT} } } }
       profile { socialLinks { nodes { ${LINK} } } }
-      music { links { nodes { ${LINK} } } tracks { nodes { id title provider providerUrl artworkUrl } } }
+      music { links { nodes { ${LINK} } } tracks { nodes { id title provider providerUrl streamUrl artworkUrl } } }
     }
   }
 }`;

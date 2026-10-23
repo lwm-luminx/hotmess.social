@@ -22,7 +22,8 @@ export interface ListingProfile {
   phone?: string | null;
   website?: string | null;
   /** Its Facebook Page's ID (a string: Page IDs overflow Int), or null without a Page. */
-  facebook?: { facebookId: string | null };
+  /** Its Facebook Page's ID (a string: Page IDs overflow Int) and canonical Page, profile or public group URL. */
+  facebook?: { facebookId: string | null; link?: string | null };
   socialLinks?: Connection<SocialLink>;
 }
 
@@ -63,6 +64,7 @@ export interface Track {
   title: string | null;
   provider?: string | null;
   providerUrl?: string | null;
+  streamUrl?: string | null;
   artworkUrl?: string | null;
   releasedAt?: string | null;
 }

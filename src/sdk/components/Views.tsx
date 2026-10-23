@@ -47,7 +47,9 @@ export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event
         <div>
           {venue.description ? <p className="ak-lede">{venue.description}</p> : null}
           <Section title="Upcoming" count={events.length || undefined} empty="Nothing announced yet.">
-            {events.map((event) => <EventCard key={event.id} event={event} showVenue={false} />)}
+            {events.map((event) => (
+              <EventCard key={event.id} event={event} showVenue={false} photo={eventPhoto(event, 'person-first', venue)} />
+            ))}
           </Section>
         </div>
         <aside className="ak-panel">
@@ -59,7 +61,7 @@ export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event
             ) : null}
             {profile?.phone ? <Fact label="Phone"><a href={`tel:${profile.phone}`}>{profile.phone}</a></Fact> : null}
           </dl>
-          <div className="ak-actions"><FacebookLink id={profile?.facebook?.facebookId} /></div>
+          <div className="ak-actions"><FacebookLink id={profile?.facebook?.facebookId} url={profile?.facebook?.link} /></div>
         </aside>
       </div>
     </div>
@@ -96,7 +98,7 @@ export function EventView({ event }: { event: Event }) {
           <div className="ak-actions">
             {facebookID(event.facebookId)
               ? <FacebookLink id={event.facebookId} kind="event" label="Event on Facebook" />
-              : <FacebookLink id={venue?.profile?.facebook?.facebookId} label="Venue on Facebook" />}
+              : <FacebookLink id={venue?.profile?.facebook?.facebookId} url={venue?.profile?.facebook?.link} label="Venue on Facebook" />}
           </div>
         </aside>
       </div>
@@ -117,21 +119,25 @@ export function PersonView({ person }: { person: Person }) {
       <div className="ak-columns">
         <div>
           <Section title="Upcoming" count={events.length || undefined} empty="No upcoming events.">
-            {events.map((event) => <EventCard key={event.id} event={event} />)}
-          </Section>
-          <Section title="Tracks">
-            {tracks.map((track) => (
-              <li key={track.id} className="ak-card ak-card--track">
-                <a className="ak-card__link" href={track.providerUrl ?? '#'} target="_blank" rel="noopener noreferrer">
-                  <div className="ak-card__media"><Photo src={track.artworkUrl} /></div>
-                  <div className="ak-card__body">
-                    <strong className="ak-card__title">{track.title}</strong>
-                    {track.provider ? <span className="ak-card__meta">{providerName(track.provider)}</span> : null}
-                  </div>
-                </a>
-              </li>
+            {events.map((event) => (
+              <EventCard key={event.id} event={event} photo={eventPhoto(event, 'venue-first', undefined, person)} />
             ))}
           </Section>
+          {tracks.length ? (
+            <Section title="Tracks" count={tracks.length}>
+              {tracks.map((track) => (
+                <li key={track.id} className="ak-card ak-card--track">
+                  <a className="ak-card__link" href={track.providerUrl ?? track.streamUrl ?? '#'} target="_blank" rel="noopener noreferrer">
+                    <div className="ak-card__media"><Photo src={track.artworkUrl} /></div>
+                    <div className="ak-card__body">
+                      <strong className="ak-card__title">{track.title}</strong>
+                      {track.provider ? <span className="ak-card__meta">{providerName(track.provider)}</span> : null}
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </Section>
+          ) : null}
         </div>
         <aside className="ak-panel">
           {links.length ? (
@@ -146,7 +152,7 @@ export function PersonView({ person }: { person: Person }) {
               ))}
             </ul>
           ) : null}
-          <div className="ak-actions"><FacebookLink id={person.profile?.facebook?.facebookId} /></div>
+          <div className="ak-actions"><FacebookLink id={person.profile?.facebook?.facebookId} url={person.profile?.facebook?.link} /></div>
         </aside>
       </div>
     </div>

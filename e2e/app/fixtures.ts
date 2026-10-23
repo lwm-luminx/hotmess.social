@@ -3,7 +3,7 @@
 // shaped as the consumer GraphQL schema answers them (src/sdk/types.ts).
 import { test as base, expect, type Page, type Request } from '@playwright/test';
 
-export const API = 'https://api.audiencekit.com';
+export const API = 'https://api.next.audiencekit.com';
 export const TOKEN = 'e2e.session.jwt';
 export const AUDIENCE_ID = 'a0000000-0000-4000-8000-000000000000';
 export const SEATTLE = { latitude: 47.6062, longitude: -122.3321 };
