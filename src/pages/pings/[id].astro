@@ -1,0 +1,115 @@
+---
+// A Ping invitation, https://hotmess.social/pings/<id>?e=<token>, as someone without the app sees it: the universal
+// link opens the app when it's installed, and this page otherwise. The invitation loads in the browser (below), so
+// the token never reaches a cache and the page itself holds nothing private.
+import Base from '../../layouts/Base.astro';
+import StoreButtons from '../../components/StoreButtons.astro';
+import { pingId } from '../../lib/invitation';
+export const prerender = false;
+const id = pingId(Astro.url.pathname);
+if (!id) return new Response('Not found', { status: 404 });
+const path = `/pings/${id}`;
+if (Astro.url.pathname !== path) return Astro.redirect(`${path}${Astro.url.search}`, 301);
+const link = `${path}${Astro.url.search}`;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+---
+<Base title="You're invited out" description="A Ping on Hot Mess: see where your friends are going tonight." canonical={false}
+  noindex appArgument={new URL(link, Astro.site).toString()}>
+  <main class="wrap invite" data-ping={id} aria-live="polite">
+    <p class="eyebrow">Ping</p>
+    <section class="state" data-state="loading">
+      <p class="muted">Loading the invitation…</p>
+    </section>
+    <section class="state" data-state="invite" hidden>
+      <h1 data-field="title"></h1>
+      <blockquote class="note" data-field="note" hidden></blockquote>
+      <div class="card picks" data-field="picks" hidden>
+        <h2>The plan</h2>
+        <ul></ul>
+      </div>
+      <p class="ends" data-field="ends"></p>
+    </section>
+    <section class="state" data-state="ended" hidden>
+      <h1>This Ping has ended</h1>
+      <p class="muted">Pings last one night. Get Hot Mess to see where your people are going next time.</p>
+    </section>
+    <section class="state" data-state="error" hidden>
+      <h1>You're invited out</h1>
+      <p class="muted">We couldn't load this invitation just now. <a href={link}>Try again</a>, or open it in the app.</p>
+    </section>
+    <div class="get" data-field="get" hidden>
+      <p class="lede">Get the app to join in.</p>
+      <StoreButtons />
+      <p class="open" data-field="open"><a class="button secondary" href={link}>Open in Hot Mess</a></p>
+    </div>
+  </main>
+</Base>
+
+<script>
+  import { API_BASE } from '../../lib/config';
+  import { endsLabel, invitationQuery, parseInvitation, type Invitation } from '../../lib/invitation';
+
+  const main = document.querySelector<HTMLElement>('.invite')!;
+  const field = (name: string) => main.querySelector<HTMLElement>(`[data-field="${name}"]`)!;
+
+  function show(state: 'invite' | 'ended' | 'error') {
+    for (const section of main.querySelectorAll<HTMLElement>('[data-state]')) section.hidden = section.dataset.state !== state;
+    field('get').hidden = false;
+    field('open').hidden = state === 'ended';
+  }
+
+  function render(invitation: Invitation) {
+    document.title = `${invitation.title} · Hot Mess`;
+    field('title').textContent = invitation.title;
+    const note = field('note');
+    note.textContent = invitation.note ?? '';
+    note.hidden = !invitation.note;
+    const picks = field('picks');
+    const list = picks.querySelector('ul')!;
+    list.replaceChildren(...invitation.targets.map((target) => {
+      const item = document.createElement('li');
+      const label = target.path ? Object.assign(document.createElement('a'), { href: target.path }) : document.createElement('span');
+      label.textContent = target.name;
+      item.append(label);
+      return item;
+    }));
+    picks.hidden = invitation.targets.length === 0;
+    field('ends').textContent = endsLabel(invitation.expiresAt);
+    show('invite');
+  }
+
+  async function load() {
+    // The token is opaque: only the API can say whether it's good.
+    const e = new URLSearchParams(location.search).get('e');
+    if (!e) return show('ended');
+    let response: Response;
+    try {
+      const query = invitationQuery(location.hostname, main.dataset.ping!, e);
+      response = await fetch(new URL(`/v1/share/invitation?${query}`, API_BASE), { headers: { accept: 'application/json' }, cache: 'no-store' });
+    } catch {
+      return show('error');
+    }
+    if (response.status >= 500 || response.status === 429) return show('error');
+    const invitation = response.ok ? parseInvitation(await response.json().catch(() => null)) : null;
+    if (!invitation || invitation.expiresAt.getTime() <= Date.now()) return show('ended');
+    render(invitation);
+  }
+
+  load();
+</script>
+
+<style>
+  .invite { padding: clamp(3rem, 8vw, 5rem) 0 2rem; max-width: 40rem; }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2rem, 6vw, 3.25rem); font-weight: 800; margin: 0 0 1.25rem; overflow-wrap: anywhere; }
+  .note { margin: 0 0 1.5rem; padding: .25rem 0 .25rem 1rem; border-left: 4px solid var(--accent); font-size: 1.2rem; white-space: pre-line; overflow-wrap: anywhere; }
+  .picks { padding: 1.1rem 1.4rem; margin-bottom: 1.25rem; box-shadow: 5px 5px 0 #ff3d9a; }
+  .picks h2 { margin: 0 0 .5rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-muted); }
+  .picks ul { margin: 0; padding: 0; list-style: none; display: grid; gap: .35rem; }
+  .picks li { font-size: 1.25rem; font-weight: 700; }
+  .ends { font-weight: 600; margin: 0 0 2rem; }
+  .lede { font-weight: 700; margin: 0 0 1rem; }
+  .open { margin: 1.75rem 0 0; }
+</style>
