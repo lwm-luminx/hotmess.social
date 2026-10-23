@@ -20,12 +20,32 @@ test('the home page leads with the stores', async ({ page }) => {
   expect(clipped).toBe(0);
 });
 
-test('the poster page offers the printable poster', async ({ page, request }) => {
+test('the poster page builds a poster', async ({ page, request }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: /Get the poster/ }).click();
-  await expect(page).toHaveURL(/\/poster\/?$/);
-  const pdf = page.getByRole('link', { name: 'Download the PDF' });
-  await expect(pdf).toHaveAttribute('href', '/poster/hot-mess-poster.pdf');
+  await page.getByRole('link', { name: /Make a poster/ }).click();
+  await expect(page).toHaveURL(/\/poster\/?(\?|$)/);
+  await expect(page.getByRole('img', { name: /Poster preview/ })).toBeVisible();
+
+  // Adult-venue lines stay hidden until the poster is for an adult venue.
+  await expect(page.getByRole('radio', { name: /Maybe grab a cheek/ })).toHaveCount(0);
+  await page.getByRole('checkbox', { name: /adult venue/ }).check();
+  await expect(page.getByRole('radio', { name: /Maybe grab a cheek/ })).toHaveCount(1);
+
+  // The poster's options live in the address, so a poster can be linked to.
+  await page.getByText('Venue TV', { exact: true }).click();
+  await expect(page).toHaveURL(/format=tv/);
+  const size = await page.getByRole('img', { name: /Poster preview/ }).evaluate((c) => [(c as HTMLCanvasElement).width, (c as HTMLCanvasElement).height]);
+  expect(size[0]).toBeGreaterThan(size[1]);
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download PDF' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^hot-mess-.*-tv-.*\.pdf$/);
+  const { readFile } = await import('node:fs/promises');
+  expect((await readFile((await file.path())!)).subarray(0, 8).toString()).toBe('%PDF-1.4');
+
+  // The classic poster is still offered.
+  await expect(page.getByRole('link', { name: 'Download the PDF' })).toHaveAttribute('href', '/poster/hot-mess-poster.pdf');
   expect((await request.get('/poster/hot-mess-poster.pdf')).headers()['content-type']).toContain('pdf');
 });
 
