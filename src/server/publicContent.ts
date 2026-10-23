@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { publicListing, type PublicListing } from '../lib/publicListing';
+import { venueTonight, type VenueTonight } from '../lib/venueDisplay';
 
 interface Settings { PUBLIC_CONTENT_API_BASE?: string; PUBLIC_CONTENT_HOST?: string;
   PUBLIC_SITE_ORIGIN?: string; AUDIENCEKIT_SERVICE_TOKEN?: string }
@@ -49,4 +50,11 @@ export async function signedLinkStatus(path: string, signature: string): Promise
     host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });
   const response = await fetch(`${apiBase()}/v1/share?${query}`, { signal: AbortSignal.timeout(8000) });
   return response.status;
+}
+/** Tonight at a venue for its display (/venues/<id>/display), or null when it has none. */
+export async function tonight(id: string): Promise<VenueTonight | null> {
+  const response = await request(`venues/${id}/tonight`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Public content is unavailable');
+  return venueTonight(await response.json() as Record<string, unknown>);
 }
