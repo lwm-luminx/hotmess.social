@@ -1,0 +1,200 @@
+---
+// The Velvet cast receiver: a Chromecast (or a TV with Cast built in) that Velvet's Tonight tab picks shows tonight
+// at the venue, like Velvet's AirPlay marquee on iOS. The phone sends the board ready to show over the
+// urn:x-cast:com.audiencekit.velvet channel: the lineup, and the room's live chat when the sign-in may moderate it.
+// Nothing here signs in or reads the API, so the page shows nothing until a phone sends it something. When the last
+// phone leaves, the TV keeps going on the web sign's board (/venues/<id>/display): the public lineup, no chat.
+// Registered as a Custom Receiver in the Google Cast SDK Developer Console; the apps carry its application ID.
+import '../../styles/global.css';
+import '../../styles/venue-board.css';
+export const prerender = true;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Velvet · Tonight</title>
+    <script is:inline src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+  </head>
+  <body>
+    <div class="screen">
+      <main id="board"><p class="idle">Pick this TV in Velvet’s Tonight tab.</p></main>
+      <aside id="chat" hidden>
+        <p class="kicker">Chat</p>
+        <p id="pinned" hidden></p>
+        <ol id="messages"></ol>
+      </aside>
+    </div>
+    <script is:inline>
+      (function () {
+        var NS = 'urn:x-cast:com.audiencekit.velvet';
+        var board = document.getElementById('board');
+        var chat = document.getElementById('chat');
+        var zone = 'America/Los_Angeles';
+        var venueId = null;
+        var fallbackTimer = null;
+
+        function el(tag, className, text) {
+          var node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text != null) node.textContent = text;
+          return node;
+        }
+        function image(url) {
+          if (typeof url !== 'string' || url.indexOf('https://') !== 0) return null;
+          var img = el('img');
+          img.src = url; img.alt = ''; img.loading = 'lazy';
+          return img;
+        }
+        function clock() {
+          try { return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zone }).format(new Date()); }
+          catch (e) { return ''; }
+        }
+        function tick() { var c = board.querySelector('[data-clock]'); if (c) c.textContent = clock(); }
+
+        // The board, as the web sign lays it out: the venue and the time, tonight's events, then who's on when.
+        function show(data) {
+          if (!data || data.type !== 'tonight' || !data.venue) return;
+          stopFallback();
+          venueId = data.venue.id || venueId;
+          zone = data.venue.timeZone || zone;
+          board.textContent = '';
+          var header = el('header');
+          var title = el('div');
+          title.appendChild(el('p', 'kicker', 'Tonight'));
+          title.appendChild(el('h1', null, data.venue.name || 'Tonight'));
+          header.appendChild(title);
+          var time = el('p', 'clock', clock());
+          time.setAttribute('data-clock', '');
+          header.appendChild(time);
+          board.appendChild(header);
+          var events = data.events || [];
+          if (events.length) board.appendChild(el('p', 'events', events.join(' · ')));
+          var lineup = data.lineup || [];
+          if (!lineup.length) {
+            board.appendChild(el('p', 'idle', events.length ? 'The lineup is coming soon.' : 'Nothing on tonight yet.'));
+          } else {
+            var list = el('ol', 'lineup');
+            lineup.forEach(function (entry) {
+              var row = el('li', entry.state === 'on' || entry.state === 'done' ? entry.state : 'upcoming');
+              row.appendChild(el('span', 'time', entry.time || ''));
+              var faces = el('span', 'faces');
+              (entry.images || []).slice(0, 2).forEach(function (url) { var img = image(url); if (img) faces.appendChild(img); });
+              row.appendChild(faces);
+              var who = el('span', 'who');
+              who.appendChild(el('strong', null, entry.name || ''));
+              if (entry.role && entry.role !== entry.name) who.appendChild(el('small', null, entry.role));
+              row.appendChild(who);
+              if (entry.state === 'on') row.appendChild(el('span', 'badge', 'On now'));
+              list.appendChild(row);
+            });
+            board.appendChild(list);
+          }
+          showChat(data.chat);
+          fit();
+        }
+
+        // The room's chat in the right third, newest at the bottom; only when the phone sends it.
+        function showChat(room) {
+          chat.hidden = !room;
+          document.body.classList.toggle('with-chat', !!room);
+          if (!room) return;
+          var pinned = document.getElementById('pinned');
+          pinned.hidden = !room.pinned;
+          pinned.textContent = room.pinned ? '📌 ' + room.pinned : '';
+          var messages = document.getElementById('messages');
+          messages.textContent = '';
+          var list = room.messages || [];
+          if (!list.length) messages.appendChild(el('li', 'empty', 'Say hi in Hot Mess.'));
+          list.forEach(function (message) {
+            var row = el('li', message.venue ? 'venue' : null);
+            var face = image(message.avatar);
+            row.appendChild(face || el('span', 'initial', (message.sender || '?').charAt(0).toUpperCase()));
+            var body = el('div');
+            body.appendChild(el('b', null, message.sender || 'Guest'));
+            body.appendChild(el('p', null, message.text || ''));
+            row.appendChild(body);
+            messages.appendChild(row);
+          });
+        }
+
+        // Leave off the sets that don't fit rather than cutting one in half.
+        function fit() {
+          var list = board.querySelector('.lineup');
+          if (!list) return;
+          var rows = list.children;
+          for (var i = 0; i < rows.length; i++) rows[i].style.display = '';
+          for (var j = 0; j < rows.length; j++) {
+            if (rows[j].offsetTop - list.offsetTop + rows[j].offsetHeight > list.clientHeight) rows[j].style.display = 'none';
+          }
+        }
+
+        // No phone left: the web sign's board for this venue, read again each minute.
+        function fallback() {
+          showChat(null);
+          if (!venueId || fallbackTimer) return;
+          function load() {
+            fetch('/venues/' + encodeURIComponent(venueId) + '/display', { cache: 'no-store' })
+              .then(function (r) { return r.ok ? r.text() : null; })
+              .then(function (html) {
+                if (!html || !fallbackTimer) return;
+                var next = new DOMParser().parseFromString(html, 'text/html').getElementById('board');
+                if (!next) return;
+                board.innerHTML = next.innerHTML;
+                zone = next.getAttribute('data-zone') || zone;
+                fit();
+              }).catch(function () {});
+          }
+          fallbackTimer = setInterval(load, 60000);
+          load();
+        }
+        function stopFallback() { if (fallbackTimer) { clearInterval(fallbackTimer); fallbackTimer = null; } }
+
+        window.addEventListener('resize', fit);
+        setInterval(tick, 15000);
+
+        if (!window.cast || !cast.framework) return;
+        var context = cast.framework.CastReceiverContext.getInstance();
+        var options = new cast.framework.CastReceiverOptions();
+        options.disableIdleTimeout = true;
+        options.skipPlayersLoad = true;
+        options.statusText = 'Tonight';
+        options.customNamespaces = {};
+        options.customNamespaces[NS] = cast.framework.system.MessageType.JSON;
+        context.addCustomMessageListener(NS, function (event) { show(event.data); });
+        context.addEventListener(cast.framework.system.EventType.SENDER_DISCONNECTED, function () {
+          if (context.getSenders().length === 0) fallback();
+        });
+        context.start(options);
+      })();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  .screen { display: flex; height: 100%; }
+  .screen #board { flex: 1; min-width: 0; }
+  #chat { box-sizing: border-box; flex: 0 0 min(36%, 560px); height: 100%; display: flex; flex-direction: column;
+    gap: clamp(10px, 2vmin, 20px); padding: clamp(16px, 4vmin, 64px) clamp(14px, 2.6vmin, 40px); background: #1a1416;
+    overflow: hidden; }
+  #chat[hidden] { display: none; }
+  #pinned { margin: 0; padding: .6em .8em; border-radius: clamp(10px, 2vmin, 22px); background: rgba(255, 90, 79, .16);
+    font-size: clamp(14px, 2.6vmin, 28px); font-weight: 700; display: -webkit-box; -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical; overflow: hidden; }
+  #pinned[hidden] { display: none; }
+  #messages { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column;
+    justify-content: flex-end; gap: clamp(8px, 1.6vmin, 18px); overflow: hidden; }
+  #messages li { display: flex; gap: clamp(8px, 1.4vmin, 16px); align-items: flex-start; }
+  #messages li.empty { flex: 1; align-items: center; justify-content: center; color: #b9adaf;
+    font-size: clamp(16px, 3vmin, 30px); }
+  #messages img, #messages .initial { flex: 0 0 auto; width: clamp(28px, 4.4vmin, 48px); height: clamp(28px, 4.4vmin, 48px);
+    border-radius: 50%; object-fit: cover; }
+  #messages .initial { display: flex; align-items: center; justify-content: center; background: #3a2e31; font-weight: 800;
+    font-size: clamp(13px, 2.2vmin, 22px); }
+  #messages b { display: block; font-size: clamp(12px, 2.1vmin, 22px); color: #b9adaf; }
+  #messages .venue b { color: #ff5a4f; }
+  #messages p { margin: 0; font-size: clamp(15px, 2.8vmin, 30px); font-weight: 600; display: -webkit-box;
+    -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
