@@ -84,3 +84,50 @@ test('an expired link says so before asking to sign in', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'This link has expired' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toHaveCount(0);
 });
+
+// Ping invitations, texted to contacts who may not have the app (src/pages/pings/[id].astro). The token is opaque.
+test.describe('ping invitations', () => {
+  const PING = '55555555-5555-4555-8555-555555555555';
+  const link = `/pings/${PING}?e=v3.abc`;
+
+  test('an invitation shows the plan and the stores', async ({ page, api }) => {
+    const expiresAt = new Date(Date.now() + 6 * 3600 * 1000);
+    api.on('GET /v1/share/invitation', { json: {
+      kind: 'ping', id: PING, title: 'Jordan wants to go out', note: 'Drinks first?', sender_name: 'Jordan',
+      expires_at: expiresAt.toISOString(),
+      targets: [{ id: VENUE.id, name: VENUE.name, path: `/venues/${VENUE.id}` }, { id: EVENT.id, name: EVENT.name, path: `/events/${EVENT.id}` }],
+    } });
+    const response = await page.goto(link);
+    expect(response?.headers()['x-robots-tag']).toBe('noindex');
+    expect(response?.headers()['cache-control']).toContain('no-store');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    await expect(page.getByRole('heading', { name: 'Jordan wants to go out' })).toBeVisible();
+    await expect(page).toHaveTitle('Jordan wants to go out · Hot Mess');
+    await expect(page.getByText('Drinks first?')).toBeVisible();
+    await expect(page.getByRole('link', { name: VENUE.name })).toHaveAttribute('href', `/venues/${VENUE.id}`);
+    await expect(page.getByRole('link', { name: EVENT.name })).toHaveAttribute('href', `/events/${EVENT.id}`);
+    const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' }).format(expiresAt);
+    await expect(page.locator('.ends')).toHaveText(`Ends ${time}`);
+    await expect(page.getByRole('link', { name: 'Download on the App Store' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Get it on Google Play' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open in Hot Mess' })).toHaveAttribute('href', link);
+
+    const check = new URL(api.calls('GET /v1/share/invitation')[0].url()).searchParams;
+    expect(Object.fromEntries(check)).toEqual({ host: 'localhost', path: `/pings/${PING}`, e: 'v3.abc' });
+  });
+
+  test('an ended invitation says so and still offers the stores', async ({ page, api }) => {
+    api.on('GET /v1/share/invitation', { status: 410, json: { error: 'EXPIRED', message: 'This link has expired' } });
+    await page.goto(link);
+    await expect(page.getByRole('heading', { name: 'This Ping has ended' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Download on the App Store' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open in Hot Mess' })).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Jordan wants to go out' })).toHaveCount(0);
+  });
+
+  test('a link without a token has ended without asking the API', async ({ page, api }) => {
+    await page.goto(`/pings/${PING}`);
+    await expect(page.getByRole('heading', { name: 'This Ping has ended' })).toBeVisible();
+    expect(api.calls('GET /v1/share/invitation')).toEqual([]);
+  });
+});

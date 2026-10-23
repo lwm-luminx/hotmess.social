@@ -5,3 +5,7 @@
 /app/*
   X-Robots-Tag: noindex
   Cache-Control: public, max-age=300
+/pings/*
+  X-Robots-Tag: noindex
+  Cache-Control: private, no-store
+  Referrer-Policy: no-referrer

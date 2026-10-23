@@ -14,12 +14,18 @@ interface Props {
    * /404/. The edge proxy (edge/) writes the share link's own URL, title and image into those for link previews.
    */
   canonical?: boolean;
+  /** Keeps the page out of search results (a Ping invitation, whose link carries a private token). */
+  noindex?: boolean;
+  /** The URL the Smart App Banner's Open hands the app, when it isn't the canonical URL. */
+  appArgument?: string;
 }
 
 const {
   title = 'Hot Mess',
   description = 'Where your people are tonight: the venues, events and DJs of your queer nightlife scene.',
   canonical: hasCanonical = true,
+  noindex = false,
+  appArgument,
 } = Astro.props;
 const canonical = hasCanonical ? new URL(Astro.url.pathname, Astro.site) : undefined;
 const image = new URL('/og/hot-mess.png', Astro.site);
@@ -42,12 +48,12 @@ const path = Astro.url.pathname;
     <NewRelic />
     <title>{title === 'Hot Mess' ? title : `${title} · Hot Mess`}</title>
     <meta name="description" content={description} />
-    {(/^\/app(?:\/|$)/.test(path) || path === "/404") && <meta name="robots" content="noindex" />}
+    {(noindex || /^\/app(?:\/|$)/.test(path) || path === "/404") && <meta name="robots" content="noindex" />}
     {canonical && <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.svg?v=misprint-1" type="image/svg+xml" sizes="any" />
     <meta name="theme-color" content="#a50000" />
     <!-- Safari's Smart App Banner: Open when the app is installed, Get when it isn't. -->
-    <meta name="apple-itunes-app" content={`app-id=${APP_STORE_ID}${canonical ? `, app-argument=${canonical}` : ''}`} />
+    <meta name="apple-itunes-app" content={`app-id=${APP_STORE_ID}${appArgument ?? canonical ? `, app-argument=${appArgument ?? canonical}` : ''}`} />
     <meta property="og:site_name" content="Hot Mess" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
