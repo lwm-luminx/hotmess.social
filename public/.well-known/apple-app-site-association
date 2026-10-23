@@ -26,6 +26,10 @@
             "comment": "Person share links"
           },
           {
+            "/": "/posts/*",
+            "comment": "Post share links"
+          },
+          {
             "/": "/pings/*",
             "comment": "A Ping, opened on Now"
           },

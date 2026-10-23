@@ -3,7 +3,7 @@ export function pageCacheKey(request: Request): Request | null {
   if (!['GET', 'HEAD'].includes(request.method)) return null;
   const url = new URL(request.url);
   if (url.searchParams.has('e')) return null; // Always validate signed-link expiry before rendering.
-  if (!/^\/(venues|events)\/[0-9a-f-]{36}$/.test(url.pathname) &&
+  if (!/^\/(venues|events|posts)\/[0-9a-f-]{36}$/.test(url.pathname) &&
       !['/discover', '/sitemap.xml'].includes(url.pathname)) return null;
   const page = url.searchParams.get('page');
   url.search = '';

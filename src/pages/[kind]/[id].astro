@@ -13,19 +13,26 @@ let status = 200;
 try {
   const signature = Astro.url.searchParams.get('e');
   if (signature !== null) status = await signedLinkStatus(path, signature);
-  // Only venues and events have public listings; people and safety alerts are for the signed-in app alone.
-  if (status === 200 && (route.kind === 'venue' || route.kind === 'event')) record = await listing(path);
+  // Venues, events and posts have public listings; people and safety alerts are for the signed-in app alone.
+  if (status === 200 && (route.kind === 'venue' || route.kind === 'event' || route.kind === 'post')) record = await listing(path);
 } catch { status = 503; }
 if (![200, 404, 410].includes(status)) status = 503;
-// Unpublished records still open the signed-in SPA, but never enter the search index.
-const indexable = status === 200 && !!record;
+// Unpublished records still open the signed-in SPA, but never enter the search index. A Community post's listing is
+// only a sign-in shell, so it never does either.
+const indexable = status === 200 && !!record && (record.kind !== 'post' || record.visibility === 'public');
+const maxAge = { venue: 86400, event: 21600, post: 3600 }[route.kind as 'venue' | 'event' | 'post'] ?? 3600;
+const isPost = record?.kind === 'post';
+const title = status === 410 ? 'Link expired'
+  : isPost ? (record!.visibility === 'public' ? `Post by ${record!.title}` : 'A post on Hot Mess') : record?.title ?? 'Hot Mess';
+// A Public post previews with its first photo, else its poster's picture.
+const image = isPost && record!.visibility === 'public' ? record!.photos?.[0]?.url ?? record!.image : undefined;
 Astro.response.status = status;
 Astro.response.headers.set('Cache-Control', indexable && !Astro.url.searchParams.has('e')
-  ? `public, max-age=300, s-maxage=${route.kind === 'venue' ? 86400 : 21600}` : 'private, no-store');
+  ? `public, max-age=300, s-maxage=${maxAge}` : 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', indexable ? 'index, follow' : 'noindex');
 if (status === 503) Astro.response.headers.set('Retry-After', '60');
 ---
-<Base title={status === 410 ? 'Link expired' : record?.title ?? 'Hot Mess'} description={record?.description ?? 'Sign in to see more details.'} canonical={status === 200}>
+<Base title={title} description={record?.description ?? 'Sign in to see more details.'} canonical={status === 200} image={image}>
     {status === 200 || status === 410 ? <AppShell initialPath={path + Astro.url.search} publicListing={record ?? undefined} expired={status === 410} />
       : <main class="wrap"><p>{status === 410 ? 'This link has expired. Ask for a new link.' : status === 404 ? 'This page is unavailable.' : 'Details are temporarily unavailable. Please try again shortly.'}</p></main>}
 </Base>

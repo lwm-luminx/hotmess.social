@@ -18,6 +18,8 @@ interface Props {
   noindex?: boolean;
   /** The URL the Smart App Banner's Open hands the app, when it isn't the canonical URL. */
   appArgument?: string;
+  /** The link preview's picture (a Public post's photo), in place of the Hot Mess card. */
+  image?: string;
 }
 
 const {
@@ -26,16 +28,17 @@ const {
   canonical: hasCanonical = true,
   noindex = false,
   appArgument,
+  image: pageImage,
 } = Astro.props;
 const canonical = hasCanonical ? new URL(Astro.url.pathname, Astro.site) : undefined;
-const image = new URL('/og/hot-mess.png', Astro.site);
+const image = pageImage ?? new URL('/og/hot-mess.png', Astro.site);
 
 // Top nav. The web app also serves share links (/venues/<id> etc.) through 404.html.
 const nav = [
   { href: '/discover', label: 'Discover', current: (p: string) => p === '/discover' },
   { href: '/safety', label: 'Safety', current: (p: string) => p.startsWith('/safety') },
   { href: '/poster', label: 'Poster', current: (p: string) => p.startsWith('/poster') },
-  { href: '/app/', label: 'Web app', current: (p: string) => /^\/(app|venues|events|people)(\/|$)/.test(p) },
+  { href: '/app/', label: 'Web app', current: (p: string) => /^\/(app|venues|events|people|posts)(\/|$)/.test(p) },
 ];
 const path = Astro.url.pathname;
 ---
@@ -60,9 +63,9 @@ const path = Astro.url.pathname;
     <meta property="og:description" content={description} />
     {canonical && <meta property="og:url" content={canonical} />}
     <meta property="og:image" content={image} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Hot Mess: where your people are tonight." />
+    {!pageImage && <meta property="og:image:width" content="1200" />}
+    {!pageImage && <meta property="og:image:height" content="630" />}
+    {!pageImage && <meta property="og:image:alt" content="Hot Mess: where your people are tonight." />}
     <meta name="twitter:card" content="summary_large_image" />
     <!-- The Hot Mess app, so Facebook attributes shares to it. -->
     <meta property="fb:app_id" content={FACEBOOK_APP_ID} />
