@@ -1,5 +1,9 @@
 import type { PublicListing } from '../lib/publicListing';
+import PostView, { shownFromListing } from './PostView';
 export default function PublicBasics({ listing }: { listing: PublicListing }) {
+  if (listing.kind === 'post' && listing.visibility === 'public') {
+    return <PostView post={shownFromListing(listing)} footer="Sign in, or get the app, to comment." />;
+  }
   return <section className="card">
     <h1>{listing.title}</h1>
     <p>{listing.description}</p>

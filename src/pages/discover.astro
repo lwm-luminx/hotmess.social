@@ -11,7 +11,7 @@ if (!result) Astro.response.headers.set('X-Robots-Tag', 'noindex');
 ---
 <Base title="Discover Hot Mess" canonical={page === 1}>
   <main class="wrap"><h1>Discover Hot Mess</h1>
-    {result ? <><ul>{result.listings.map(item => <li><a href={item.path}>{item.title}</a></li>)}</ul>
+    {result ? <><ul>{result.listings.map(item => <li><a href={item.path}>{item.kind === 'post' ? `Post by ${item.title}` : item.title}</a></li>)}</ul>
       {result.next_page && <a href={`/discover?page=${result.next_page}`}>More listings</a>}</>
       : <p>Listings are temporarily unavailable. Please try again shortly.</p>}
   </main>

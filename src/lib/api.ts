@@ -163,6 +163,30 @@ const PERSON_PAGE = `query Person($id: ID!) {
   }
 }`;
 
+// A post as its shared link shows it to someone signed in: comments stay in the app.
+const POST_PAGE = `query Post($id: ID!) {
+  posts {
+    post(id: $id) {
+      id body posterName posterAvatarUrl actingPersonName createdAt edited
+      photos { url altText } event { id name startAt } person { id } venue { id }
+    }
+  }
+}`;
+
+export interface Post {
+  id: string;
+  body: string | null;
+  posterName: string | null;
+  posterAvatarUrl: string | null;
+  actingPersonName: string | null;
+  createdAt: string | null;
+  edited: boolean | null;
+  photos: { url: string | null; altText: string | null }[] | null;
+  event: { id: string; name: string | null; startAt: string | null } | null;
+  person: { id: string } | null;
+  venue: { id: string } | null;
+}
+
 export const api = {
   // Answers the token JSON (doc/TOKENS.md). A token Facebook refuses is 400
   // INVALID with Facebook's reason as the message; 401 means the app or
@@ -229,4 +253,6 @@ export const api = {
     found((await graphql<{ events: { event: Event | null } }>(EVENT_PAGE, { id })).events.event),
   person: async (id: string): Promise<Person> =>
     found((await graphql<{ people: { person: Person | null } }>(PERSON_PAGE, { id })).people.person),
+  post: async (id: string): Promise<Post> =>
+    found((await graphql<{ posts: { post: Post | null } }>(POST_PAGE, { id })).posts.post),
 };
