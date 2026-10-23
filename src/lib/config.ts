@@ -21,7 +21,7 @@ export const APPLE_SERVICES_ID: string =
 export const AUDIENCE_HOST: string =
   import.meta.env.PUBLIC_AUDIENCE_HOST ?? 'hotmess.admin.next.audiencekit.com';
 
-// Hot Mess is a Love Wins Media product; every page links here (src/components/LoveWinsBand.astro).
+// Hot Mess is a Love Wins Media product; every page links here (BrandBand and BrandCredit from @lwm-luminx/astro-components, in src/layouts/Base.astro).
 export const LOVE_WINS_URL = 'https://lovewins.media';
 
 // Hot Mess on the App Store, for Safari's Smart App Banner (src/layouts/Base.astro).
