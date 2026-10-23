@@ -11,13 +11,13 @@ test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
 
   expect(await page.evaluate(() => (window as any).__fbScope)).toBe('public_profile');
-  expect(await page.evaluate(() => (window as any).__fbInit)).toMatchObject({ appId: '1168782378316790', version: 'v26.0' });
+  expect(await page.evaluate(() => (window as any).__fbInit)).toMatchObject({ appId: '1660272792277019', version: 'v26.0' });
 
   const [signIn] = api.calls('POST /v1/token');
   expect(signIn.postDataJSON()).toMatchObject({
     facebook_token: 'fb-user-token',
-    host: 'hotmess.admin.audiencekit.com',
-    facebook_app_id: '1168782378316790',
+    host: 'hotmess.admin.next.audiencekit.com',
+    facebook_app_id: '1660272792277019',
     device: { type: 'web', identifier: expect.any(String) },
   });
   expect(signIn.headers()['authorization']).toBeUndefined();
@@ -54,7 +54,7 @@ for (const path of [`/venues/${VENUE.id}`, `/events/${EVENT.id}`, `/people/${PER
   test(`logs out from ${path} and returns to sign-in`, async ({ page, signedIn }) => {
     await signedIn();
     await page.goto(path);
-    await expect(page.locator('#app h1')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Log out', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Log out', exact: true }).click();
     await expect(page).toHaveURL(/\/app\/$/);
     await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
@@ -124,7 +124,7 @@ test('offers the methods the audience has on, and says so when none is', async (
   api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'] } });
   const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/v1/token/methods');
   await page.goto('/app/');
-  expect(new URL((await asked).url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
+  expect(new URL((await asked).url()).searchParams.get('host')).toBe('hotmess.admin.next.audiencekit.com');
   await expect(page.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeVisible();
 
@@ -167,7 +167,7 @@ test('signs in with Apple, bound to a nonce, then shows Now', async ({ page, api
     first_name: 'Dana',
     last_name: 'Kim',
     redirect_uri: init.redirectURI,
-    host: 'hotmess.admin.audiencekit.com',
+    host: 'hotmess.admin.next.audiencekit.com',
     device: { type: 'web', identifier: expect.any(String) },
   });
   // Apple gets the SHA-256 of the nonce; only the site has the nonce itself.

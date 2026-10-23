@@ -23,7 +23,8 @@ export function VenueCard({ venue, friendCount }: { venue: Venue; friendCount?: 
   );
 }
 
-export function EventCard({ event, showVenue = true }: { event: Event; showVenue?: boolean }) {
+/** photo overrides the card's photo, for lists that pick it by their own priority (see eventPhoto). */
+export function EventCard({ event, showVenue = true, photo }: { event: Event; showVenue?: boolean; photo?: string }) {
   const badge = dateBadge(event.startAt);
   const place = eventPlace(event);
   const host = eventHost(event);
@@ -31,7 +32,7 @@ export function EventCard({ event, showVenue = true }: { event: Event; showVenue
     <li className="ak-card ak-card--event">
       <Link to={{ kind: 'event', id: event.id }} className="ak-card__link">
         <div className="ak-card__media">
-          <Photo src={eventPhoto(event)} />
+          <Photo src={photo ?? eventPhoto(event)} />
           {badge.day ? <span className="ak-date" aria-hidden="true"><span>{badge.month}</span><strong>{badge.day}</strong></span> : null}
         </div>
         <div className="ak-card__body">

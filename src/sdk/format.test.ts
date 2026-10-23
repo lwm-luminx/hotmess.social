@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dateBadge, distance, eventHost, eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, providerName, venueHero, venuePhoto } from './format.ts';
+import { dateBadge, distance, eventHost, eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, personPhoto, providerName, venueHero, venuePhoto } from './format.ts';
 import type { Event } from './types.ts';
 
 const venue = { id: 'v', name: 'Milk+', photoUrl: null, bannerUrl: 'banner' };
@@ -27,6 +27,33 @@ test('events without a banner show their venue', () => {
   assert.equal(eventPhoto(event), 'banner');
   assert.equal(eventPhoto({ ...event, bannerUrl: 'cover' }), 'cover');
   assert.equal(eventPhoto({ ...event, venue: { name: 'To be announced', venue: null } }), undefined);
+});
+
+test('people show their avatar, else their banner', () => {
+  assert.equal(personPhoto({ id: 'p', name: 'Aurora', avatarUrl: 'avatar', bannerUrl: 'banner' }), 'avatar');
+  assert.equal(personPhoto({ id: 'p', name: 'Aurora', avatarUrl: null, bannerUrl: 'banner' }), 'banner');
+  assert.equal(personPhoto(undefined), undefined);
+});
+
+test('a venue page prefers the host, and a person page the venue, for events without a banner', () => {
+  const host = { id: 'p', name: 'DJ Aurora', avatarUrl: 'person-photo' };
+  const hosted: Event = { ...event, venue: { name: 'Milk+', venue: { ...venue, photoUrl: 'venue-photo' } }, people: { lineup: { nodes: [host] } } };
+  const bare: Event = { ...event, venue: { name: 'To be announced', venue: null } };
+  const fallbackVenue = { id: 'fv', name: 'Club', photoUrl: 'fallback-venue-photo' };
+  const fallbackPerson = { id: 'fp', name: 'Host', avatarUrl: 'fallback-person-photo' };
+
+  // A person's page: banner, then the venue, then the person.
+  assert.equal(eventPhoto({ ...hosted, bannerUrl: 'banner' }, 'venue-first', undefined, fallbackPerson), 'banner');
+  assert.equal(eventPhoto(hosted, 'venue-first', undefined, fallbackPerson), 'venue-photo');
+  assert.equal(eventPhoto({ ...bare, people: { lineup: { nodes: [host] } } }, 'venue-first', fallbackVenue, fallbackPerson), 'fallback-venue-photo');
+  assert.equal(eventPhoto({ ...bare, people: { lineup: { nodes: [host] } } }, 'venue-first', undefined, fallbackPerson), 'person-photo');
+  assert.equal(eventPhoto(bare, 'venue-first', undefined, fallbackPerson), 'fallback-person-photo');
+
+  // A venue's page: banner, then the person, then the venue.
+  assert.equal(eventPhoto({ ...hosted, bannerUrl: 'banner' }, 'person-first', fallbackVenue), 'banner');
+  assert.equal(eventPhoto(hosted, 'person-first', fallbackVenue), 'person-photo');
+  assert.equal(eventPhoto({ ...hosted, people: undefined }, 'person-first', fallbackVenue), 'venue-photo');
+  assert.equal(eventPhoto(bare, 'person-first', fallbackVenue), 'fallback-venue-photo');
 });
 
 test('an event is placed by its venue, else by what its venue mixin names', () => {
@@ -81,5 +108,6 @@ test('date badges, distances, initials and providers', () => {
   assert.equal(initials(null), '');
   assert.equal(providerName('soundcloud'), 'SoundCloud');
   assert.equal(providerName('apple_music'), 'Apple Music');
+  assert.equal(providerName('podcast_rss'), 'RSS');
   assert.equal(providerName('mixcloud'), 'Mixcloud');
 });

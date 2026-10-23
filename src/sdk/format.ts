@@ -1,5 +1,5 @@
 // Pure helpers the components share. No DOM or React, so they test with node --test.
-import type { Connection, Event, VenueReference } from './types';
+import type { Connection, Event, Person, PersonReference, VenueReference } from './types';
 
 /** The items of a connection the document selected `nodes` from; a missing or null one is empty. */
 export function nodes<T>(connection: Connection<T> | null | undefined): T[] {
@@ -16,9 +16,28 @@ export function venueHero(venue: VenueReference | null | undefined): string | un
   return venue?.bannerUrl || venue?.photoUrl || undefined;
 }
 
-/** Most events have no banner of their own, so fall back to the venue's photo. */
-export function eventPhoto(event: Event): string | undefined {
-  return event.bannerUrl || venuePhoto(event.venue?.venue);
+/** The photo to show for a person: their avatar, else their banner. */
+export function personPhoto(person: PersonReference | Person | null | undefined): string | undefined {
+  return person?.avatarUrl || (person && 'bannerUrl' in person ? person.bannerUrl : undefined) || undefined;
+}
+
+export type EventPhotoPriority = 'standard' | 'venue-first' | 'person-first';
+
+/**
+ * Most events have no banner of their own, so fall back to their venue's photo, then their host's.
+ * A venue's page lists its own events, so it prefers the host ('person-first'), and a person's page
+ * prefers the venue ('venue-first'), so a list doesn't show the page's own photo over and over.
+ * fallbackVenue and fallbackPerson stand in for an event that doesn't carry its own.
+ */
+export function eventPhoto(
+  event: Event,
+  priority: EventPhotoPriority = 'standard',
+  fallbackVenue?: VenueReference | null,
+  fallbackPerson?: PersonReference | Person | null,
+): string | undefined {
+  const venue = venuePhoto(event.venue?.venue) || venuePhoto(fallbackVenue);
+  const person = personPhoto(eventHost(event)) || personPhoto(fallbackPerson);
+  return event.bannerUrl || (priority === 'person-first' ? person || venue : venue || person);
 }
 
 /** Where an event is, by name: its venue's, else what its venue mixin calls the place. */
@@ -102,7 +121,7 @@ export function providerName(provider: string): string {
     facebook: 'Facebook', instagram: 'Instagram', soundcloud: 'SoundCloud', spotify: 'Spotify',
     apple_music: 'Apple Music', tiktok: 'TikTok', twitter: 'X', x: 'X', threads: 'Threads', bluesky: 'Bluesky',
     youtube: 'YouTube', mixcloud: 'Mixcloud', bandcamp: 'Bandcamp', cashapp: 'Cash App', venmo: 'Venmo',
-    website: 'Website', link: 'Website',
+    website: 'Website', link: 'Website', podcast_rss: 'RSS', apple_podcasts: 'Apple Podcasts',
   };
   return names[provider.toLowerCase()] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
 }
