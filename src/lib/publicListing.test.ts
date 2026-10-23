@@ -41,3 +41,31 @@ test('full editorial details require explicit public mode; user and chat data ar
   assert.equal('chat' in published, false);
   assert.equal('attendees' in published, false);
 });
+
+test('a Public post keeps its text, poster, photos and event, with paths rebuilt from IDs', () => {
+  const poster = '22345678-1234-1234-1234-123456789abc';
+  const event = '32345678-1234-1234-1234-123456789abc';
+  const post = publicListing({ kind: 'post', id, path: '/elsewhere', visibility: 'public', title: 'The Wildrose',
+    description: 'Two-for-one wells', body: 'Two-for-one wells until 10.', created_at: '2026-10-23T18:00:00Z', edited: true,
+    poster: { kind: 'venue', id: poster, name: 'The Wildrose', path: 'javascript:alert(1)' },
+    image: 'https://cdn.example.com/w.jpg', acting_person_name: 'Kiki Riot for House of Lux',
+    photos: [{ url: 'https://cdn.example.com/1.jpg', alt_text: 'The bar' }, { url: 'javascript:alert(1)' }, null],
+    event: { id: event, name: 'Drag Bingo', path: '/nope', start_at: '2026-10-24T04:00:00Z' },
+    comments: ['private'], author_id: 'private' });
+  assert.equal(post.path, `/posts/${id}`);
+  assert.equal(post.body, 'Two-for-one wells until 10.');
+  assert.deepEqual(post.poster, { kind: 'venue', id: poster, name: 'The Wildrose', path: `/venues/${poster}` });
+  assert.deepEqual(post.photos, [{ url: 'https://cdn.example.com/1.jpg', alt_text: 'The bar' }]);
+  assert.deepEqual(post.event, { id: event, name: 'Drag Bingo', path: `/events/${event}`, start_at: '2026-10-24T04:00:00Z' });
+  assert.equal(post.image, 'https://cdn.example.com/w.jpg');
+  assert.equal('comments' in post, false);
+  assert.equal('author_id' in post, false);
+});
+test('a Community post is only a sign-in shell, whatever else comes with it', () => {
+  const post = publicListing({ kind: 'post', id, visibility: 'community', title: 'Post', description: 'Sign in to see more details.',
+    body: 'Members only', photos: [{ url: 'https://cdn.example.com/1.jpg' }], image: 'https://cdn.example.com/w.jpg' });
+  assert.deepEqual(Object.keys(post).sort(), ['description', 'id', 'kind', 'path', 'title', 'visibility']);
+});
+test('post pages share the public page cache', () => {
+  assert.equal(pageCacheKey(new Request(`https://hotmess.social/posts/${id}?utm_source=x`))?.url, `https://hotmess.social/posts/${id}`);
+});

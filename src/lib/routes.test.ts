@@ -8,6 +8,7 @@ test('share links route to their detail', () => {
   assert.deepEqual(routeFor(`/venues/${id}`), { kind: 'venue', id });
   assert.deepEqual(routeFor(`/events/${id.toUpperCase()}/`), { kind: 'event', id });
   assert.deepEqual(routeFor(`/people/${id}`), { kind: 'person', id });
+  assert.deepEqual(routeFor(`/posts/${id}`), { kind: 'post', id });
 });
 
 test('the app root routes to Now', () => {
@@ -22,7 +23,7 @@ test('unknown or malformed paths do not route', () => {
 });
 
 test('paths round-trip', () => {
-  for (const kind of ['venue', 'event', 'person', 'safety-alert'] as const) {
+  for (const kind of ['venue', 'event', 'person', 'post', 'safety-alert'] as const) {
     assert.deepEqual(routeFor(pathFor({ kind, id })), { kind, id });
   }
 });

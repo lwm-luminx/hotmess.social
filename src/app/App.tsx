@@ -1,6 +1,6 @@
 // Shared React app: public SSR basics hydrate here; user-authorized details come directly from the API.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, session, APIError } from '../lib/api';
+import { api, session, APIError, type Post } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
 import { appleSignIn, offersApple, prepareAppleSignIn } from '../lib/apple';
 import { routeFor, pathFor, linkCheck, type Route } from '../lib/routes';
@@ -10,6 +10,7 @@ import { EventView, NavigationProvider, NowView, PersonView, VenueView, type Nav
 import type { Event, Now, Person, TokenResponse, Venue } from '../sdk';
 import '../sdk/styles.css';
 import PublicBasics from './PublicBasics';
+import PostView, { shownFromAPI } from './PostView';
 import { GetHelpEntry, SafetyAlertPage, SupportEntry } from './GetHelp';
 import type { PublicListing } from '../lib/publicListing';
 
@@ -22,6 +23,7 @@ type Screen =
   | { state: 'venue'; venue: Venue; events: Event[] }
   | { state: 'event'; event: Event }
   | { state: 'person'; person: Person }
+  | { state: 'post'; post: Post }
   | { state: 'safety-alert'; id: string };
 
 // The API picks the venue you're at, or your city, from where you are.
@@ -44,6 +46,7 @@ async function load(route: Route): Promise<Screen> {
     case 'venue': return { state: 'venue', ...await api.venue(route.id) };
     case 'event': return { state: 'event', event: await api.event(route.id) };
     case 'person': return { state: 'person', person: await api.person(route.id) };
+    case 'post': return { state: 'post', post: await api.post(route.id) };
     // The alert loads itself, and keeps itself fresh while it's open.
     case 'safety-alert': return { state: 'safety-alert', id: route.id };
   }
@@ -55,6 +58,7 @@ function titleFor(screen: Screen): string {
     case 'venue': return screen.venue.name ?? 'Venue';
     case 'event': return screen.event.name ?? 'Event';
     case 'person': return screen.person.name ?? 'Person';
+    case 'post': return screen.post.posterName ?? 'Post';
     case 'safety-alert': return 'Get help';
     case 'expired': return 'Link expired';
     default: return 'Hot Mess';
@@ -261,6 +265,7 @@ function HotMess({ initialPath, publicListing, expired }: AppProps) {
     case 'venue': content = <><GetHelpEntry venue={screen.venue} /><VenueView venue={screen.venue} events={screen.events} /></>; break;
     case 'event': content = <EventView event={screen.event} />; break;
     case 'person': content = <PersonView person={screen.person} />; break;
+    case 'post': content = <PostView post={shownFromAPI(screen.post)} />; break;
     case 'safety-alert': content = <SafetyAlertPage id={screen.id} />; break;
   }
 
