@@ -1,11 +1,12 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
+import cloudflare from '@astrojs/cloudflare';
 
-// Static build served by GitHub Pages at https://hotmess.social. The app at /app/ is a React island
-// built from the components in src/sdk, which are shaped to move into an AudienceKit React SDK.
+// Marketing pages remain static; public record routes render on Cloudflare Workers.
 export default defineConfig({
   site: 'https://hotmess.social',
   trailingSlash: 'ignore',
+  adapter: cloudflare({ imageService: 'passthrough' }),
   integrations: [react()],
 });

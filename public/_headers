@@ -1,0 +1,7 @@
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+/.well-known/assetlinks.json
+  Content-Type: application/json
+/app/*
+  X-Robots-Tag: noindex
+  Cache-Control: public, max-age=300

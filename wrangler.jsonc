@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hotmess-social",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-10-12",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/client"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "PUBLIC_CONTENT_API_BASE": "https://api.next.audiencekit.com",
+    "PUBLIC_CONTENT_HOST": "hotmess.admin.next.audiencekit.com",
+    "PUBLIC_SITE_ORIGIN": "https://hotmess.social"
+  }
+}

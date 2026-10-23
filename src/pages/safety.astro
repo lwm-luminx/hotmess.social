@@ -1,0 +1,139 @@
+---
+import Base from '../layouts/Base.astro';
+import StoreButtons from '../components/StoreButtons.astro';
+
+// Only features that ship in the apps today belong here (see the App Review safety pack).
+const protections = [
+  {
+    title: 'Adults who agreed to the rules',
+    body: 'Everyone confirms they are 18 or older and agrees to our Terms before they can sign in. The Terms have zero tolerance for objectionable content and abusive people, and everyone agrees to the chat rules before their first message.',
+  },
+  {
+    title: 'Real names, shown carefully',
+    body: 'Names come from your Apple or Facebook account, so nobody can make one up. People who are not your friends only see your first name and last initial. Your friends see your full name.',
+  },
+  {
+    title: 'Chat for people who are actually there',
+    body: 'A venue’s chat opens only for people in the room, so the conversation stays with the crowd you can see. Members only see the last 24 hours of a chat.',
+  },
+  {
+    title: 'Report anything',
+    body: 'Press and hold any message, or open the ••• menu on a profile, venue, Ping or photo, and tap Report. Our moderators are alerted right away and act within 24 hours.',
+  },
+  {
+    title: 'Block, both ways',
+    body: 'Blocking someone takes effect at once and works in both directions: neither of you sees the other’s messages, presence, Pings or whereabouts. They are not told. You can unblock people under Me > Blocked People.',
+  },
+  {
+    title: 'Bans that follow the person',
+    body: 'Venue staff can ban someone who caused trouble there, and that venue, its events and its chat disappear for them. Moderators can ban a person from the whole community, which locks them out of chat, sign-ups and cover.',
+  },
+  {
+    title: 'A filter before anyone sees it',
+    body: 'Messages, Ping notes and comments pass through a content filter on our servers, and objectionable text is refused before it reaches anyone.',
+  },
+  {
+    title: 'You decide when to leave',
+    body: 'Me > Delete Account deletes your account and its data. No email, no waiting period.',
+  },
+];
+
+const location = [
+  'Hot Mess shows where people are because that is the point of a night out. We keep that view small.',
+  'Your friends can see which venue you are at. People in the same room see you in Here now, by first name and last initial.',
+  'Pings go to your friends, last for tonight only and end at 5 am. Venues only see how many people pinged them, never who.',
+  'Someone you block can never see where you are.',
+];
+
+const tips = [
+  'Tell a friend where you are going, and send a Ping so your people can find you.',
+  'Plan your ride home before you go out.',
+  'Watch your drink, and look out for the people around you.',
+  'If someone makes you uncomfortable, block them, report them, and tell the venue’s staff.',
+];
+---
+<Base title="Safety" description="How Hot Mess keeps queer nightlife safer: 18+ only, first name and last initial for non-friends, report and block on everything, venue and community bans, and a small view of your location.">
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Safety</p>
+        <h1>Out tonight, on your terms.</h1>
+        <p class="lede">For our community, being found by the wrong person can mean harassment, stalking or being outed. Hot Mess is built so you choose who sees you, and so the people who cross the line lose access.</p>
+      </div>
+    </section>
+
+    <section class="wrap why" aria-labelledby="why">
+      <h2 id="why">Where we are tonight is not public information</h2>
+      <div class="why-grid">
+        <div>
+          <p>Hot Mess is more than a list of bars. A venue shows who is in the room, who is singing tonight, which friends are there and who is heading over. Put together, that says where to find queer people at a given time.</p>
+          <p>So all of Hot Mess sits behind a free account. Signing in asks for almost nothing (Sign in with Apple can even hide your email), but it makes every block, ban and report count. Someone who has been removed can't just sign out and keep watching.</p>
+        </div>
+        <div>
+          <p>The same goes for the people who make the night. Drag performers, DJs and karaoke hosts share where they will be with their community, not with the whole internet. When a community bans someone for harassing a host, that person loses the host's schedule too.</p>
+          <p class="muted">Membership is free, and it can be taken away. That is what our Terms are for.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="protections">
+      <h2 id="protections">What protects you in the app</h2>
+      <div class="grid">
+        {protections.map((p) => (
+          <article class="card item">
+            <h3>{p.title}</h3>
+            <p class="muted">{p.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="wrap split" aria-labelledby="location">
+      <div>
+        <h2 id="location">Your location</h2>
+        <ul>{location.map((l) => <li>{l}</li>)}</ul>
+      </div>
+      <div>
+        <h2 id="tips">Looking out for each other</h2>
+        <ul>{tips.map((t) => <li>{t}</li>)}</ul>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="help">
+      <article class="card help">
+        <h2 id="help">If you need help right now</h2>
+        <p>In an emergency in the US, call <a href="tel:911">911</a>. For a mental health crisis, call or text <a href="tel:988">988</a>. LGBTQ+ young people can reach The Trevor Project any time at <a href="tel:18664887386">1-866-488-7386</a>.</p>
+        <p class="muted">Hot Mess is not an emergency service. Venue staff can help with problems at their venue, and you can report anything in the app.</p>
+      </article>
+    </section>
+
+    <section class="wrap get">
+      <h2>Get Hot Mess</h2>
+      <p class="muted">Read the full rules in our <a href="https://audiencekit.com/terms/">Terms</a> and <a href="https://audiencekit.com/privacy/">Privacy Policy</a>.</p>
+      <StoreButtons />
+    </section>
+  </main>
+</Base>
+
+<style>
+  .hero { padding: clamp(3rem, 9vw, 6rem) 0 clamp(1.5rem, 4vw, 3rem); background: radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%); }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2.2rem, 6.5vw, 4rem); font-weight: 800; margin: 0 0 1rem; max-width: 16ch; }
+  .lede { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--ink-muted); max-width: 52ch; margin: 0; }
+  h2 { font-size: 1.6rem; margin: 3rem 0 1rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+  .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 2rem; }
+  .why p { margin: 0 0 1rem; max-width: 60ch; }
+  .item { padding: 1.25rem 1.25rem .5rem; }
+  .item h3 { margin: 0 0 .5rem; font-size: 1.15rem; }
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 2rem; }
+  ul { margin: 0; padding-left: 1.2rem; }
+  li { margin: .5rem 0; }
+  .help { margin-top: 3rem; padding: 1.5rem; background: linear-gradient(135deg, var(--accent-soft), var(--surface-raised) 70%); }
+  .help h2 { margin: 0 0 .75rem; font-size: 1.4rem; }
+  .help p { margin: 0 0 .75rem; }
+  .help p:last-child { margin: 0; }
+  .help a { white-space: nowrap; }
+  .get h2 { margin-bottom: .5rem; }
+  .get p { margin: 0 0 1.25rem; }
+</style>

@@ -1,0 +1,33 @@
+---
+// The App Store and Google Play links, drawn in the site's own riso style (ink buttons with a pink or blue offset,
+// like the download poster) rather than the stores' stock badges.
+import StoreGlyph from './StoreGlyph.astro';
+import { APP_STORE_URL, PLAY_STORE_URL } from '../lib/download';
+---
+<div class="stores">
+  <a class="store ios" href={APP_STORE_URL}>
+    <StoreGlyph store="ios" />
+    <span><small>Download on the</small>App Store</span>
+  </a>
+  <a class="store android" href={PLAY_STORE_URL}>
+    <StoreGlyph store="android" />
+    <span><small>Get it on</small>Google Play</span>
+  </a>
+</div>
+
+<style>
+  .stores { display: flex; flex-wrap: wrap; gap: 1rem 1.25rem; }
+  .store {
+    --offset: #ff3d9a;
+    display: inline-flex; align-items: center; gap: .7rem; min-width: 12.5rem; padding: .7rem 1.4rem .7rem 1.1rem;
+    border-radius: 14px; background: #1a1519; color: #fff; text-decoration: none; border: 2px solid #1a1519;
+    box-shadow: 5px 5px 0 var(--offset); transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .store.android { --offset: #1e8cff; }
+  .store:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--offset); }
+  .store:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--offset); }
+  .store :global(.glyph) { width: 1.7rem; height: 1.7rem; flex: none; }
+  .store span { display: flex; flex-direction: column; font-weight: 800; font-size: 1.3rem; line-height: 1.1; letter-spacing: -.01em; }
+  .store small { font-weight: 600; font-size: .72rem; letter-spacing: .02em; opacity: .85; }
+  @media (prefers-color-scheme: dark) { .store { border-color: #f1eaea; } }
+</style>

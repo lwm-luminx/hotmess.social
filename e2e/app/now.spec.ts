@@ -138,6 +138,6 @@ test('looks the audience up from its host when the session doesn\'t name it', as
   await page.goto('/app/');
   await expect(page.locator('.ak-hero h1')).toHaveText(NOW.locale.name);
   const [branding] = api.calls('GET /v1/branding');
-  expect(new URL(branding.url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
+  expect(new URL(branding.url()).searchParams.get('host')).toBe('hotmess.admin.next.audiencekit.com');
   expect(new URL(api.calls(operation('ReportLocation'))[0].url()).pathname).toBe(`/v1/audience/${AUDIENCE_ID}/graphql`);
 });

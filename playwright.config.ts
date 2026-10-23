@@ -34,9 +34,12 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], baseURL: process.env.E2E_BASE_URL ?? 'https://hotmess.social' },
     },
   ],
-  webServer: live ? undefined : {
-    command: `npx astro preview --port ${PORT} --ignore-lock`,
-    url: `http://localhost:${PORT}/`,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: live ? undefined : [
+    { command: 'node e2e/server/public-api.mjs', url: 'http://127.0.0.1:4399/v1/token/service', reuseExistingServer: false },
+    {
+      command: `npx wrangler dev --config dist/server/wrangler.json --port ${PORT} --var PUBLIC_CONTENT_API_BASE:http://127.0.0.1:4399 --var AUDIENCEKIT_SERVICE_TOKEN:fixture-only`,
+      url: `http://localhost:${PORT}/`,
+      reuseExistingServer: false,
+    },
+  ],
 });

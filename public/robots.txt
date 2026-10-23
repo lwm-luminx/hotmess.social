@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://hotmess.social/sitemap.xml
