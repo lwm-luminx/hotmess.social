@@ -22,7 +22,7 @@ test('unknown or malformed paths do not route', () => {
 });
 
 test('paths round-trip', () => {
-  for (const kind of ['venue', 'event', 'person'] as const) {
+  for (const kind of ['venue', 'event', 'person', 'safety-alert'] as const) {
     assert.deepEqual(routeFor(pathFor({ kind, id })), { kind, id });
   }
 });

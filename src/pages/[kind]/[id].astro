@@ -13,7 +13,8 @@ let status = 200;
 try {
   const signature = Astro.url.searchParams.get('e');
   if (signature !== null) status = await signedLinkStatus(path, signature);
-  if (status === 200 && route.kind !== 'person') record = await listing(path);
+  // Only venues and events have public listings; people and safety alerts are for the signed-in app alone.
+  if (status === 200 && (route.kind === 'venue' || route.kind === 'event')) record = await listing(path);
 } catch { status = 503; }
 if (![200, 404, 410].includes(status)) status = 503;
 // Unpublished records still open the signed-in SPA, but never enter the search index.

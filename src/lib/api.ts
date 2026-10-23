@@ -100,7 +100,7 @@ function audienceID(): Promise<string> {
   return brandedAudience;
 }
 
-async function graphql<T>(document: string, variables: Record<string, unknown>): Promise<T> {
+export async function graphql<T>(document: string, variables: Record<string, unknown>): Promise<T> {
   const operation = /^\s*(?:query|mutation)\s+(\w+)/.exec(document)?.[1] ?? 'graphql';
   const path = `/v1/audience/${await audienceID()}/graphql`;
   const result = await send<{ data?: T; errors?: GraphQLError[] }>(path, {
