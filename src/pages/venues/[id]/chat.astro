@@ -1,0 +1,12 @@
+---
+// A venue's chat link, https://hotmess.social/venues/<id>/chat: what Velvet's TV puts in its QR code, and what a push
+// about a room carries. With Hot Mess installed the phone opens the room in the app (a universal link on iOS, an app
+// link on Android), so this page only runs without it: a phone goes straight to its store, anything else (a desktop,
+// or iPadOS Safari, whose user agent says Mac) to /download, whose own script sends an iPad on to the App Store.
+import { downloadUrl } from '../../../lib/download';
+export const prerender = false;
+const store = downloadUrl(Astro.request.headers.get('user-agent') ?? '');
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+return Astro.redirect(store ?? '/download', 302);
+---
