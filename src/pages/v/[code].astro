@@ -1,0 +1,16 @@
+---
+// A venue's short link, https://hotmess.social/v/<code> (audience_kit_api VenueShortLink): what Velvet's TV puts in
+// its QR code, short so the code scans from across the room. It redirects to the venue's chat, /venues/<id>/chat,
+// which opens the room in Hot Mess or sends a phone without the app to its store. The apps claim /v/* as an app link
+// and follow this redirect themselves, since a redirect within the site never opens an app.
+import { shortLink } from '../../server/publicContent';
+export const prerender = false;
+let path: string | null = null;
+try { path = await shortLink(Astro.params.code ?? ''); } catch {
+  return new Response('Try again in a moment', { status: 503, headers: { 'Retry-After': '30' } });
+}
+if (!path) return new Response('Not found', { status: 404 });
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+return Astro.redirect(path, 302);
+---
