@@ -30,6 +30,10 @@
             "comment": "Post share links"
           },
           {
+            "/": "/v/*",
+            "comment": "A venue's short link (Velvet's TV QR code); the app follows the site's redirect"
+          },
+          {
             "/": "/pings/*",
             "comment": "A Ping, opened on Now"
           },
