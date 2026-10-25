@@ -2,7 +2,7 @@
 // HotMess/Networking/HotMessAPI+SafetyAlerts.swift. Each read is its own request, so an API without these fields
 // still shows the venue.
 import { graphql } from './api';
-import { CONCERNS, type SafetyAlert, type SafetyDraft, type SupportResources } from './safety';
+import { CONCERNS, type SafetyAlert, type SafetyDraft, type SupportResources, type SupportRide } from './safety';
 
 const ALERT = `id state place concerns description summary seen acknowledgedByName acknowledgedAt escalatedAt closedAt
   supportSharedAt supportNote createdAt venue { id name } messages { id body fromStaff senderName createdAt }`;
@@ -40,8 +40,12 @@ const MINE = `query MySafetyAlerts {
 }`;
 
 const SUPPORT = `query SupportResources($region: String) {
-  supportResources(region: $region) { region name emergency checkedAt lines { id name description phone textNumber textBody url }
-    rides { id name url pickupUrl } }
+  supportResources(region: $region) { region name emergency checkedAt lines { id name description phone textNumber textBody url } }
+}`;
+
+// Its own request, so an API older than ride links still shows the lines.
+const RIDES = `query SupportRides($region: String) {
+  supportResources(region: $region) { rides { id name url pickupUrl } }
 }`;
 
 type Payload<K extends string> = Record<K, { safetyAlert: SafetyAlert | null }>;
@@ -72,4 +76,6 @@ export const safety = {
   mine: async () => (await graphql<{ me: { safetyAlerts: SafetyAlert[] } | null }>(MINE, {})).me?.safetyAlerts ?? [],
   support: async (region: string | null) =>
     (await graphql<{ supportResources: SupportResources }>(SUPPORT, { region })).supportResources,
+  rides: async (region: string | null) =>
+    (await graphql<{ supportResources: { rides: SupportRide[] } }>(RIDES, { region })).supportResources.rides,
 };

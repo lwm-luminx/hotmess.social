@@ -52,8 +52,6 @@ export interface SupportRide { id: string; name: string; url: string; pickupUrl:
 
 export interface SupportResources {
   region: string; name: string; emergency: string; checkedAt: string | null; lines: SupportLine[];
-  /** Absent from an API older than ride links. */
-  rides?: SupportRide[];
 }
 
 /** Where "Get a ride" sets the pickup: the venue, with its name. */

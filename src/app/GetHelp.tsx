@@ -221,7 +221,7 @@ function useRides(): SupportRide[] {
   const [rides, setRides] = useState<SupportRide[]>([]);
   useEffect(() => {
     let current = true;
-    safety.support(null).then((answer) => { if (current) setRides(answer.rides ?? []); }, () => {});
+    safety.rides(null).then((answer) => { if (current) setRides(answer); }, () => {});
     return () => { current = false; };
   }, []);
   return rides;
@@ -400,6 +400,7 @@ function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiti
 /** "Need support?": free, confidential lines, with the numbers written out so they can be dialled from another phone. */
 function Support({ sharedNote }: { sharedNote?: string | null }) {
   const [resources, setResources] = useState<SupportResources | null>(null);
+  const rides = useRides();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let current = true;
@@ -423,10 +424,10 @@ function Support({ sharedNote }: { sharedNote?: string | null }) {
           </span>
         </li>)}
       </ul>}
-    {resources?.rides?.length ? <section className="help-section">
+    {resources && rides.length ? <section className="help-section">
       <h3>Get home safe</h3>
       <ul className="help-rows">
-        {resources.rides.map((ride) => <li key={ride.id}>
+        {rides.map((ride) => <li key={ride.id}>
           <HelpRow title={`Get a ride with ${ride.name}`} subtitle="Opens the app to set your pickup." href={ride.url} />
         </li>)}
       </ul>
