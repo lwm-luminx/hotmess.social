@@ -8,7 +8,7 @@ const ALERT = `id state place concerns description summary seen acknowledgedByNa
   supportSharedAt supportNote createdAt venue { id name } messages { id body fromStaff senderName createdAt }`;
 
 const VENUE_SAFETY = `query VenueSafety($id: ID!) {
-  venues { venue(id: $id) { id canSendSafetyAlert safetyStaffOnShift } }
+  venues { venue(id: $id) { id point canSendSafetyAlert safetyStaffOnShift } }
 }`;
 
 const SEND = `mutation SendSafetyAlert($venueId: ID!, $place: SafetyAlertPlace, $concerns: [SafetyAlertConcern!], $description: String) {
@@ -40,7 +40,8 @@ const MINE = `query MySafetyAlerts {
 }`;
 
 const SUPPORT = `query SupportResources($region: String) {
-  supportResources(region: $region) { region name emergency checkedAt lines { id name description phone textNumber textBody url } }
+  supportResources(region: $region) { region name emergency checkedAt lines { id name description phone textNumber textBody url }
+    rides { id name url pickupUrl } }
 }`;
 
 type Payload<K extends string> = Record<K, { safetyAlert: SafetyAlert | null }>;
@@ -58,7 +59,7 @@ function alertFrom<K extends string>(payload: Payload<K>, key: K): SafetyAlert {
 
 export const safety = {
   venue: async (id: string) =>
-    (await graphql<{ venues: { venue: { canSendSafetyAlert: boolean; safetyStaffOnShift: boolean } | null } }>(VENUE_SAFETY, { id })).venues.venue,
+    (await graphql<{ venues: { venue: { point: string | null; canSendSafetyAlert: boolean; safetyStaffOnShift: boolean } | null } }>(VENUE_SAFETY, { id })).venues.venue,
   send: async (venueId: string, draft: SafetyDraft) =>
     alertFrom(await graphql<Payload<'sendSafetyAlert'>>(SEND, { venueId, ...draftVariables(draft) }), 'sendSafetyAlert'),
   update: async (id: string, draft: SafetyDraft) =>

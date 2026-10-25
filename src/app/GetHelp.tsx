@@ -5,17 +5,19 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Venue } from '../sdk';
 import {
-  CONCERNS, PLACES, isActive, isUnanswered, lineNumbers,
-  type SafetyAlert, type SafetyConcern, type SafetyDraft, type SupportResources,
+  CONCERNS, PLACES, isActive, isUnanswered, lineNumbers, pickupAt, rideLink,
+  type RidePickup, type SafetyAlert, type SafetyConcern, type SafetyDraft, type SupportResources, type SupportRide,
 } from '../lib/safety';
 import { safety } from '../lib/safetyApi';
 import { APIError } from '../lib/api';
 
 /** The venue "Get help" is about, with what "Message a friend" and "Get a ride" say. */
-interface HelpVenue { id: string; name: string; address: string | null }
+interface HelpVenue { id: string; name: string; address: string | null; pickup?: RidePickup | null }
 
-const helpVenue = (venue: Venue): HelpVenue =>
-  ({ id: venue.id, name: venue.name ?? 'the venue', address: venue.profile?.address ?? null });
+const helpVenue = (venue: Venue, point: string | null): HelpVenue => {
+  const name = venue.name ?? 'the venue';
+  return { id: venue.id, name, address: venue.profile?.address ?? null, pickup: pickupAt(point, name) };
+};
 
 const emptyDraft = (): SafetyDraft => ({ place: null, concerns: [], description: '' });
 
@@ -47,12 +49,12 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
  * venue (`canSendSafetyAlert`, from their last Now location), so it never shows for a venue they're browsing.
  */
 export function GetHelpEntry({ venue }: { venue: Venue }) {
-  const [safe, setSafe] = useState<{ canSend: boolean; staffOnShift: boolean } | null>(null);
+  const [safe, setSafe] = useState<{ canSend: boolean; staffOnShift: boolean; point: string | null } | null>(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
     let current = true;
     safety.venue(venue.id).then(
-      (answer) => { if (current && answer) setSafe({ canSend: answer.canSendSafetyAlert, staffOnShift: answer.safetyStaffOnShift }); },
+      (answer) => { if (current && answer) setSafe({ canSend: answer.canSendSafetyAlert, staffOnShift: answer.safetyStaffOnShift, point: answer.point ?? null }); },
       () => {},
     );
     return () => { current = false; };
@@ -63,7 +65,7 @@ export function GetHelpEntry({ venue }: { venue: Venue }) {
       aria-label="Get help: tell staff quietly, reach a friend or a ride, or find support">
       <ShieldIcon /> <span>Get help</span> <span aria-hidden="true">›</span>
     </button>
-    {open ? <HelpFlow venue={helpVenue(venue)} staffOnShift={safe.staffOnShift} onClose={() => setOpen(false)} /> : null}
+    {open ? <HelpFlow venue={helpVenue(venue, safe.point)} staffOnShift={safe.staffOnShift} onClose={() => setOpen(false)} /> : null}
   </>;
 }
 
@@ -95,6 +97,7 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
   const [now, setNow] = useState(() => Date.now());
   const [keepsWaiting, setKeepsWaiting] = useState(false);
   const [missing, setMissing] = useState(false);
+  const rides = useRides();
 
   const apply = (fresh: SafetyAlert) => {
     setAlert(fresh);
@@ -164,7 +167,7 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
       <TellStaffForm draft={draft} setDraft={setDraft} busy={busy} mode={view === 'tell' ? 'send' : 'add'}
         onSubmit={view === 'tell' ? send : addMore} /></>;
   } else if (alert) {
-    body = <AlertStatus alert={alert} venue={venue} now={now} busy={busy} keepsWaiting={keepsWaiting}
+    body = <AlertStatus alert={alert} venue={venue} rides={rides} now={now} busy={busy} keepsWaiting={keepsWaiting}
       onKeepWaiting={() => setKeepsWaiting(true)}
       onRemind={() => { setKeepsWaiting(true); run(() => safety.remind(alert.id)); }}
       onCancel={() => run(() => safety.cancel(alert.id))}
@@ -179,7 +182,7 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
       <ul className="help-rows">
         {venue && staffOnShift ? <li><HelpRow title="Tell staff I feel unsafe" subtitle="The staff on shift hear it quietly and can come find you."
           onClick={() => setView('tell')} /></li> : null}
-        <EscapeRows venue={venue} onSupport={() => setView('support')} />
+        <EscapeRows venue={venue} rides={rides} onSupport={() => setView('support')} />
       </ul>
       <p className="muted small">Nothing here shows in chat or on your profile.</p>
       <Emergency />
@@ -213,19 +216,47 @@ async function share(text: string): Promise<'shared' | 'copied' | null> {
   }
 }
 
+/** "Get a ride": the ride apps the API lists for the user's country (the website doesn't ask where they are). */
+function useRides(): SupportRide[] {
+  const [rides, setRides] = useState<SupportRide[]>([]);
+  useEffect(() => {
+    let current = true;
+    safety.support(null).then((answer) => { if (current) setRides(answer.rides ?? []); }, () => {});
+    return () => { current = false; };
+  }, []);
+  return rides;
+}
+
+/**
+ * "Get a ride": a row for each ride app, with the pickup at the venue when the API knows where it is (otherwise the
+ * app asks), then sharing the pickup for any other app or a friend who can drive. Plain links: the app opens if
+ * it's installed, its site if not.
+ */
+function RideRows({ rides, pickup, copied, onShare }: {
+  rides: SupportRide[]; pickup: RidePickup | null; copied: boolean; onShare: () => void;
+}) {
+  const where = pickup?.name ? `Pickup at ${pickup.name}.` : 'Opens the app to set your pickup.';
+  return <>
+    {rides.map((ride) => <li key={ride.id}><HelpRow title={`Get a ride with ${ride.name}`} subtitle={where} href={rideLink(ride, pickup)} /></li>)}
+    <li><HelpRow title={rides.length ? 'Share where to pick me up' : 'Get a ride'}
+      subtitle={copied ? 'Copied. Paste it in your ride app.'
+        : rides.length ? 'For another ride app, or a friend who can drive.' : 'Share where to pick you up with a ride app.'}
+      onClick={onShare} /></li>
+  </>;
+}
+
 /** "Message a friend", "Get a ride" and "Need support?": the options when nobody on shift can help, too. */
-function EscapeRows({ venue, onSupport }: { venue: HelpVenue | null; onSupport: () => void }) {
+function EscapeRows({ venue, rides, onSupport }: { venue: HelpVenue | null; rides: SupportRide[]; onSupport: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
   const here = venue ? (venue.address ? `I'm at ${venue.name}, ${venue.address}.` : `I'm at ${venue.name}.`) : '';
-  const pickup = venue ? (venue.address ? `${venue.name}, ${venue.address}` : venue.name) : 'Pick me up here.';
+  const pickupText = venue ? (venue.address ? `${venue.name}, ${venue.address}` : venue.name) : 'Pick me up here.';
   const shareRow = async (key: string, text: string) => {
     if (await share(text) === 'copied') setCopied(key);
   };
   return <>
     <li><HelpRow title="Message a friend" subtitle={copied === 'friend' ? 'Copied. Paste it in a message.' : 'Send them where you are.'}
       onClick={() => shareRow('friend', `${here} Can you come find me?`.trim())} /></li>
-    <li><HelpRow title="Get a ride" subtitle={copied === 'ride' ? 'Copied. Paste it in your ride app.' : 'Share where to pick you up with a ride app.'}
-      onClick={() => shareRow('ride', pickup)} /></li>
+    <RideRows rides={rides} pickup={venue?.pickup ?? null} copied={copied === 'ride'} onShare={() => shareRow('ride', pickupText)} />
     <li><HelpRow title="Need support?" subtitle="Free, confidential lines, any time." onClick={onSupport} /></li>
   </>;
 }
@@ -275,7 +306,7 @@ function TellStaffForm({ draft, setDraft, busy, mode, onSubmit }: {
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null);
 
 interface StatusProps {
-  alert: SafetyAlert; venue: HelpVenue | null; now: number; busy: boolean; keepsWaiting: boolean;
+  alert: SafetyAlert; venue: HelpVenue | null; rides: SupportRide[]; now: number; busy: boolean; keepsWaiting: boolean;
   onKeepWaiting: () => void; onRemind: () => void; onCancel: () => void; onMessage: (text: string) => Promise<boolean>;
   onAddMore: () => void; onSupport: () => void;
 }
@@ -284,7 +315,7 @@ interface StatusProps {
  * The alert once it's sent: the steps, what was sent with "Add more", the private thread and "I'm OK now". After the
  * escalation window with nobody on it, the other ways to get help come first.
  */
-function AlertStatus({ alert, venue, now, busy, keepsWaiting, onKeepWaiting, onRemind, onCancel, onMessage, onAddMore, onSupport }: StatusProps) {
+function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiting, onRemind, onCancel, onMessage, onAddMore, onSupport }: StatusProps) {
   const [reply, setReply] = useState('');
   const [confirming, setConfirming] = useState(false);
   const live = isActive(alert);
@@ -304,7 +335,7 @@ function AlertStatus({ alert, venue, now, busy, keepsWaiting, onKeepWaiting, onR
       <p className="muted small">Stay where you feel safest. These can help while you wait.</p>
       <ul className="help-rows">
         <li><HelpRow title="Tell staff again" subtitle="It goes to the managers too." onClick={onRemind} /></li>
-        <EscapeRows venue={venue} onSupport={onSupport} />
+        <EscapeRows venue={venue} rides={rides} onSupport={onSupport} />
       </ul>
       <button className="button secondary" type="button" onClick={onKeepWaiting}>Keep waiting for staff</button>
     </section> : null}
@@ -392,6 +423,14 @@ function Support({ sharedNote }: { sharedNote?: string | null }) {
           </span>
         </li>)}
       </ul>}
+    {resources?.rides?.length ? <section className="help-section">
+      <h3>Get home safe</h3>
+      <ul className="help-rows">
+        {resources.rides.map((ride) => <li key={ride.id}>
+          <HelpRow title={`Get a ride with ${ride.name}`} subtitle="Opens the app to set your pickup." href={ride.url} />
+        </li>)}
+      </ul>
+    </section> : null}
     {resources?.checkedAt ? <p className="muted small">Checked {new Date(`${resources.checkedAt}T12:00:00`).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}.</p> : null}
     <Emergency number={resources?.emergency ?? '911'} />
   </div>;
