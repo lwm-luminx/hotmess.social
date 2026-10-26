@@ -45,6 +45,35 @@ export async function listings(page: number): Promise<{ listings: PublicListing[
   const body = await response.json() as { listings: unknown[]; next_page: number | null; page_count: number };
   return { listings: body.listings.map(publicListing), next_page: body.next_page, page_count: body.page_count };
 }
+let hotMessAudience: Promise<string> | undefined;
+// The audience the site serves (PUBLIC_CONTENT_HOST's), whose sign-ins it accepts.
+function audience(): Promise<string> {
+  const query = new URLSearchParams({ host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });
+  hotMessAudience ??= fetch(`${apiBase()}/v1/branding?${query}`, { signal: AbortSignal.timeout(8000) })
+    .then(async (response) => {
+      if (!response.ok) throw new Error('Branding is unavailable');
+      return ((await response.json()) as { audience: { id: string } }).audience.id;
+    })
+    .catch((e) => { hotMessAudience = undefined; throw e; });
+  return hotMessAudience;
+}
+const VIEWER = 'query DiscoverViewer { me { self { id } } }';
+/**
+ * Whether a Hot Mess session token (the web app's, from the request's Authorization header) is signed in to this
+ * site's audience: the API answers `me` for it. Throws when the API can't say.
+ */
+export async function signedIn(authorization: string | null): Promise<boolean> {
+  if (!authorization || !/^Bearer [\w.-]+$/.test(authorization)) return false;
+  const response = await fetch(`${apiBase()}/v1/audience/${await audience()}/graphql`, {
+    method: 'POST', signal: AbortSignal.timeout(8000),
+    headers: { authorization, accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({ query: VIEWER, operationName: 'DiscoverViewer' }),
+  });
+  if (response.status === 401 || response.status === 403) return false;
+  if (!response.ok) throw new Error('The API could not check the session');
+  const body = await response.json() as { data?: { me?: { self?: { id?: string } } | null } };
+  return !!body.data?.me?.self?.id;
+}
 export async function signedLinkStatus(path: string, signature: string): Promise<number> {
   const query = new URLSearchParams({ path, e: signature,
     host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });

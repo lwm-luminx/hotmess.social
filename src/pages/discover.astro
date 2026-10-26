@@ -1,18 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
-import { listings } from '../server/publicContent';
-export const prerender = false;
-const page = Math.max(1, Number(Astro.url.searchParams.get('page')) || 1);
-if (!Number.isSafeInteger(page) || page > 10000) return new Response('Not found', { status: 404 });
-let result;
-try { result = await listings(page); } catch { Astro.response.status = 503; }
-Astro.response.headers.set('Cache-Control', result ? 'public, max-age=300, s-maxage=3600' : 'no-store');
-if (!result) Astro.response.headers.set('X-Robots-Tag', 'noindex');
+import Discover from '../app/Discover';
+// A shell: the listings load in the browser once someone is signed in to Hot Mess (src/app/Discover.tsx).
 ---
-<Base title="Discover Hot Mess" canonical={page === 1}>
+<Base title="Discover Hot Mess">
   <main class="wrap"><h1>Discover Hot Mess</h1>
-    {result ? <><ul>{result.listings.map(item => <li><a href={item.path}>{item.kind === 'post' ? `Post by ${item.title}` : item.title}</a></li>)}</ul>
-      {result.next_page && <a href={`/discover?page=${result.next_page}`}>More listings</a>}</>
-      : <p>Listings are temporarily unavailable. Please try again shortly.</p>}
+    <Discover client:only="react" />
   </main>
 </Base>

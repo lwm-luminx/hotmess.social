@@ -14,6 +14,12 @@ createServer((req, res) => {
     res.statusCode = expiry > Date.now() ? 200 : 410;
     return res.end('{}');
   }
+  // Discover's session check (src/server/publicContent.ts signedIn): the e2e session (e2e/app/fixtures.ts TOKEN) is signed in.
+  if (url.pathname === '/v1/branding') return res.end(JSON.stringify({ audience: { id: 'a0000000-0000-4000-8000-000000000000' } }));
+  if (url.pathname === '/v1/audience/a0000000-0000-4000-8000-000000000000/graphql') {
+    if (req.headers.authorization !== 'Bearer e2e.session.jwt') { res.statusCode = 401; return res.end('{}'); }
+    return res.end(JSON.stringify({ data: { me: { self: { id: 'e2e-viewer' } } } }));
+  }
   if (req.headers.authorization !== 'Bearer fixture-service-jwt') { res.statusCode = 401; return res.end('{}'); }
   if (url.pathname === '/v1/public/listings') return res.end(JSON.stringify({ listings: records, next_page: null, page_count: 1 }));
   const record = records.find(item => `/v1/public${item.path}` === url.pathname);

@@ -4,10 +4,10 @@ export function pageCacheKey(request: Request): Request | null {
   const url = new URL(request.url);
   if (url.searchParams.has('e')) return null; // Always validate signed-link expiry before rendering.
   if (!/^\/(venues|events|posts)\/[0-9a-f-]{36}$/.test(url.pathname) &&
-      !['/discover', '/sitemap.xml'].includes(url.pathname)) return null;
+      url.pathname !== '/sitemap.xml') return null;
   const page = url.searchParams.get('page');
   url.search = '';
-  if (page && ['/discover', '/sitemap.xml'].includes(url.pathname)) url.searchParams.set('page', page);
+  if (page && url.pathname === '/sitemap.xml') url.searchParams.set('page', page);
   return new Request(url.toString());
 }
 export function edgeResponse(response: Response): Response | null {
