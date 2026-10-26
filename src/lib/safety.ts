@@ -44,7 +44,34 @@ export interface SupportLine {
   textNumber: string | null; textBody: string | null; url: string | null;
 }
 
-export interface SupportResources { region: string; name: string; emergency: string; checkedAt: string | null; lines: SupportLine[] }
+/**
+ * "Get a ride": a ride app (Uber, Lyft) as a plain link. `url` opens the app, or its site when it isn't installed;
+ * `pickupUrl` does the same with the pickup set once {latitude}, {longitude} and {name} are filled in.
+ */
+export interface SupportRide { id: string; name: string; url: string; pickupUrl: string | null }
+
+export interface SupportResources {
+  region: string; name: string; emergency: string; checkedAt: string | null; lines: SupportLine[];
+}
+
+/** Where "Get a ride" sets the pickup: the venue, with its name. */
+export interface RidePickup { latitude: number; longitude: number; name: string | null }
+
+/** The link for a pickup at `pickup`, or the plain one when there's no pickup or the app takes none. */
+export function rideLink(ride: SupportRide, pickup: RidePickup | null): string {
+  if (!pickup || !ride.pickupUrl) return ride.url;
+  return ride.pickupUrl
+    .replaceAll('{latitude}', pickup.latitude.toFixed(6))
+    .replaceAll('{longitude}', pickup.longitude.toFixed(6))
+    .replaceAll('{name}', encodeURIComponent(pickup.name ?? ''));
+}
+
+/** A venue's point, `POINT (<longitude> <latitude>)` with or without an SRID, as a pickup. */
+export function pickupAt(point: string | null | undefined, name: string | null): RidePickup | null {
+  const match = point?.match(/POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)/i);
+  if (!match) return null;
+  return { longitude: Number(match[1]), latitude: Number(match[2]), name };
+}
 
 /** How long nobody may pick an alert up before the managers hear it too (SafetyAlert::ESCALATE_AFTER). */
 export const ESCALATION_MS = 2 * 60 * 1000;

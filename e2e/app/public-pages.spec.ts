@@ -32,3 +32,14 @@ test('signed-in cookies do not personalize cached HTML; sitemaps contain approve
   expect(await sitemap.text()).toContain(`/events/${EVENT.id}`);
   expect(await sitemap.text()).not.toContain('people/');
 });
+
+test('sitemap index lists the site pages and every listings page', async ({ request }) => {
+  const index = await request.get('/sitemap.xml');
+  expect(index.status()).toBe(200);
+  const body = await index.text();
+  expect(body).toContain('<loc>https://hotmess.social/sitemap-pages.xml</loc>');
+  expect(body).toContain('<loc>https://hotmess.social/sitemap.xml?page=1</loc>');
+  const pages = await request.get('/sitemap-pages.xml');
+  expect(pages.status()).toBe(200);
+  expect(await pages.text()).toContain('<loc>https://hotmess.social/safety</loc>');
+});

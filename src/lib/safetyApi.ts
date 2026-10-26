@@ -2,13 +2,13 @@
 // HotMess/Networking/HotMessAPI+SafetyAlerts.swift. Each read is its own request, so an API without these fields
 // still shows the venue.
 import { graphql } from './api';
-import { CONCERNS, type SafetyAlert, type SafetyDraft, type SupportResources } from './safety';
+import { CONCERNS, type SafetyAlert, type SafetyDraft, type SupportResources, type SupportRide } from './safety';
 
 const ALERT = `id state place concerns description summary seen acknowledgedByName acknowledgedAt escalatedAt closedAt
   supportSharedAt supportNote createdAt venue { id name } messages { id body fromStaff senderName createdAt }`;
 
 const VENUE_SAFETY = `query VenueSafety($id: ID!) {
-  venues { venue(id: $id) { id canSendSafetyAlert safetyStaffOnShift } }
+  venues { venue(id: $id) { id point canSendSafetyAlert safetyStaffOnShift } }
 }`;
 
 const SEND = `mutation SendSafetyAlert($venueId: ID!, $place: SafetyAlertPlace, $concerns: [SafetyAlertConcern!], $description: String) {
@@ -43,6 +43,11 @@ const SUPPORT = `query SupportResources($region: String) {
   supportResources(region: $region) { region name emergency checkedAt lines { id name description phone textNumber textBody url } }
 }`;
 
+// Its own request, so an API older than ride links still shows the lines.
+const RIDES = `query SupportRides($region: String) {
+  supportResources(region: $region) { rides { id name url pickupUrl } }
+}`;
+
 type Payload<K extends string> = Record<K, { safetyAlert: SafetyAlert | null }>;
 
 function draftVariables(draft: SafetyDraft) {
@@ -58,7 +63,7 @@ function alertFrom<K extends string>(payload: Payload<K>, key: K): SafetyAlert {
 
 export const safety = {
   venue: async (id: string) =>
-    (await graphql<{ venues: { venue: { canSendSafetyAlert: boolean; safetyStaffOnShift: boolean } | null } }>(VENUE_SAFETY, { id })).venues.venue,
+    (await graphql<{ venues: { venue: { point: string | null; canSendSafetyAlert: boolean; safetyStaffOnShift: boolean } | null } }>(VENUE_SAFETY, { id })).venues.venue,
   send: async (venueId: string, draft: SafetyDraft) =>
     alertFrom(await graphql<Payload<'sendSafetyAlert'>>(SEND, { venueId, ...draftVariables(draft) }), 'sendSafetyAlert'),
   update: async (id: string, draft: SafetyDraft) =>
@@ -71,4 +76,6 @@ export const safety = {
   mine: async () => (await graphql<{ me: { safetyAlerts: SafetyAlert[] } | null }>(MINE, {})).me?.safetyAlerts ?? [],
   support: async (region: string | null) =>
     (await graphql<{ supportResources: SupportResources }>(SUPPORT, { region })).supportResources,
+  rides: async (region: string | null) =>
+    (await graphql<{ supportResources: { rides: SupportRide[] } }>(RIDES, { region })).supportResources.rides,
 };

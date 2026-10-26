@@ -1,0 +1,141 @@
+---
+// Digital signage with no sign-in: tonight at a venue, full screen, for a TV's browser, a phone or tablet propped at
+// the bar (Guided Access, or Android screen pinning) or a tab cast to a TV. The page re-reads itself once a minute and
+// swaps the board in place, so full screen survives. Only what anyone signed out may see (src/lib/venueDisplay.ts).
+import '../../../styles/global.css';
+import '../../../styles/venue-board.css';
+import qrcode from 'qrcode-generator';
+import { tonight } from '../../../server/publicContent';
+import { clock, entryName, entryRole, entryTime, visibleLineup, type VenueTonight } from '../../../lib/venueDisplay';
+export const prerender = false;
+
+const id = (Astro.params.id ?? '').toLowerCase();
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) return new Response('Not found', { status: 404 });
+let data: VenueTonight | null = null;
+let status = 200;
+try { data = await tonight(id); if (!data) status = 404; } catch { status = 503; }
+Astro.response.status = status;
+Astro.response.headers.set('Cache-Control', 'private, max-age=30');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+if (status === 503) Astro.response.headers.set('Retry-After', '60');
+
+const now = new Date();
+const zone = data?.venue.timeZone ?? 'America/Los_Angeles';
+const lineup = data ? visibleLineup(data.lineup) : [];
+const qr = qrcode(0, 'M');
+qr.addData(`https://hotmess.social/venues/${id}`);
+qr.make();
+const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0d0a0b" />
+    <link rel="icon" href="/favicon.svg?v=misprint-1" type="image/svg+xml" sizes="any" />
+    <title>{data ? `${data.venue.title} tonight` : 'Tonight'} · Hot Mess</title>
+  </head>
+  <body>
+    <main id="board" data-zone={zone}>
+      {status !== 200 ? (
+        <p class="idle">{status === 404 ? 'This venue has no display.' : 'Reconnecting…'}</p>
+      ) : (
+        <>
+          <header>
+            <div>
+              <p class="kicker">Tonight</p>
+              <h1>{data!.venue.title}</h1>
+            </div>
+            <p class="clock" data-clock>{clock(now, zone)}</p>
+          </header>
+          {data!.events.length > 0 && <p class="events">{data!.events.map((event) => event.name).join(' · ')}</p>}
+          {lineup.length === 0 ? (
+            <p class="idle">{data!.events.length ? 'The lineup is coming soon.' : 'Nothing on tonight yet.'}</p>
+          ) : (
+            <ol class="lineup">
+              {lineup.map((entry) => (
+                <li class={entry.state}>
+                  <span class="time">{entryTime(entry, zone)}</span>
+                  <span class="faces">
+                    {entry.people.filter((person) => person.image).slice(0, 2).map((person) =>
+                      <img src={person.image} alt="" loading="lazy" />)}
+                  </span>
+                  <span class="who">
+                    <strong>{entryName(entry)}</strong>
+                    {entryRole(entry) && entryRole(entry) !== entryName(entry) && <small>{entryRole(entry)}</small>}
+                  </span>
+                  {entry.state === 'on' && <span class="badge">On now</span>}
+                </li>
+              ))}
+            </ol>
+          )}
+          <footer>
+            <span class="qr" set:html={qrSvg} />
+            <span>Scan for tonight on <b>Hot Mess</b></span>
+          </footer>
+        </>
+      )}
+    </main>
+    <button id="go-full" type="button" hidden>Tap for full screen</button>
+    <script is:inline>
+      (function () {
+        var board = document.getElementById('board');
+        function tick() {
+          var el = document.querySelector('[data-clock]');
+          if (!el) return;
+          try {
+            el.textContent = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit',
+              timeZone: board.getAttribute('data-zone') }).format(new Date());
+          } catch (e) {}
+        }
+        // Re-read the page once a minute and swap the board, so full screen and the wake lock stay on.
+        function refresh() {
+          fetch(location.href, { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : null; })
+            .then(function (html) {
+              if (!html) return;
+              var next = new DOMParser().parseFromString(html, 'text/html').getElementById('board');
+              if (next) { board.innerHTML = next.innerHTML; board.setAttribute('data-zone', next.getAttribute('data-zone')); fit(); }
+            }).catch(function () {});
+        }
+        // Leave off the sets that don't fit rather than cutting one in half.
+        function fit() {
+          var list = board.querySelector('.lineup');
+          if (!list) return;
+          var rows = list.children;
+          for (var i = 0; i < rows.length; i++) rows[i].style.display = '';
+          for (var j = 0; j < rows.length; j++) {
+            if (rows[j].offsetTop - list.offsetTop + rows[j].offsetHeight > list.clientHeight) rows[j].style.display = 'none';
+          }
+        }
+        fit();
+        window.addEventListener('resize', fit);
+        setInterval(tick, 15000);
+        setInterval(refresh, 60000);
+        // Keep the screen awake where the browser lets a page ask.
+        var lock = null;
+        function wake() {
+          if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+          navigator.wakeLock.request('screen').then(function (l) { lock = l; }).catch(function () {});
+        }
+        document.addEventListener('visibilitychange', wake);
+        wake();
+        var root = document.documentElement, button = document.getElementById('go-full');
+        var full = root.requestFullscreen || root.webkitRequestFullscreen;
+        if (full && !(navigator.standalone)) {
+          button.hidden = false;
+          setTimeout(function () { button.hidden = true; }, 15000);
+          button.addEventListener('click', function () {
+            try { var p = full.call(root); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+            button.hidden = true;
+            wake();
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>
