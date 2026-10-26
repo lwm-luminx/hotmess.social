@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { api, APIError } from '../../lib/api';
+import { reportError } from '../../lib/errorReporting';
+import { eventListing, listingFromQuery, posterLines, venueListing, type ListingRef, type PosterListing } from '../../lib/poster/listing';
+import SignedIn from '../../app/SignedIn';
 import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, type ArtKind, type SloganTheme } from '../../lib/poster/slogans';
 import {
   FORMATS, LOOKS, exportPdf, exportPng, exportSize, loadPosterFonts, posterFilename, renderPoster,
@@ -24,8 +28,8 @@ const QR_MODES: { value: QRMode; label: string }[] = [
   { value: 'none', label: 'No QR code' },
 ];
 
-/** Options from the page's query string, so a poster can be linked to (/poster?slogan=…&format=…). */
-function fromQuery(search: string): { options: PosterOptions; adult: boolean } {
+/** Options from the page's query string, so a poster can be linked to (/poster?slogan=…&format=…&venue=<id>). */
+function fromQuery(search: string): { options: PosterOptions; adult: boolean; listing: ListingRef | null } {
   const q = new URLSearchParams(search);
   const base = PRESETS[0].options;
   const pick = <T extends string>(key: string, allowed: readonly string[], fallback: T): T => {
@@ -36,22 +40,23 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean } {
   const adult = q.get('adult') === '1' || slogan.rating === 'adult_venue';
   return {
     adult,
+    listing: listingFromQuery(q),
     options: {
       slogan: slogan.id,
       format: pick<FormatKey>('format', Object.keys(FORMATS), base.format),
       style: pick<StyleKey>('look', Object.keys(LOOKS), base.style),
       art: pick<ArtKind | 'auto'>('art', ['auto', ...Object.keys(ART_LABELS)], 'auto'),
       qr: pick<QRMode>('qr', QR_MODES.map((m) => m.value), base.qr),
-      event: { night: q.get('night') ?? '', venue: q.get('venue') ?? '', when: q.get('when') ?? '', link: q.get('link') ?? '' },
+      event: NO_EVENT,
     },
   };
 }
 
-function toQuery(o: PosterOptions, adult: boolean): string {
+function toQuery(o: PosterOptions, adult: boolean, listing: ListingRef | null): string {
   const q = new URLSearchParams({ slogan: o.slogan, format: o.format, look: o.style });
   if (o.art !== 'auto') q.set('art', o.art);
   if (o.qr !== 'download') q.set('qr', o.qr);
-  if (o.qr === 'event') for (const [k, v] of Object.entries(o.event)) if (v) q.set(k, v);
+  if (o.qr === 'event' && listing) q.set(listing.kind, listing.id);
   if (adult) q.set('adult', '1');
   return `?${q}`;
 }
@@ -74,29 +79,123 @@ function PosterCanvas({ options, width, fontsReady, label }: { options: PosterOp
   return <canvas ref={ref} role="img" aria-label={label} />;
 }
 
-export default function PosterBuilder() {
+/** The builder, for people signed in to Hot Mess; everyone else gets the sign-in card. Mount it client:only. */
+export default function PosterStudio() {
+  return <SignedIn lede="Sign in to make a poster. Find your venue or night in Hot Mess and the poster fills itself in.">
+    {(signOut) => <PosterBuilder onSignedOut={signOut} />}
+  </SignedIn>;
+}
+
+type Found = { venues: PosterListing[]; events: PosterListing[] };
+
+/** Looks a venue or night up in Hot Mess by name; picking one makes it the poster's. */
+function ListingSearch({ onPick, onSignedOut }: { onPick: (listing: PosterListing) => void; onSignedOut: () => void }) {
+  const [term, setTerm] = useState('');
+  const [found, setFound] = useState<Found | null>(null);
+  const [state, setState] = useState<'idle' | 'searching' | 'failed'>('idle');
+
+  useEffect(() => {
+    const search = term.trim();
+    if (search.length < 2) { setFound(null); setState('idle'); return; }
+    let current = true;
+    setState('searching');
+    const timer = setTimeout(() => {
+      api.posterSearch(search).then(
+        (r) => {
+          if (!current) return;
+          setFound({ venues: r.venues.map(venueListing), events: r.events.map((e) => eventListing(e)) });
+          setState('idle');
+        },
+        (e) => {
+          if (!current) return;
+          if (e instanceof APIError && e.signedOut) return onSignedOut();
+          if (!(e instanceof APIError) || e.reportable) reportError(e);
+          setState('failed');
+        },
+      );
+    }, 250);
+    return () => { current = false; clearTimeout(timer); };
+  }, [term]);
+
+  const group = (title: string, listings: PosterListing[]) => listings.length > 0 && (
+    <div key={title}>
+      <h3>{title}</h3>
+      <ul>
+        {listings.map((l) => (
+          <li key={l.id}>
+            <button type="button" onClick={() => onPick(l)}>
+              <b>{l.name}</b><small>{[l.when, l.place].filter(Boolean).join(' · ')}</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const none = found && found.venues.length + found.events.length === 0;
+  return (
+    <div className="listing-search">
+      <label htmlFor="poster-search">Find your venue or night</label>
+      <input id="poster-search" type="search" value={term} autoComplete="off" placeholder="Venue or event name"
+        onChange={(e) => setTerm(e.target.value)} />
+      <div className="results" aria-live="polite">
+        {state === 'searching' && <p className="hint">Searching…</p>}
+        {state === 'failed' && <p className="hint">Hot Mess couldn't search just now. Try again in a moment.</p>}
+        {state === 'idle' && none && <p className="hint">Nothing in Hot Mess matches "{term.trim()}". Upcoming events and listed venues show here.</p>}
+        {state === 'idle' && found && <>{group('Venues', found.venues)}{group('Upcoming events', found.events)}</>}
+      </div>
+    </div>
+  );
+}
+
+function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const [options, setOptions] = useState<PosterOptions>(PRESETS[0].options);
   const [adult, setAdult] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
   const [busy, setBusy] = useState<'png' | 'pdf' | null>(null);
   const [status, setStatus] = useState('');
+  // The venue or event the poster is for, and the share link its QR code opens.
+  const [listing, setListing] = useState<PosterListing | null>(null);
+  const [link, setLink] = useState<string | null>(null);
+  const [loading, setLoading] = useState<ListingRef | null>(null);
+
+  // Fills the poster from the listing as Hot Mess has it now, with a share link that opens for a year.
+  const choose = (ref: ListingRef) => {
+    setLoading(ref); setStatus('');
+    const fetched = ref.kind === 'venue'
+      ? api.posterVenue(ref.id).then((r) => ({ listing: venueListing(r.venue), link: r.link }))
+      : api.posterEvent(ref.id).then((r) => ({ listing: eventListing(r.event), link: r.link }));
+    fetched.then(
+      (r) => { setListing(r.listing); setLink(r.link); setLoading(null); },
+      (e) => {
+        setLoading(null);
+        if (e instanceof APIError && e.signedOut) return onSignedOut();
+        if (e instanceof APIError && e.notFound) return setStatus("That venue or event isn't in Hot Mess any more. Search for another.");
+        if (!(e instanceof APIError) || e.reportable) reportError(e);
+        setStatus("Hot Mess couldn't load that listing. Try again in a moment.");
+      },
+    );
+  };
 
   useEffect(() => {
     const initial = fromQuery(window.location.search);
     setOptions(initial.options);
     setAdult(initial.adult);
+    if (initial.listing && initial.options.qr === 'event') choose(initial.listing);
     loadPosterFonts().then(() => setFontsReady(true));
   }, []);
 
   useEffect(() => {
-    const query = toQuery(options, adult);
+    // Until a linked listing has loaded, keep it in the address.
+    const query = toQuery(options, adult, listing ?? loading);
     if (query !== window.location.search) window.history.replaceState(null, '', `${window.location.pathname}${query}`);
-  }, [options, adult]);
+  }, [options, adult, listing, loading]);
+
+  const poster = useMemo<PosterOptions>(() => ({ ...options, event: posterLines(listing, link) }), [options, listing, link]);
 
   const slogan = sloganById(options.slogan) ?? SLOGANS[0];
   const available = useMemo(() => slogansFor(adult), [adult]);
   const update = (patch: Partial<PosterOptions>) => { setOptions((o) => ({ ...o, ...patch })); setStatus(''); };
-  const setEvent = (key: keyof PosterOptions['event'], value: string) => update({ event: { ...options.event, [key]: value } });
 
   const onAdult = (on: boolean) => {
     setAdult(on);
@@ -106,9 +205,9 @@ export default function PosterBuilder() {
   const download = async (kind: 'png' | 'pdf') => {
     setBusy(kind); setStatus(kind === 'pdf' ? 'Building the PDF…' : 'Rendering at full size…');
     try {
-      const blob = kind === 'pdf' ? await exportPdf(options) : await exportPng(options);
-      saveBlob(blob, posterFilename(options, kind));
-      setStatus(`Downloaded ${posterFilename(options, kind)}.`);
+      const blob = kind === 'pdf' ? await exportPdf(poster) : await exportPng(poster);
+      saveBlob(blob, posterFilename(poster, kind));
+      setStatus(`Downloaded ${posterFilename(poster, kind)}.`);
     } catch {
       setStatus('That poster could not be saved. Try a PNG, or a smaller format.');
     } finally {
@@ -206,11 +305,19 @@ export default function PosterBuilder() {
             </div>
             {options.qr === 'event' && (
               <div className="event">
-                <label>Night<input id="poster-night" value={options.event.night} placeholder="Leather Drag Night" onChange={(e) => setEvent('night', e.target.value)} /></label>
-                <label>Venue<input id="poster-venue" value={options.event.venue} placeholder="Your bar, your city" onChange={(e) => setEvent('venue', e.target.value)} /></label>
-                <label>When<input id="poster-when" value={options.event.when} placeholder="Thursdays · 9 PM" onChange={(e) => setEvent('when', e.target.value)} /></label>
-                <label>Link<input id="poster-link" type="url" value={options.event.link} placeholder="Share link from the Hot Mess app" onChange={(e) => setEvent('link', e.target.value)} /></label>
-                <p className="hint">Use the event or venue's share link from the app. Without one, the code opens the download page.</p>
+                {loading && <p className="hint">Loading the listing…</p>}
+                {!loading && listing && (
+                  <div className="picked">
+                    <p><b>{listing.name}</b><small>{[listing.when, listing.place].filter(Boolean).join(' · ')}</small></p>
+                    <button type="button" className="button secondary" onClick={() => { setListing(null); setLink(null); }}>Change</button>
+                  </div>
+                )}
+                {!loading && !listing && <ListingSearch onPick={choose} onSignedOut={onSignedOut} />}
+                <p className="hint">
+                  {listing && !link
+                    ? "Hot Mess couldn't make a link for this one, so the code opens the download page."
+                    : 'The poster takes its name, place and time from Hot Mess, and the code opens it in the app for a year.'}
+                </p>
               </div>
             )}
           </fieldset>
@@ -218,7 +325,7 @@ export default function PosterBuilder() {
 
         <div className="stage">
           <div className="frame">
-            <PosterCanvas options={options} width={760} fontsReady={fontsReady} label={`Poster preview: ${plainText(slogan.text)}`} />
+            <PosterCanvas options={poster} width={760} fontsReady={fontsReady} label={`Poster preview: ${plainText(slogan.text)}`} />
           </div>
           <div className="bar">
             <p className="meta">{FORMATS[options.format].label} · {FORMATS[options.format].sub} · {exportSize(options.format)}</p>

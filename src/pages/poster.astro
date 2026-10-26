@@ -1,8 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
-import PosterBuilder from '../components/poster/PosterBuilder';
+import PosterStudio from '../components/poster/PosterBuilder';
 ---
-<Base title="Make a poster" description="Make a Hot Mess poster: pick a line, a size and a look, add a QR code for the app or your night, and download a print-ready PDF.">
+<Base title="Make a poster" description="Make a Hot Mess poster: sign in, pick a line, a size and a look, add a QR code for the app or your venue or night, and download a print-ready PDF.">
   <main class="wrap poster">
     <header class="intro">
       <p class="eyebrow">Print it. Post it.</p>
@@ -10,7 +10,7 @@ import PosterBuilder from '../components/poster/PosterBuilder';
       <p class="lede">Hot Mess grows one bar, one dance floor and one bathroom mirror at a time. Pick a line, a size and a look, and download a poster for your board, your feed or the TV over the bar.</p>
     </header>
 
-    <PosterBuilder client:load />
+    <PosterStudio client:only="react" />
 
     <section class="where">
       <div>
@@ -25,7 +25,7 @@ import PosterBuilder from '../components/poster/PosterBuilder';
       </div>
       <div>
         <h2>The classic poster</h2>
-        <p class="muted">Our original one-QR poster is still here, US Letter, fine on A4 with "fit to page".</p>
+        <p class="muted">Our original one-QR poster is here for anyone, no sign-in needed. US Letter, fine on A4 with "fit to page".</p>
         <div class="actions">
           <a class="button secondary" href="/poster/hot-mess-poster.pdf" download>Download the PDF</a>
           <a class="button secondary" href="/poster/hot-mess-poster.png" download>PNG image</a>
@@ -92,6 +92,17 @@ import PosterBuilder from '../components/poster/PosterBuilder';
   .poster-builder .event { display: grid; gap: .5rem; }
   .poster-builder .event label { display: grid; gap: .2rem; font-size: .82rem; color: var(--ink-muted); }
   .poster-builder .hint { font-size: .82rem; color: var(--ink-muted); margin: 0; }
+  .poster-builder .listing-search { display: grid; gap: .35rem; }
+  .poster-builder .listing-search > label { font-size: .82rem; color: var(--ink-muted); }
+  .poster-builder .listing-search input { width: 100%; min-height: 40px; padding: .45rem .6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); color: var(--ink); font: inherit; }
+  .poster-builder .results h3 { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: .6rem 0 .25rem; }
+  .poster-builder .results ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+  .poster-builder .results button { all: unset; box-sizing: border-box; display: grid; width: 100%; padding: .45rem .6rem; border-radius: 6px; cursor: pointer; }
+  .poster-builder .results button:hover { background: var(--accent-soft); }
+  .poster-builder .results button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+  .poster-builder .results small, .poster-builder .picked small { display: block; color: var(--ink-muted); font-size: .8rem; }
+  .poster-builder .picked { display: flex; gap: .75rem; align-items: center; justify-content: space-between; padding: .6rem .75rem; border: 1px solid var(--accent); border-radius: 8px; }
+  .poster-builder .picked p { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
   .poster-builder .stage { display: grid; gap: .75rem; min-width: 0; position: sticky; top: 1rem; }
   .poster-builder .frame { display: flex; justify-content: center; align-items: center; padding: clamp(.75rem, 3vw, 1.75rem); min-height: 280px; border-radius: var(--radius); background: repeating-linear-gradient(45deg, var(--night) 0 12px, var(--night-raised) 12px 24px); }

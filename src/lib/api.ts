@@ -173,6 +173,41 @@ const POST_PAGE = `query Post($id: ID!) {
   }
 }`;
 
+// The poster builder (src/components/poster/) looks a venue or event up by name, and fills the poster from the one
+// picked, with a share link that opens for a year (a printed poster's lifetime).
+const POSTER_VENUE = 'id name locale { name } profile { address }';
+const POSTER_EVENT = 'id name startAt endAt venue { name venue { id name locale { name } } }';
+
+const POSTER_SEARCH = `query PosterSearch($search: String!) {
+  venues { list(search: $search, first: 6) { nodes { ${POSTER_VENUE} } } }
+  events { list(search: $search, first: 6) { nodes { ${POSTER_EVENT} } } }
+}`;
+
+const POSTER_VENUE_LISTING = `query PosterVenue($id: ID!, $path: String!) {
+  venues { venue(id: $id) { ${POSTER_VENUE} } }
+  shareLink(path: $path, lifetime: YEAR) { url }
+}`;
+
+const POSTER_EVENT_LISTING = `query PosterEvent($id: ID!, $path: String!) {
+  events { event(id: $id) { ${POSTER_EVENT} } }
+  shareLink(path: $path, lifetime: YEAR) { url }
+}`;
+
+export interface PosterVenue {
+  id: string;
+  name: string | null;
+  locale: { name: string | null } | null;
+  profile: { address: string | null } | null;
+}
+
+export interface PosterEvent {
+  id: string;
+  name: string | null;
+  startAt: string | null;
+  endAt: string | null;
+  venue: { name: string | null; venue: { id: string; name: string | null; locale: { name: string | null } | null } | null } | null;
+}
+
 export interface Post {
   id: string;
   body: string | null;
@@ -255,4 +290,21 @@ export const api = {
     found((await graphql<{ people: { person: Person | null } }>(PERSON_PAGE, { id })).people.person),
   post: async (id: string): Promise<Post> =>
     found((await graphql<{ posts: { post: Post | null } }>(POST_PAGE, { id })).posts.post),
+  // Venues (visible ones, by name) and upcoming events (by their name or their venue's) matching a search.
+  posterSearch: async (search: string): Promise<{ venues: PosterVenue[]; events: PosterEvent[] }> => {
+    const result = await graphql<{ venues: { list: { nodes: PosterVenue[] } }; events: { list: { nodes: PosterEvent[] } } }>(
+      POSTER_SEARCH, { search });
+    return { venues: result.venues.list.nodes, events: result.events.list.nodes };
+  },
+  // A venue or event for a poster, and the link its QR code opens; null for a link the API won't sign.
+  posterVenue: async (id: string): Promise<{ venue: PosterVenue; link: string | null }> => {
+    const result = await graphql<{ venues: { venue: PosterVenue | null }; shareLink: { url: string } | null }>(
+      POSTER_VENUE_LISTING, { id, path: `/venues/${id}` });
+    return { venue: found(result.venues.venue), link: result.shareLink?.url ?? null };
+  },
+  posterEvent: async (id: string): Promise<{ event: PosterEvent; link: string | null }> => {
+    const result = await graphql<{ events: { event: PosterEvent | null }; shareLink: { url: string } | null }>(
+      POSTER_EVENT_LISTING, { id, path: `/events/${id}` });
+    return { event: found(result.events.event), link: result.shareLink?.url ?? null };
+  },
 };
