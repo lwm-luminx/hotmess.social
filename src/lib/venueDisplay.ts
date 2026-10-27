@@ -20,6 +20,9 @@ export interface VenueTonight {
   night: string;
   events: DisplayEvent[];
   lineup: DisplayEntry[];
+  /** Slogan slides between the lineup (src/lib/poster/marquee.ts), with the venue's adult lines or not; null when the
+   * venue turned them off. */
+  slogans: { adult: boolean } | null;
 }
 
 const text = (value: unknown) => typeof value === 'string' ? value : null;
@@ -45,6 +48,8 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
       startTiming: (['hard', 'soft'].includes(String(entry.start_timing)) ? entry.start_timing : 'none') as DisplayEntry['startTiming'],
       state: (['on', 'done'].includes(String(entry.state)) ? entry.state : 'upcoming') as DisplayEntry['state'],
     })),
+    slogans: body.slogans && typeof body.slogans === 'object'
+      ? { adult: (body.slogans as Record<string, unknown>).adult === true } : null,
   };
 }
 
