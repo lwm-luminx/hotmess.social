@@ -1,7 +1,7 @@
 // Whole-page views: Now, a venue, an event, a person. They take data and render it; fetching,
 // routing and sign-in belong to the host app.
 import type { Event, Now, Person, Venue } from '../types';
-import { eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookID, nodes, providerName, venueHero } from '../format';
+import { eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookID, nodes, orderingURL, providerName, venueHero } from '../format';
 import { Link } from '../navigation';
 import { EventCard, FriendChip, PersonCard, VenueCard } from './Cards';
 import { Fact, FacebookLink, Hero, Photo, Section } from './Primitives';
@@ -38,6 +38,7 @@ export function NowView({ now }: { now: Now }) {
 export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event[] }) {
   const hero = venueHero(venue);
   const profile = venue.profile;
+  const order = orderingURL(venue);
   return (
     <div className="ak-view">
       <Hero src={hero} title={venue.name ?? ''}>
@@ -61,7 +62,10 @@ export function VenueView({ venue, events = [] }: { venue: Venue; events?: Event
             ) : null}
             {profile?.phone ? <Fact label="Phone"><a href={`tel:${profile.phone}`}>{profile.phone}</a></Fact> : null}
           </dl>
-          <div className="ak-actions"><FacebookLink id={profile?.facebook?.facebookId} url={profile?.facebook?.link} /></div>
+          <div className="ak-actions">
+            {order ? <a className="ak-button" href={order} target="_blank" rel="noopener noreferrer">Order</a> : null}
+            <FacebookLink id={profile?.facebook?.facebookId} url={profile?.facebook?.link} />
+          </div>
         </aside>
       </div>
     </div>

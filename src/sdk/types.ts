@@ -43,6 +43,8 @@ export interface Venue extends VenueReference {
   distance?: number | null;
   friends?: { list: Connection<Friend> };
   events?: { upcoming: Connection<Event> };
+  /** How it takes food and drink orders: its own ordering page. A facet: null unless it has one. */
+  ordering?: { url: string | null } | null;
 }
 
 export interface PersonReference {
