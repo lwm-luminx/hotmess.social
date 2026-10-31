@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dateBadge, distance, eventHost, eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, personPhoto, providerName, venueHero, venuePhoto } from './format.ts';
+import { dateBadge, distance, eventHost, eventHosts, eventLineup, eventPhoto, eventPlace, eventTime, facebookURL, initials, nodes, orderingURL, personPhoto, providerName, venueHero, venuePhoto } from './format.ts';
 import type { Event } from './types.ts';
 
 const venue = { id: 'v', name: 'Milk+', photoUrl: null, bannerUrl: 'banner' };
@@ -110,4 +110,12 @@ test('date badges, distances, initials and providers', () => {
   assert.equal(providerName('apple_music'), 'Apple Music');
   assert.equal(providerName('podcast_rss'), 'RSS');
   assert.equal(providerName('mixcloud'), 'Mixcloud');
+});
+
+test("a venue's Order button opens only its https ordering page", () => {
+  assert.equal(orderingURL({ ordering: { url: 'https://order.toasttab.com/online/milk' } }), 'https://order.toasttab.com/online/milk');
+  assert.equal(orderingURL({ ordering: { url: 'http://example.com/order' } }), undefined);
+  assert.equal(orderingURL({ ordering: { url: null } }), undefined);
+  assert.equal(orderingURL({ ordering: null }), undefined);
+  assert.equal(orderingURL({}), undefined);
 });

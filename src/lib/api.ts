@@ -145,7 +145,7 @@ const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
 }`;
 
 const VENUE_PAGE = `query Venue($id: ID!) {
-  venues { venue(id: $id) { ${VENUE} events { upcoming { nodes { ${EVENT} } } } } }
+  venues { venue(id: $id) { ${VENUE} events { upcoming { nodes { ${EVENT} } } } ordering { url } } }
 }`;
 
 const EVENT_PAGE = `query Event($id: ID!) {
