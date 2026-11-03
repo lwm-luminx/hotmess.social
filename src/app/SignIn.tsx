@@ -1,19 +1,39 @@
 // Sign in to Hot Mess on the web: the web app's sign-in card, and the gate in front of signed-in pages (SignedIn.tsx).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, session } from '../lib/api';
 import { facebookAccessToken } from '../lib/facebook';
 import { appleSignIn, offersApple, prepareAppleSignIn } from '../lib/apple';
+import { beginInstagramSignIn, takeInstagramReturn } from '../lib/instagram';
+import { API_BASE } from '../lib/config';
 import type { TokenResponse } from '../sdk';
 import './signin.css';
 
-type Method = 'apple' | 'facebook';
+type Method = 'apple' | 'facebook' | 'instagram';
 
 // How each method signs in, and its button. Apple's follows Apple's own style
 // (black, the Apple logo, "Continue with Apple").
 const METHODS: Record<Method, { label: string; className: string; signIn: () => Promise<TokenResponse> }> = {
   apple: { label: 'Continue with Apple', className: 'button apple', signIn: async () => api.signInWithApple(await appleSignIn()) },
   facebook: { label: 'Continue with Facebook', className: 'button', signIn: async () => api.signIn(await facebookAccessToken()) },
+  // Leaves the page for Instagram; the card finishes the sign-in when Instagram sends the browser back.
+  instagram: {
+    label: 'Continue with Instagram',
+    className: 'button secondary',
+    signIn: async () => {
+      location.assign(await beginInstagramSignIn(API_BASE));
+      return new Promise<TokenResponse>(() => {});
+    },
+  },
 };
+
+// What Instagram sent back to this page, taken out of the address bar once.
+function instagramReturn() {
+  if (typeof location === 'undefined') return null;
+  const url = new URL(location.href);
+  const answer = takeInstagramReturn(url);
+  if (answer) history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  return answer;
+}
 
 function AppleLogo() {
   return (
@@ -25,10 +45,11 @@ function AppleLogo() {
 
 // lede replaces the line under the heading, for a page that says why it needs sign-in.
 export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; lede?: string }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [returned] = useState(instagramReturn);
+  const [busy, setBusy] = useState(returned !== null && 'ticket' in returned);
+  const [error, setError] = useState<string | null>(returned && 'error' in returned ? returned.error : null);
   // The ways in AudienceKit offers this audience, of the ones the website has
-  // (Facebook, and Apple when this build has a Services ID), with the warning
+  // (Facebook, Instagram, and Apple when this build has a Services ID), with the warning
   // to show before each one that has one ("Facebook login is only for testers").
   // Facebook alone, with no warnings, when the API can't say.
   const [offered, setOffered] = useState<Method[]>(['facebook']);
@@ -41,7 +62,7 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
     api.signInMethods().then((answer) => {
       if (current) setAsked(true);
       if (!current || !answer) return;
-      const methods = (['apple', 'facebook'] as const).filter((method) =>
+      const methods = (['apple', 'facebook', 'instagram'] as const).filter((method) =>
         answer.methods.includes(method) && (method !== 'apple' || offersApple));
       setOffered(methods);
       setWarnings(answer.warnings);
@@ -50,6 +71,18 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
     });
     return () => { current = false; };
   }, []);
+  // Finish an Instagram sign-in with this tab's verifier, once: the ticket is single-use.
+  const finishing = useRef(false);
+  useEffect(() => {
+    if (!returned || !('ticket' in returned) || finishing.current) return;
+    finishing.current = true;
+    api.signInWithInstagram(returned.ticket, returned.verifier)
+      .then((token) => { session.start(token); onSignedIn(); })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Hot Mess couldn't sign you in with that Instagram account.");
+        setBusy(false);
+      });
+  }, [returned, onSignedIn]);
   const signIn = async (method: Method) => {
     setWarning(null);
     setBusy(true);

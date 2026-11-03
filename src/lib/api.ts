@@ -253,6 +253,14 @@ export const api = {
         device: device(),
       }),
     }, false),
+  // Redeems the ticket Instagram's sign-in brought back with this tab's verifier
+  // (POST /v1/token/instagram, src/lib/instagram.ts). A ticket that expired or
+  // was started in another tab is 401.
+  signInWithInstagram: (ticket: string, verifier: string) =>
+    send<TokenResponse>('/v1/token/instagram', {
+      method: 'POST',
+      body: JSON.stringify({ ticket, verifier, host: AUDIENCE_HOST, device: device() }),
+    }, false),
   // The ways the audience lets people sign in (GET /v1/token/methods), which
   // AudienceKit's admin chooses, with the warning to show before each one that
   // has one, or null when the API can't say (an API from before the setting
