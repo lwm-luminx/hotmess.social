@@ -3,6 +3,7 @@ import '../styles/global.css';
 import Analytics from '../components/Analytics.astro';
 import { BrandBand, BrandCredit, Container } from '@lwm-luminx/astro-components';
 import NewRelic from '../components/NewRelic.astro';
+import RecordBanner from '../components/RecordBanner.astro';
 import StoreGlyph from '../components/StoreGlyph.astro';
 import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
 
@@ -73,6 +74,7 @@ const path = Astro.url.pathname;
   </head>
   <body>
     <BrandBand href={LOVE_WINS_URL} />
+    <RecordBanner />
     <header class="site-header">
       <nav class="wrap" aria-label="Main">
         <a class="brand" href="/">Hot Mess</a>
