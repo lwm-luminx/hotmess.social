@@ -34,6 +34,12 @@ function stored(key: string, value: string | null) {
   if (value) s.setItem(key, value); else s.removeItem(key);
 }
 
+/** Fired on window when this page signs in or out, so the navbar's Sign in / Sign out (Base.astro) follows. */
+export const SESSION_EVENT = 'hotmess:session';
+function changed() {
+  try { window.dispatchEvent(new Event(SESSION_EVENT)); } catch { /* not in a browser */ }
+}
+
 // The session: the JWT and, from the token JSON it came with, the audience
 // it was signed in on. Nothing here decodes the JWT.
 export const session = {
@@ -42,10 +48,12 @@ export const session = {
   start(response: Pick<TokenResponse, 'token' | 'audienceId'>) {
     stored(TOKEN_KEY, response.token);
     stored(AUDIENCE_KEY, response.audienceId);
+    changed();
   },
   end() {
     stored(TOKEN_KEY, null);
     stored(AUDIENCE_KEY, null);
+    changed();
   },
 };
 
