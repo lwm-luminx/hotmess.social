@@ -24,5 +24,13 @@ export const AUDIENCE_HOST: string =
 // Hot Mess is a Love Wins Media product; every page links here (BrandBand and BrandCredit from @lwm-luminx/astro-components, in src/layouts/Base.astro).
 export const LOVE_WINS_URL = 'https://lovewins.media';
 
+// The company that operates Hot Mess, as named in every page footer (src/layouts/Base.astro). Keep it identical to
+// audiencekit.com and lovewins.media: Microsoft PhotoDNA verifies the company against these details.
+export const OPERATOR = {
+  name: 'Love Wins Media, Inc.',
+  address: '9407 NE Vancouver Mall Dr, Ste 104 #5436, Vancouver, WA 98662',
+  email: 'rick@lovewins.media',
+} as const;
+
 // Hot Mess on the App Store, for Safari's Smart App Banner (src/layouts/Base.astro).
 export const APP_STORE_ID = '1195758383';
