@@ -36,6 +36,13 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
   const [warning, setWarning] = useState<Method | null>(null);
   // Until the methods are known, so nobody skips a warning by clicking early.
   const [asked, setAsked] = useState(false);
+  // Apple's window may only open straight from the click (src/lib/apple.ts), so its button waits until a sign-in is
+  // ready; one that couldn't be made ready lets the click try anyway, and says why it failed.
+  const [appleReady, setAppleReady] = useState(false);
+  const readyApple = () => {
+    setAppleReady(false);
+    return prepareAppleSignIn().catch(() => {}).then(() => setAppleReady(true));
+  };
   useEffect(() => {
     let current = true;
     api.signInMethods().then((answer) => {
@@ -46,7 +53,7 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
       setOffered(methods);
       setWarnings(answer.warnings);
       // Ready before the click, so the click can open Apple's window (src/lib/apple.ts).
-      if (methods.includes('apple')) prepareAppleSignIn().catch(() => {});
+      if (methods.includes('apple')) void readyApple();
     });
     return () => { current = false; };
   }, []);
@@ -60,6 +67,7 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign-in failed');
       setBusy(false);
+      if (method === 'apple') void readyApple();
     }
   };
   if (offered.length === 0) {
@@ -96,7 +104,7 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
             key={method}
             className={METHODS[method].className}
             type="button"
-            disabled={busy || !asked}
+            disabled={busy || !asked || (method === 'apple' && !appleReady)}
             onClick={() => (warnings[method] ? setWarning(method) : signIn(method))}
           >
             {method === 'apple' ? <AppleLogo /> : null}
