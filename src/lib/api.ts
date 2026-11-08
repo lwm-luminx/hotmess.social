@@ -8,6 +8,7 @@ import { nodes } from '../sdk/format';
 import { API_BASE, AUDIENCE_HOST, FACEBOOK_APP_ID } from './config';
 import { APIError, graphqlError, restError, type GraphQLError } from './apiErrors';
 import type { AppleSignIn } from './apple';
+import { venueShortLink } from './venueShortLink';
 
 // The sign-in methods an audience offers, and what to say before each one
 // that has a warning (shown with Cancel and Continue).
@@ -174,7 +175,9 @@ const POST_PAGE = `query Post($id: ID!) {
 }`;
 
 // The poster builder (src/components/poster/) looks a venue or event up by name, and fills the poster from the one
-// picked, with a share link that opens for a year (a printed poster's lifetime).
+// picked. A venue's QR code is its short link (/v/<code>, src/lib/venueShortLink.ts), which never expires; an event's
+// is a share link that opens for a year (a printed poster's lifetime). Its ?e=v3.<hash> is a signature the API checks,
+// never an expiry to read here.
 const POSTER_VENUE = 'id name locale { name } profile { address }';
 const POSTER_EVENT = 'id name startAt endAt venue { name venue { id name locale { name } } }';
 
@@ -183,9 +186,8 @@ const POSTER_SEARCH = `query PosterSearch($search: String!) {
   events { list(search: $search, first: 6) { nodes { ${POSTER_EVENT} } } }
 }`;
 
-const POSTER_VENUE_LISTING = `query PosterVenue($id: ID!, $path: String!) {
+const POSTER_VENUE_LISTING = `query PosterVenue($id: ID!) {
   venues { venue(id: $id) { ${POSTER_VENUE} } }
-  shareLink(path: $path, lifetime: YEAR) { url }
 }`;
 
 const POSTER_EVENT_LISTING = `query PosterEvent($id: ID!, $path: String!) {
@@ -296,11 +298,12 @@ export const api = {
       POSTER_SEARCH, { search });
     return { venues: result.venues.list.nodes, events: result.events.list.nodes };
   },
-  // A venue or event for a poster, and the link its QR code opens; null for a link the API won't sign.
+  // A venue or event for a poster, and the link its QR code opens: a venue's short link, or an event's signed share
+  // link (null when the API won't sign one).
   posterVenue: async (id: string): Promise<{ venue: PosterVenue; link: string | null }> => {
-    const result = await graphql<{ venues: { venue: PosterVenue | null }; shareLink: { url: string } | null }>(
-      POSTER_VENUE_LISTING, { id, path: `/venues/${id}` });
-    return { venue: found(result.venues.venue), link: result.shareLink?.url ?? null };
+    const result = await graphql<{ venues: { venue: PosterVenue | null } }>(POSTER_VENUE_LISTING, { id });
+    const venue = found(result.venues.venue);
+    return { venue, link: venueShortLink(venue.id) };
   },
   posterEvent: async (id: string): Promise<{ event: PosterEvent; link: string | null }> => {
     const result = await graphql<{ events: { event: PosterEvent | null }; shareLink: { url: string } | null }>(

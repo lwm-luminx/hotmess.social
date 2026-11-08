@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, APIError } from '../../lib/api';
 import { reportError } from '../../lib/errorReporting';
-import { eventListing, listingFromQuery, posterLines, venueListing, type ListingRef, type PosterListing } from '../../lib/poster/listing';
+import { eventListing, listingFromQuery, posterLines, venueListing, type ListingKind, type ListingRef, type PosterListing } from '../../lib/poster/listing';
 import SignedIn from '../../app/SignedIn';
 import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, type ArtKind, type SloganTheme } from '../../lib/poster/slogans';
 import {
@@ -24,11 +24,21 @@ const PRESETS: Preset[] = [
 
 const QR_MODES: { value: QRMode; label: string }[] = [
   { value: 'download', label: 'Download the app' },
-  { value: 'event', label: 'A night or venue' },
+  { value: 'event', label: 'Your venue or night' },
   { value: 'none', label: 'No QR code' },
 ];
 
-/** Options from the page's query string, so a poster can be linked to (/poster?slogan=…&format=…&venue=<id>). */
+/** What the poster is for: a venue, a night, or Hot Mess itself (the download poster). */
+type Subject = ListingKind | 'app';
+
+const SUBJECTS: { value: Subject; label: string; sub: string }[] = [
+  { value: 'venue', label: 'Your venue', sub: 'Its code opens the venue in Hot Mess' },
+  { value: 'event', label: 'A night', sub: 'Its code opens the night in Hot Mess' },
+  { value: 'app', label: 'Hot Mess', sub: 'Its code downloads the app' },
+];
+
+/** Options from the page's query string, so a poster can be linked to (/poster?slogan=…&format=…&venue=<id>). A
+ * venue or event in the address makes it the poster's, unless the address says another QR code. */
 function fromQuery(search: string): { options: PosterOptions; adult: boolean; listing: ListingRef | null } {
   const q = new URLSearchParams(search);
   const base = PRESETS[0].options;
@@ -38,15 +48,16 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
   };
   const slogan = sloganById(q.get('slogan') ?? '') ?? sloganById(base.slogan)!;
   const adult = q.get('adult') === '1' || slogan.rating === 'adult_venue';
+  const listing = listingFromQuery(q);
   return {
     adult,
-    listing: listingFromQuery(q),
+    listing,
     options: {
       slogan: slogan.id,
       format: pick<FormatKey>('format', Object.keys(FORMATS), base.format),
       style: pick<StyleKey>('look', Object.keys(LOOKS), base.style),
       art: pick<ArtKind | 'auto'>('art', ['auto', ...Object.keys(ART_LABELS)], 'auto'),
-      qr: pick<QRMode>('qr', QR_MODES.map((m) => m.value), base.qr),
+      qr: pick<QRMode>('qr', QR_MODES.map((m) => m.value), listing ? 'event' : base.qr),
       event: NO_EVENT,
     },
   };
@@ -55,8 +66,9 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
 function toQuery(o: PosterOptions, adult: boolean, listing: ListingRef | null): string {
   const q = new URLSearchParams({ slogan: o.slogan, format: o.format, look: o.style });
   if (o.art !== 'auto') q.set('art', o.art);
-  if (o.qr !== 'download') q.set('qr', o.qr);
+  // A listing implies its QR code; an event-mode poster with none yet keeps qr=event.
   if (o.qr === 'event' && listing) q.set(listing.kind, listing.id);
+  else if (o.qr !== 'download') q.set('qr', o.qr);
   if (adult) q.set('adult', '1');
   return `?${q}`;
 }
@@ -89,7 +101,9 @@ export default function PosterStudio() {
 type Found = { venues: PosterListing[]; events: PosterListing[] };
 
 /** Looks a venue or night up in Hot Mess by name; picking one makes it the poster's. */
-function ListingSearch({ onPick, onSignedOut }: { onPick: (listing: PosterListing) => void; onSignedOut: () => void }) {
+function ListingSearch({ kind, id, onPick, onSignedOut }: {
+  kind?: ListingKind; id: string; onPick: (listing: PosterListing) => void; onSignedOut: () => void;
+}) {
   const [term, setTerm] = useState('');
   const [found, setFound] = useState<Found | null>(null);
   const [state, setState] = useState<'idle' | 'searching' | 'failed'>('idle');
@@ -132,20 +146,42 @@ function ListingSearch({ onPick, onSignedOut }: { onPick: (listing: PosterListin
     </div>
   );
 
-  const none = found && found.venues.length + found.events.length === 0;
+  const venues = kind === 'event' ? [] : found?.venues ?? [];
+  const events = kind === 'venue' ? [] : found?.events ?? [];
+  const none = found && venues.length + events.length === 0;
+  const what = kind === 'venue' ? 'your venue' : kind === 'event' ? 'your night' : 'your venue or night';
   return (
     <div className="listing-search">
-      <label htmlFor="poster-search">Find your venue or night</label>
-      <input id="poster-search" type="search" value={term} autoComplete="off" placeholder="Venue or event name"
+      <label htmlFor={id}>Find {what}</label>
+      <input id={id} type="search" value={term} autoComplete="off"
+        placeholder={kind === 'venue' ? 'Venue name' : kind === 'event' ? 'Event or venue name' : 'Venue or event name'}
         onChange={(e) => setTerm(e.target.value)} />
       <div className="results" aria-live="polite">
         {state === 'searching' && <p className="hint">Searching…</p>}
         {state === 'failed' && <p className="hint">Hot Mess couldn't search just now. Try again in a moment.</p>}
-        {state === 'idle' && none && <p className="hint">Nothing in Hot Mess matches "{term.trim()}". Upcoming events and listed venues show here.</p>}
-        {state === 'idle' && found && <>{group('Venues', found.venues)}{group('Upcoming events', found.events)}</>}
+        {state === 'idle' && none && <p className="hint">Nothing in Hot Mess matches "{term.trim()}". {kind === 'venue' ? 'Listed venues show here.' : kind === 'event' ? 'Upcoming events show here.' : 'Upcoming events and listed venues show here.'}</p>}
+        {state === 'idle' && found && <>{group('Venues', venues)}{group('Upcoming events', events)}</>}
       </div>
     </div>
   );
+}
+
+/** The venue or night a poster is for, with a way to pick another. */
+function Picked({ listing, onChange }: { listing: PosterListing; onChange: () => void }) {
+  return (
+    <div className="picked">
+      <p><b>{listing.name}</b><small>{[listing.when, listing.place].filter(Boolean).join(' · ')}</small></p>
+      <button type="button" className="button secondary" onClick={onChange}>Change</button>
+    </div>
+  );
+}
+
+/** Where the poster's QR code goes, in words. */
+function qrHint(listing: PosterListing | null, link: string | null): string {
+  if (!listing) return 'The poster takes its name, place and time from Hot Mess.';
+  if (!link) return "Hot Mess couldn't make a link for this one, so the code opens the download page.";
+  if (listing.kind === 'venue') return `The code is the venue's own link, ${link.replace(/^https:\/\//, '')}. It opens the venue in Hot Mess, or the app store on a phone without it, and it never expires.`;
+  return 'The poster takes its name, place and time from Hot Mess, and the code opens the night in Hot Mess for a year.';
 }
 
 function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
@@ -158,6 +194,9 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const [listing, setListing] = useState<PosterListing | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [loading, setLoading] = useState<ListingRef | null>(null);
+  // Who the poster is for, which the first step asks.
+  const [subject, setSubject] = useState<Subject>('app');
+  const builderRef = useRef<HTMLElement>(null);
 
   // Fills the poster from the listing as Hot Mess has it now, with a share link that opens for a year.
   const choose = (ref: ListingRef) => {
@@ -181,7 +220,8 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
     const initial = fromQuery(window.location.search);
     setOptions(initial.options);
     setAdult(initial.adult);
-    if (initial.listing && initial.options.qr === 'event') choose(initial.listing);
+    if (initial.listing && initial.options.qr === 'event') { setSubject(initial.listing.kind); choose(initial.listing); }
+    else if (initial.options.qr === 'event') setSubject('venue');
     loadPosterFonts().then(() => setFontsReady(true));
   }, []);
 
@@ -202,6 +242,28 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
     if (!on && slogan.rating === 'adult_venue') update({ slogan: PRESETS[0].options.slogan });
   };
 
+  const clearListing = () => { setListing(null); setLink(null); };
+
+  const pickSubject = (next: Subject) => {
+    setSubject(next); setStatus('');
+    if (next === 'app') { clearListing(); setOptions((o) => ({ ...o, qr: o.qr === 'event' ? 'download' : o.qr })); return; }
+    if (listing && listing.kind !== next) clearListing();
+    setOptions((o) => ({ ...o, qr: 'event' }));
+  };
+
+  // Picking the venue or night in the first step fills the poster, then shows it.
+  const pickListing = (picked: PosterListing) => {
+    choose(picked);
+    setOptions((o) => ({ ...o, qr: 'event' }));
+    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const onQRMode = (qr: QRMode) => {
+    update({ qr });
+    if (qr !== 'event') setSubject('app');
+    else if (subject === 'app') setSubject(listing?.kind ?? 'venue');
+  };
+
   const download = async (kind: 'png' | 'pdf') => {
     setBusy(kind); setStatus(kind === 'pdf' ? 'Building the PDF…' : 'Rendering at full size…');
     try {
@@ -219,12 +281,34 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
 
   return (
     <div className="poster-builder">
+      <section aria-labelledby="subject-h" className="subject">
+        <h2 id="subject-h">Who's the poster for?</h2>
+        <div className="seg subjects" role="radiogroup" aria-labelledby="subject-h">
+          {SUBJECTS.map((s) => (
+            <label key={s.value}>
+              <input type="radio" name="subject" value={s.value} checked={subject === s.value} onChange={() => pickSubject(s.value)} />
+              <b>{s.label}</b><small>{s.sub}</small>
+            </label>
+          ))}
+        </div>
+        {subject !== 'app' && (
+          <div className="event">
+            {loading && <p className="hint">Loading the listing…</p>}
+            {!loading && listing && listing.kind === subject && <Picked listing={listing} onChange={clearListing} />}
+            {!loading && !(listing && listing.kind === subject) && (
+              <ListingSearch key={subject} kind={subject} id="poster-subject-search" onPick={pickListing} onSignedOut={onSignedOut} />
+            )}
+            <p className="hint">{qrHint(listing && listing.kind === subject ? listing : null, link)}</p>
+          </div>
+        )}
+      </section>
+
       <section aria-labelledby="presets-h" className="presets">
         <h2 id="presets-h">Start from one of these</h2>
         <ul>
           {PRESETS.map((p) => (
             <li key={p.label}>
-              <button type="button" onClick={() => { setOptions(p.options); setStatus(''); }} aria-label={`Start from ${p.label}`}>
+              <button type="button" onClick={() => { setOptions((o) => ({ ...p.options, qr: o.qr === 'event' && p.options.qr !== 'none' ? 'event' : p.options.qr })); setStatus(''); }} aria-label={`Start from ${p.label}`}>
                 <PosterCanvas options={p.options} width={220} fontsReady={fontsReady} label={plainText(sloganById(p.options.slogan)!.text)} />
                 <span><b>{p.label}</b>{FORMATS[p.options.format].label}</span>
               </button>
@@ -233,7 +317,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
         </ul>
       </section>
 
-      <section aria-labelledby="builder-h" className="builder">
+      <section aria-labelledby="builder-h" className="builder" ref={builderRef}>
         <h2 id="builder-h">Make it yours</h2>
         <form className="controls" onSubmit={(e) => e.preventDefault()}>
           <fieldset>
@@ -298,7 +382,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
             <div className="qr-modes">
               {QR_MODES.map((m) => (
                 <label key={m.value}>
-                  <input type="radio" name="qr" value={m.value} checked={options.qr === m.value} onChange={() => update({ qr: m.value })} />
+                  <input type="radio" name="qr" value={m.value} checked={options.qr === m.value} onChange={() => onQRMode(m.value)} />
                   {m.label}
                 </label>
               ))}
@@ -306,18 +390,11 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
             {options.qr === 'event' && (
               <div className="event">
                 {loading && <p className="hint">Loading the listing…</p>}
-                {!loading && listing && (
-                  <div className="picked">
-                    <p><b>{listing.name}</b><small>{[listing.when, listing.place].filter(Boolean).join(' · ')}</small></p>
-                    <button type="button" className="button secondary" onClick={() => { setListing(null); setLink(null); }}>Change</button>
-                  </div>
+                {!loading && listing && <Picked listing={listing} onChange={clearListing} />}
+                {!loading && !listing && (
+                  <ListingSearch id="poster-search" onPick={(l) => { setSubject(l.kind); choose(l); }} onSignedOut={onSignedOut} />
                 )}
-                {!loading && !listing && <ListingSearch onPick={choose} onSignedOut={onSignedOut} />}
-                <p className="hint">
-                  {listing && !link
-                    ? "Hot Mess couldn't make a link for this one, so the code opens the download page."
-                    : 'The poster takes its name, place and time from Hot Mess, and the code opens it in the app for a year.'}
-                </p>
+                <p className="hint">{qrHint(listing, link)}</p>
               </div>
             )}
           </fieldset>
