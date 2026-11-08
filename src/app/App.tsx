@@ -13,6 +13,15 @@ import PostView, { shownFromAPI } from './PostView';
 import { GetHelpEntry, SafetyAlertPage, SupportEntry } from './GetHelp';
 import type { PublicListing } from '../lib/publicListing';
 
+/** Opens the poster builder (/poster) with this venue or night already picked, for its QR code. */
+function PosterLink({ kind, id }: { kind: 'venue' | 'event'; id: string }) {
+  return <p className="poster-link">
+    <a className="button secondary" href={`/poster?${kind}=${encodeURIComponent(id)}`}>
+      Make a poster for this {kind === 'venue' ? 'venue' : 'night'}
+    </a>
+  </p>;
+}
+
 type Screen =
   | { state: 'loading' }
   | { state: 'signed-out' }
@@ -159,8 +168,8 @@ function HotMess({ initialPath, publicListing, expired }: AppProps) {
     case 'expired': content = <Expired onFindVenues={() => go({ kind: 'now' })} />; break;
     // "Get help" shows only where the API places the user at the venue (GetHelp.tsx).
     case 'now': content = <>{screen.now.venue ? <GetHelpEntry venue={screen.now.venue} /> : null}<NowView now={screen.now} /></>; break;
-    case 'venue': content = <><GetHelpEntry venue={screen.venue} /><VenueView venue={screen.venue} events={screen.events} /></>; break;
-    case 'event': content = <EventView event={screen.event} />; break;
+    case 'venue': content = <><GetHelpEntry venue={screen.venue} /><VenueView venue={screen.venue} events={screen.events} /><PosterLink kind="venue" id={screen.venue.id} /></>; break;
+    case 'event': content = <><EventView event={screen.event} /><PosterLink kind="event" id={screen.event.id} /></>; break;
     case 'person': content = <PersonView person={screen.person} />; break;
     case 'post': content = <PostView post={shownFromAPI(screen.post)} />; break;
     case 'safety-alert': content = <SafetyAlertPage id={screen.id} />; break;
