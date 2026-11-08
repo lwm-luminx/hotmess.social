@@ -67,13 +67,18 @@ test('a poster for a night is filled from its Hot Mess listing', async ({ page, 
   await signedIn();
   await page.goto('/poster');
 
-  await page.getByText('A night or venue').click();
+  // The first step asks who the poster is for; a night's search shows only nights.
+  await page.locator('.subjects label', { hasText: 'A night' }).click();
   // No typing the night in by hand: it's looked up in Hot Mess.
   await expect(page.getByRole('textbox', { name: 'Night' })).toHaveCount(0);
-  await page.getByRole('searchbox', { name: 'Find your venue or night' }).fill('mess');
+  await page.getByRole('searchbox', { name: 'Find your night' }).fill('mess');
+  await expect(page.getByRole('button', { name: /Mess Hall Fridays/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Venues' })).toHaveCount(0);
   await page.getByRole('button', { name: /Mess Hall Fridays/ }).click();
-  await expect(page.locator('.picked')).toContainText('Neighbours · Seattle');
-  await expect(page).toHaveURL(new RegExp(`qr=event&event=${EVENT.id}`));
+  await expect(page.locator('.subject .picked')).toContainText('Neighbours · Seattle');
+  await expect(page).toHaveURL(new RegExp(`event=${EVENT.id}`));
+  await expect(page.getByRole('radio', { name: 'Your venue or night' })).toBeChecked();
+  await expect(page.locator('.subject .hint')).toContainText('for a year');
 
   const [search] = api.calls(operation('PosterSearch'));
   expect(search.postDataJSON().variables).toEqual({ search: 'mess' });
@@ -83,7 +88,27 @@ test('a poster for a night is filled from its Hot Mess listing', async ({ page, 
 
   // A linked poster loads its listing again.
   await page.reload();
-  await expect(page.locator('.picked')).toContainText('Mess Hall Fridays');
+  await expect(page.locator('.subject .picked')).toContainText('Mess Hall Fridays');
+});
+
+test("a venue's poster carries its short link, which never expires", async ({ page, api, signedIn }) => {
+  const posterVenue = { id: VENUE.id, name: VENUE.name, locale: { name: 'Seattle' }, profile: { address: VENUE.profile.address } };
+  api.on(operation('PosterVenue'), { json: { venues: { venue: posterVenue } } });
+  await signedIn();
+  // The venue page's "Make a poster" link lands here with the venue picked.
+  await page.goto(`/poster?venue=${VENUE.id}`);
+
+  await expect(page.getByRole('radio', { name: /Your venue/ }).first()).toBeChecked();
+  await expect(page.locator('.subject .picked')).toContainText(VENUE.name);
+  await expect(page.locator('.subject .hint')).toContainText('hotmess.social/v/');
+  await expect(page.locator('.subject .hint')).toContainText('never expires');
+  const [listing] = api.calls(operation('PosterVenue'));
+  expect(listing.postDataJSON().variables).toEqual({ id: VENUE.id });
+
+  // Hot Mess itself takes the venue off the poster and puts the download code back.
+  await page.locator('.subjects label').filter({ hasText: 'downloads the app' }).click();
+  await expect(page.getByRole('radio', { name: 'Download the app' })).toBeChecked();
+  await expect(page).not.toHaveURL(/venue=/);
 });
 
 test('the home page links to the app', async ({ page, api }) => {

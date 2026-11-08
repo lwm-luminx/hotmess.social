@@ -24,6 +24,8 @@ test.describe('venue', () => {
     const link = page.getByRole('link', { name: 'View on Facebook' });
     await expect(link).toHaveAttribute('href', `https://www.facebook.com/${facebook.facebookId}`);
     await expect(link).toHaveAttribute('target', '_blank');
+    // A poster for the venue starts with it picked.
+    await expect(page.getByRole('link', { name: 'Make a poster for this venue' })).toHaveAttribute('href', `/poster?venue=${VENUE.id}`);
   });
 
   test('says when nothing is announced at a venue', async ({ page, api }) => {
@@ -68,6 +70,7 @@ test.describe('event', () => {
     await expect(page.locator('.ak-fact dt')).toHaveText(['When', 'Where', 'Address']);
     await expect(page.locator('.ak-fact').filter({ hasText: 'Where' }).getByRole('link')).toHaveAttribute('href', `/venues/${VENUE.id}`);
     await expect(page.getByRole('link', { name: 'Event on Facebook' })).toHaveAttribute('href', `https://www.facebook.com/events/${EVENT.facebookId}/`);
+    await expect(page.getByRole('link', { name: 'Make a poster for this night' })).toHaveAttribute('href', `/poster?event=${EVENT.id}`);
   });
 
   test('links the venue on Facebook when the event has no Facebook event', async ({ page, api }) => {

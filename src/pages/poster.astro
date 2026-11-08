@@ -2,12 +2,12 @@
 import Base from '../layouts/Base.astro';
 import PosterStudio from '../components/poster/PosterBuilder';
 ---
-<Base title="Make a poster" description="Make a Hot Mess poster: sign in, pick a line, a size and a look, add a QR code for the app or your venue or night, and download a print-ready PDF.">
+<Base title="Make a poster" description="Make a Hot Mess poster for your venue or night: sign in, find it in Hot Mess, pick a line, a size and a look, and download a print-ready PDF with a QR code that opens it in the app.">
   <main class="wrap poster">
     <header class="intro">
       <p class="eyebrow">Print it. Post it.</p>
       <h1>Put Hot Mess up where your people are.</h1>
-      <p class="lede">Hot Mess grows one bar, one dance floor and one bathroom mirror at a time. Pick a line, a size and a look, and download a poster for your board, your feed or the TV over the bar.</p>
+      <p class="lede">Hot Mess grows one bar, one dance floor and one bathroom mirror at a time. Make a poster for your venue or your night, with a QR code that opens it in Hot Mess, or one for Hot Mess itself. Pick a line, a size and a look, and download it for your board, your feed or the TV over the bar.</p>
     </header>
 
     <PosterStudio client:only="react" />
@@ -46,6 +46,10 @@ import PosterStudio from '../components/poster/PosterBuilder';
   .poster-builder { --night: #120d16; --night-raised: #1c1521; --night-line: #3a2c42; --night-ink: #f7eef8; --night-dim: #b9a6c2; --hot: #ff3d9a; }
   .poster-builder h2 { font-size: 1.4rem; margin: 0 0 1rem; }
 
+  .poster-builder .subject { margin: 2.5rem 0 0; display: grid; gap: .75rem; max-width: 44rem; }
+  .poster-builder .subject h2 { margin: 0; }
+  .poster-builder .seg.subjects { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 520px) { .poster-builder .seg.subjects { grid-template-columns: minmax(0, 1fr); } }
   .poster-builder .presets { margin: 2.5rem 0 3rem; }
   .poster-builder .presets ul { list-style: none; margin: 0; padding: 0 0 .5rem; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 1rem; overflow-x: auto; align-items: end; }
   .poster-builder .presets button { all: unset; display: grid; gap: .5rem; cursor: pointer; width: 100%; }
