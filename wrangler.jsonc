@@ -26,5 +26,22 @@
     "PUBLIC_CONTENT_API_BASE": "https://api.next.audiencekit.com",
     "PUBLIC_CONTENT_HOST": "hotmess.admin.next.audiencekit.com",
     "PUBLIC_SITE_ORIGIN": "https://hotmess.social"
+  },
+  // Branch builds run `wrangler preview`, and Worker Previews don't inherit anything above. Without this block the
+  // adapter's SESSION binding has no id in Previews, so every branch build tried to create "hotmess-social-session"
+  // again and failed, the same way production did before the id was set. Previews share the session namespace
+  // (keys are random session ids) and use the same API settings as production.
+  "previews": {
+    "kv_namespaces": [
+      {
+        "binding": "SESSION",
+        "id": "460daca6aea64a7880374bd34fd8b047"
+      }
+    ],
+    "vars": {
+      "PUBLIC_CONTENT_API_BASE": "https://api.next.audiencekit.com",
+      "PUBLIC_CONTENT_HOST": "hotmess.admin.next.audiencekit.com",
+      "PUBLIC_SITE_ORIGIN": "https://hotmess.social"
+    }
   }
 }
