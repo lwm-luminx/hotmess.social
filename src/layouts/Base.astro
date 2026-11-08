@@ -79,6 +79,10 @@ const path = Astro.url.pathname;
         <ul class="links">
           {nav.map((n) => <li><a href={n.href} aria-current={n.current(path) ? 'page' : undefined}>{n.label}</a></li>)}
         </ul>
+        <!-- Sign in / Sign out, from this browser's session (src/lib/api.ts); the server never knows it, so it's set
+             client-side and starts hidden. -->
+        <a class="account" href="/app/" data-account="in" hidden>Sign in</a>
+        <button class="account" type="button" data-account="out" hidden>Sign out</button>
         <a class="button get-app" href="/download">
           <span class="marks"><StoreGlyph store="ios" class="mark" /><StoreGlyph store="android" class="mark" /></span>
           Get the app
@@ -100,7 +104,22 @@ const path = Astro.url.pathname;
     </footer>
     <script>
       import { startErrorReporting } from '../lib/errorReporting';
+      import { session, SESSION_EVENT } from '../lib/api';
       startErrorReporting();
+
+      // The navbar's Sign in / Sign out follows the session, here and in other tabs. Signing out reloads, so a signed-in
+      // page (the poster builder, Discover, the web app) goes back to its sign-in card.
+      const signIn = document.querySelector<HTMLAnchorElement>('[data-account="in"]');
+      const signOut = document.querySelector<HTMLButtonElement>('[data-account="out"]');
+      const show = () => {
+        const signedIn = !!session.token;
+        if (signIn) signIn.hidden = signedIn;
+        if (signOut) signOut.hidden = !signedIn;
+      };
+      show();
+      window.addEventListener(SESSION_EVENT, show);
+      window.addEventListener('storage', show);
+      signOut?.addEventListener('click', () => { session.end(); window.location.reload(); });
     </script>
   </body>
 </html>
@@ -115,11 +134,17 @@ const path = Astro.url.pathname;
   /* Phones: brand and button on top, the links on their own row. */
   @media (max-width: 560px) {
     .site-header nav { justify-content: space-between; padding-top: .5rem; }
-    .links { order: 3; flex-basis: 100%; margin: 0; }
+    .links { order: 3; flex: 1 1 auto; margin: 0; gap: 1rem; }
+    /* Sign in / Sign out ends the links' row. */
+    .site-header .account { order: 4; }
   }
   /* The store marks tell people up front that the app is on the App Store and Google Play. */
   .get-app .marks { display: inline-flex; gap: .35rem; }
   .get-app :global(.mark) { width: 1rem; height: 1.2rem; flex: none; }
+  .account { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-muted); font-weight: 600; cursor: pointer; }
+  .account:hover { color: var(--ink); text-decoration: underline; }
+  .account:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  .account[hidden] { display: none; }
   .brand { font-weight: 800; font-size: 1.35rem; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
   .site-footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: .9rem; }
   .site-footer p { margin: .25rem 0; }
