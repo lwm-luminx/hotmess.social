@@ -1,0 +1,22 @@
+{
+  "currency": "usd",
+  "slots_per_night": 4,
+  "shown_at_once": 2,
+  "viewer_floor": 20,
+  "max_nights": 28,
+  "venue_nights_per_week": 4,
+  "tiers": [
+    { "key": "small", "name": "Small venue", "description": "Bars and clubs holding up to about 150 people.", "night_cents": 1500, "prices": { "large": 1500, "small": 750 } },
+    { "key": "mid", "name": "Mid-size venue", "description": "About 150 to 500 people.", "night_cents": 3000, "prices": { "large": 3000, "small": 1500 } },
+    { "key": "large", "name": "Large venue", "description": "Over about 500 people, or a festival.", "night_cents": 6000, "prices": { "large": 6000, "small": 3000 } }
+  ],
+  "city_sizes": [
+    { "key": "large", "name": "Large city", "percent": 100 },
+    { "key": "small", "name": "Small city", "percent": 50 }
+  ],
+  "discounts": [
+    { "key": "threatened_venue", "name": "Threatened venue", "description": "A queer venue at risk of closing.", "percent": 0 },
+    { "key": "performer_run", "name": "Performer-run night", "description": "A night run by its performers rather than a venue or promoter.", "percent": 0 },
+    { "key": "comp", "name": "Complimentary", "description": "Given free by Hot Mess.", "percent": 0 }
+  ]
+}
