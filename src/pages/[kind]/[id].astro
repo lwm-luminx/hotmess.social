@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import AppShell from '../../components/AppShell.astro';
 import { listing, signedLinkStatus } from '../../server/publicContent';
 import { routeFor, pathFor } from '../../lib/routes';
+import { previewDescription, previewImage } from '../../lib/preview';
 export const prerender = false;
 const route = routeFor(Astro.url.pathname);
 if (!route || route.kind === 'now') return new Response('Not found', { status: 404 });
@@ -24,15 +25,15 @@ const maxAge = { venue: 86400, event: 21600, post: 3600 }[route.kind as 'venue' 
 const isPost = record?.kind === 'post';
 const title = status === 410 ? 'Link expired'
   : isPost ? (record!.visibility === 'public' ? `Post by ${record!.title}` : 'A post on Hot Mess') : record?.title ?? 'Hot Mess';
-// A Public post previews with its first photo, else its poster's picture.
-const image = isPost && record!.visibility === 'public' ? record!.photos?.[0]?.url ?? record!.image : undefined;
+// A Public listing previews with its own photo (a post's first photo, else its poster's picture).
+const image = previewImage(record);
 Astro.response.status = status;
 Astro.response.headers.set('Cache-Control', indexable && !Astro.url.searchParams.has('e')
   ? `public, max-age=300, s-maxage=${maxAge}` : 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', indexable ? 'index, follow' : 'noindex');
 if (status === 503) Astro.response.headers.set('Retry-After', '60');
 ---
-<Base title={title} description={record?.description ?? 'Sign in to see more details.'} canonical={status === 200} image={image}>
+<Base title={title} description={previewDescription(record)} canonical={status === 200} image={image}>
     {status === 200 || status === 410 ? <AppShell initialPath={path + Astro.url.search} publicListing={record ?? undefined} expired={status === 410} />
       : <main class="wrap"><p>{status === 410 ? 'This link has expired. Ask for a new link.' : status === 404 ? 'This page is unavailable.' : 'Details are temporarily unavailable. Please try again shortly.'}</p></main>}
 </Base>

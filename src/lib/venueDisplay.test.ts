@@ -42,3 +42,10 @@ test('keeps what is on and next, and finished sets only while there is room', ()
   assert.deepEqual(visibleLineup(lineup, 4).map((e) => e.id), ['d3', 'on', 'n1', 'n2']);
   assert.deepEqual(visibleLineup(lineup, 2).map((e) => e.id), ['on', 'n1']);
 });
+
+test('reads whether slogan slides rotate in, and with the adult lines or not', () => {
+  const body = { venue: { id: 'v' }, events: [], lineup: [] };
+  assert.equal(venueTonight(body).slogans, null);
+  assert.deepEqual(venueTonight({ ...body, slogans: { adult: false } }).slogans, { adult: false });
+  assert.deepEqual(venueTonight({ ...body, slogans: { adult: true } }).slogans, { adult: true });
+});

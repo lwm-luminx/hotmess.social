@@ -1,0 +1,134 @@
+{
+  "slides": [
+    {
+      "id": "beautiful-person",
+      "adult": false,
+      "image": "/marquee/beautiful-person-neon.jpg"
+    },
+    {
+      "id": "irl-asl",
+      "adult": false,
+      "image": "/marquee/irl-asl-glitter.jpg"
+    },
+    {
+      "id": "swipe-less",
+      "adult": false,
+      "image": "/marquee/swipe-less-sticker.jpg"
+    },
+    {
+      "id": "screen-time",
+      "adult": false,
+      "image": "/marquee/screen-time-riso.jpg"
+    },
+    {
+      "id": "engagement",
+      "adult": false,
+      "image": "/marquee/engagement-neon.jpg"
+    },
+    {
+      "id": "conversation",
+      "adult": false,
+      "image": "/marquee/conversation-glitter.jpg"
+    },
+    {
+      "id": "your-type",
+      "adult": false,
+      "image": "/marquee/your-type-sticker.jpg"
+    },
+    {
+      "id": "getting-out",
+      "adult": true,
+      "image": "/marquee/getting-out-riso.jpg"
+    },
+    {
+      "id": "pervy-pious",
+      "adult": false,
+      "image": "/marquee/pervy-pious-neon.jpg"
+    },
+    {
+      "id": "bear-bookworm",
+      "adult": false,
+      "image": "/marquee/bear-bookworm-glitter.jpg"
+    },
+    {
+      "id": "leather-drag",
+      "adult": false,
+      "image": "/marquee/leather-drag-sticker.jpg"
+    },
+    {
+      "id": "leather-thursday",
+      "adult": false,
+      "image": "/marquee/leather-thursday-riso.jpg"
+    },
+    {
+      "id": "harness-hymnal",
+      "adult": false,
+      "image": "/marquee/harness-hymnal-neon.jpg"
+    },
+    {
+      "id": "friends-season",
+      "adult": false,
+      "image": "/marquee/friends-season-glitter.jpg"
+    },
+    {
+      "id": "bring-all-of-you",
+      "adult": false,
+      "image": "/marquee/bring-all-of-you-sticker.jpg"
+    },
+    {
+      "id": "not-mining",
+      "adult": false,
+      "image": "/marquee/not-mining-riso.jpg"
+    },
+    {
+      "id": "broke-fabulous",
+      "adult": false,
+      "image": "/marquee/broke-fabulous-neon.jpg"
+    },
+    {
+      "id": "sober-vibe",
+      "adult": false,
+      "image": "/marquee/sober-vibe-glitter.jpg"
+    },
+    {
+      "id": "tags-doors",
+      "adult": false,
+      "image": "/marquee/tags-doors-sticker.jpg"
+    },
+    {
+      "id": "say-hi",
+      "adult": false,
+      "image": "/marquee/say-hi-riso.jpg"
+    },
+    {
+      "id": "ask-their-name",
+      "adult": true,
+      "image": "/marquee/ask-their-name-neon.jpg"
+    },
+    {
+      "id": "cheeky-every-sense",
+      "adult": false,
+      "image": "/marquee/cheeky-every-sense-glitter.jpg"
+    },
+    {
+      "id": "little-cheek",
+      "adult": false,
+      "image": "/marquee/little-cheek-sticker.jpg"
+    },
+    {
+      "id": "other-cheek",
+      "adult": false,
+      "image": "/marquee/other-cheek-riso.jpg"
+    },
+    {
+      "id": "cheek-kisses",
+      "adult": false,
+      "image": "/marquee/cheek-kisses-neon.jpg"
+    },
+    {
+      "id": "grab-a-cheek",
+      "adult": true,
+      "image": "/marquee/grab-a-cheek-glitter.jpg"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 // Pure helpers the components share. No DOM or React, so they test with node --test.
-import type { Connection, Event, Person, PersonReference, VenueReference } from './types';
+import type { Connection, Event, Person, PersonReference, Venue, VenueReference } from './types';
 
 /** The items of a connection the document selected `nodes` from; a missing or null one is empty. */
 export function nodes<T>(connection: Connection<T> | null | undefined): T[] {
@@ -124,4 +124,10 @@ export function providerName(provider: string): string {
     website: 'Website', link: 'Website', podcast_rss: 'RSS', apple_podcasts: 'Apple Podcasts',
   };
   return names[provider.toLowerCase()] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
+/** A venue's own ordering page, which its Order button opens: https only. */
+export function orderingURL(venue: Pick<Venue, 'ordering'> | null | undefined): string | undefined {
+  const url = venue?.ordering?.url;
+  return url && /^https:\/\//i.test(url) ? url : undefined;
 }

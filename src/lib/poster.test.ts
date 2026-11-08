@@ -45,3 +45,20 @@ test('the PDF wraps the JPEG in one page with a valid cross-reference table', ()
   assert.equal(offsets.length, 5);
   offsets.forEach((o, i) => assert.ok(text.slice(o).startsWith(`${i + 1} 0 obj`), `object ${i + 1}`));
 });
+
+test('the TV slides are every line but the ones awaiting legal review, adult ones only where flagged', async () => {
+  const { marqueeManifest, marqueeSlogans, slidesFor } = await import('./poster/marquee.ts');
+  const lines = marqueeSlogans();
+  assert.ok(!lines.some((s) => s.id === 'grinding-grindr'));
+  const manifest = marqueeManifest();
+  assert.ok(slidesFor(manifest, false).every((s) => !s.adult));
+  assert.equal(slidesFor(manifest, true).length, lines.length);
+});
+
+test('the drawn TV slides match the slogan library (re-run scripts/marquee-slides.mjs after changing it)', async () => {
+  const { readFile, access } = await import('node:fs/promises');
+  const { marqueeManifest } = await import('./poster/marquee.ts');
+  const drawn = JSON.parse(await readFile(new URL('../../public/marquee/slogans.json', import.meta.url), 'utf8'));
+  assert.deepEqual(drawn, marqueeManifest());
+  for (const slide of drawn.slides) await access(new URL(`../../public${slide.image}`, import.meta.url));
+});

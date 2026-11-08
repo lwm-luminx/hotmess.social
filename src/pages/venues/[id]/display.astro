@@ -41,7 +41,8 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     <title>{data ? `${data.venue.title} tonight` : 'Tonight'} · Hot Mess</title>
   </head>
   <body>
-    <main id="board" data-zone={zone}>
+    <main id="board" data-zone={zone}
+      data-slogans={data?.slogans ? (data.slogans.adult ? 'adult' : 'general') : 'off'}>
       {status !== 200 ? (
         <p class="idle">{status === 404 ? 'This venue has no display.' : 'Reconnecting…'}</p>
       ) : (
@@ -99,7 +100,13 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
             .then(function (html) {
               if (!html) return;
               var next = new DOMParser().parseFromString(html, 'text/html').getElementById('board');
-              if (next) { board.innerHTML = next.innerHTML; board.setAttribute('data-zone', next.getAttribute('data-zone')); fit(); }
+              if (next) {
+                board.innerHTML = next.innerHTML;
+                board.setAttribute('data-zone', next.getAttribute('data-zone'));
+                board.setAttribute('data-slogans', next.getAttribute('data-slogans'));
+                fit();
+                slogans();
+              }
             }).catch(function () {});
         }
         // Leave off the sets that don't fit rather than cutting one in half.
@@ -112,7 +119,13 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
             if (rows[j].offsetTop - list.offsetTop + rows[j].offsetHeight > list.clientHeight) rows[j].style.display = 'none';
           }
         }
+        // Hot Mess slogan slides between looks at the lineup, unless the venue turned them off.
+        function slogans() {
+          var mode = board.getAttribute('data-slogans');
+          if (window.velvetSlogans) window.velvetSlogans.set(mode === 'off' || !mode ? null : { adult: mode === 'adult' });
+        }
         fit();
+        slogans();
         window.addEventListener('resize', fit);
         setInterval(tick, 15000);
         setInterval(refresh, 60000);
@@ -136,6 +149,14 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
           });
         }
       })();
+    </script>
+    <script>
+      // The slogan rotation, bundled for the board above, which turns it on and off from data-slogans.
+      import { sloganRotation } from '../../../lib/poster/rotation';
+      const rotation = sloganRotation(document.body);
+      (window as unknown as { velvetSlogans: typeof rotation }).velvetSlogans = rotation;
+      const mode = document.getElementById('board')?.getAttribute('data-slogans');
+      rotation.set(mode === 'off' || !mode ? null : { adult: mode === 'adult' });
     </script>
   </body>
 </html>
