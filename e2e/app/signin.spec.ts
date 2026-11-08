@@ -232,6 +232,22 @@ test('shows the API\'s refusal of an Apple sign-in', async ({ page, api }) => {
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBeNull();
 });
 
+test("Apple's button waits until Apple's script is ready, so the click can open its window", async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['apple'] } });
+  api.on('POST /v1/token/apple', { status: 401, json: { error: 'UNAUTHENTICATED', message: "Apple didn't vouch for that sign-in" } });
+  // A slow network: Apple's script arrives after the methods do.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('https://appleid.cdn-apple.com/**', async (route) => { await held; await route.fallback(); });
+  await page.goto('/app/');
+  const apple = page.getByRole('button', { name: 'Continue with Apple' });
+  await expect(apple).toBeDisabled();
+  release();
+  await expect(apple).toBeEnabled();
+  await apple.click();
+  await expect(page.getByRole('alert')).toHaveText("Apple didn't vouch for that sign-in");
+});
+
 test('shows the audience\'s warning before Apple sign-in, and only before Apple', async ({ page, api }) => {
   api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'], warnings: { apple: 'Apple sign-in is new, tell us if it breaks' } } });
   await page.goto('/app/');
