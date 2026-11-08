@@ -174,7 +174,7 @@ test('the home page links to the safety page', async ({ page }) => {
   await expect(page).toHaveTitle('Safety · Hot Mess');
   await expect(page.getByRole('heading', { name: 'Block, both ways' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Where we are tonight is not public information' })).toBeVisible();
-  await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety' })).toHaveAttribute('href', '/safety');
+  await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety', exact: true })).toHaveAttribute('href', '/safety');
 });
 
 test('the money page explains promoted listings and shows the rate card', async ({ page }) => {
@@ -196,7 +196,7 @@ test('the top nav links every page and marks the current one', async ({ page }) 
       await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
       await expect(nav.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
     }
-    await expect(nav.getByRole('link', { name: 'Safety' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Safety', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: 'Poster' })).not.toHaveAttribute('aria-current', 'page');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
