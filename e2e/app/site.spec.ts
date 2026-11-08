@@ -111,6 +111,34 @@ test("a venue's poster carries its short link, which never expires", async ({ pa
   await expect(page).not.toHaveURL(/venue=/);
 });
 
+test('the navbar signs in and out', async ({ page }) => {
+  await page.goto('/poster');
+  const nav = page.getByRole('navigation', { name: 'Main' });
+  await expect(nav.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/app/');
+  await expect(nav.getByRole('button', { name: 'Sign out' })).toBeHidden();
+
+  // Signing in on the page's own card turns the navbar to Sign out.
+  await page.getByRole('button', { name: 'Continue with Facebook' }).click();
+  await expect(page.getByRole('heading', { name: "Who's the poster for?" })).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Sign in' })).toBeHidden();
+
+  // Signing out from the navbar puts the sign-in card back.
+  await nav.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Sign in' })).toBeVisible();
+});
+
+test('a poster search that fails offers signing in again', async ({ page, api, signedIn }) => {
+  api.on(operation('PosterSearch'), { status: 404, json: { status: 404, error: 'Not Found' } });
+  await signedIn();
+  await page.goto('/poster');
+  await page.locator('.subjects label').first().click();
+  await page.getByRole('searchbox', { name: 'Find your venue', exact: true }).fill('mess');
+  await page.getByRole('button', { name: 'sign in again' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
+});
+
 test('the home page links to the app', async ({ page, api }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Hot Mess');

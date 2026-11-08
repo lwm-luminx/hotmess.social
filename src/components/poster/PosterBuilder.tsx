@@ -158,7 +158,12 @@ function ListingSearch({ kind, id, onPick, onSignedOut }: {
         onChange={(e) => setTerm(e.target.value)} />
       <div className="results" aria-live="polite">
         {state === 'searching' && <p className="hint">Searching…</p>}
-        {state === 'failed' && <p className="hint">Hot Mess couldn't search just now. Try again in a moment.</p>}
+        {state === 'failed' && (
+          <p className="hint">
+            Hot Mess couldn't search just now. Try again in a moment, or{' '}
+            <button type="button" className="link" onClick={onSignedOut}>sign in again</button>.
+          </p>
+        )}
         {state === 'idle' && none && <p className="hint">Nothing in Hot Mess matches "{term.trim()}". {kind === 'venue' ? 'Listed venues show here.' : kind === 'event' ? 'Upcoming events show here.' : 'Upcoming events and listed venues show here.'}</p>}
         {state === 'idle' && found && <>{group('Venues', venues)}{group('Upcoming events', events)}</>}
       </div>
@@ -391,9 +396,8 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
               <div className="event">
                 {loading && <p className="hint">Loading the listing…</p>}
                 {!loading && listing && <Picked listing={listing} onChange={clearListing} />}
-                {!loading && !listing && (
-                  <ListingSearch id="poster-search" onPick={(l) => { setSubject(l.kind); choose(l); }} onSignedOut={onSignedOut} />
-                )}
+                {/* The search is in the first step, so there's one box to find it in. */}
+                {!loading && !listing && <p className="hint">Find your venue or night under "Who's the poster for?" above.</p>}
                 <p className="hint">{qrHint(listing, link)}</p>
               </div>
             )}
