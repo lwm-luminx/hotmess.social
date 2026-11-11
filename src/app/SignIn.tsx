@@ -1,7 +1,7 @@
 // Sign in to Hot Mess on the web: the web app's sign-in card, and the gate in front of signed-in pages (SignedIn.tsx).
 import { useEffect, useState } from 'react';
 import { api, session } from '../lib/api';
-import { facebookAccessToken } from '../lib/facebook';
+import { facebookAccessToken, prepareFacebookSignIn } from '../lib/facebook';
 import { appleSignIn, offersApple, prepareAppleSignIn } from '../lib/apple';
 import type { TokenResponse } from '../sdk';
 import './signin.css';
@@ -45,6 +45,8 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
   };
   useEffect(() => {
     let current = true;
+    // Facebook's window may only open straight from the click too, so its SDK loads now (src/lib/facebook.ts).
+    prepareFacebookSignIn().catch(() => {});
     api.signInMethods().then((answer) => {
       if (current) setAsked(true);
       if (!current || !answer) return;

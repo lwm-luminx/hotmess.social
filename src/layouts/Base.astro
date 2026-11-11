@@ -5,7 +5,7 @@ import { BrandBand, BrandCredit, Container } from '@lwm-luminx/astro-components'
 import NewRelic from '../components/NewRelic.astro';
 import RecordBanner from '../components/RecordBanner.astro';
 import StoreGlyph from '../components/StoreGlyph.astro';
-import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL } from '../lib/config';
+import { APP_STORE_ID, FACEBOOK_APP_ID, LOVE_WINS_URL, OPERATOR } from '../lib/config';
 
 interface Props {
   title?: string;
@@ -95,12 +95,13 @@ const path = Astro.url.pathname;
     <footer class="site-footer">
       <Container>
         <BrandCredit href={LOVE_WINS_URL} />
-        <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>.</p>
+        <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>. Operated by {OPERATOR.name}, {OPERATOR.address} · <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a></p>
         <p>
           <a href="/safety">Safety</a>{' · '}
           <a href="/money">How we make money</a>{' · '}
           <a href="https://audiencekit.com/privacy/">Privacy</a>{' · '}
           <a href="https://audiencekit.com/terms/">Terms</a>{' · '}
+          <a href="https://audiencekit.com/child-safety/">Child safety</a>{' · '}
           <a href="https://audiencekit.com/data-deletion/">Data deletion</a>
         </p>
       </Container>

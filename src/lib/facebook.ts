@@ -13,40 +13,59 @@ declare global {
 }
 
 // Whether sign-in asks for email and user_friends (friends who also use Hot
-// Mess at the same venue). Off while Meta's App Review has both pending on the
-// Hot Mess app, so the beta asks only for public_profile, like the iOS and
-// Android betas. Turn it back on once Meta approves them.
-const ASKS_FOR_REVIEWED_PERMISSIONS = false;
+// Mess at the same venue), like the Android app. Meta's App Reviewers test
+// user_friends on the web, so the website has to ask for it: until Meta
+// approves the two, Facebook offers them only to people with a role on the app
+// (reviewers included) and leaves them out for everyone else.
+const ASKS_FOR_REVIEWED_PERMISSIONS = true;
 
 const SCOPE = ['public_profile', ...(ASKS_FOR_REVIEWED_PERMISSIONS ? ['email', 'user_friends'] : [])].join(',');
 
 // The Graph API version the site calls.
 const GRAPH_API_VERSION = 'v26.0';
 
-let loading: Promise<NonNullable<Window['FB']>> | null = null;
+type FacebookSDK = NonNullable<Window['FB']>;
 
-function sdk(): Promise<NonNullable<Window['FB']>> {
-  loading ??= new Promise((resolve, reject) => {
+let loading: Promise<FacebookSDK> | null = null;
+// The SDK once it has loaded, so a click can open Facebook's window straight away.
+let loaded: FacebookSDK | null = null;
+
+function sdk(): Promise<FacebookSDK> {
+  loading ??= new Promise<FacebookSDK>((resolve, reject) => {
     window.fbAsyncInit = () => {
       window.FB!.init({ appId: FACEBOOK_APP_ID, version: GRAPH_API_VERSION, cookie: false, xfbml: false });
+      loaded = window.FB!;
       resolve(window.FB!);
     };
     const script = document.createElement('script');
     script.src = 'https://connect.facebook.net/en_US/sdk.js';
     script.async = true;
     script.crossOrigin = 'anonymous';
-    script.onerror = () => reject(new Error('Could not load Facebook Login'));
+    script.onerror = () => {
+      loading = null;
+      reject(new Error('Could not load Facebook Login'));
+    };
     document.head.append(script);
   });
   return loading;
 }
 
-export async function facebookAccessToken(): Promise<string> {
-  const FB = await sdk();
-  return new Promise((resolve, reject) => {
+// Loads the SDK before anyone clicks. FB.login opens a popup, and browsers
+// (Safari above all) block a popup that isn't opened while the click is still
+// being handled, so loading the SDK only on the click left the first click
+// with no Facebook window at all.
+export function prepareFacebookSignIn(): Promise<void> {
+  return sdk().then(() => undefined);
+}
+
+// Call straight from the click, before any await: once the SDK has loaded,
+// FB.login runs synchronously so its popup is allowed.
+export function facebookAccessToken(): Promise<string> {
+  const login = (FB: FacebookSDK) => new Promise<string>((resolve, reject) => {
     FB.login((response) => {
       const token = response.authResponse?.accessToken;
       if (token) resolve(token); else reject(new Error('Facebook sign-in was cancelled'));
     }, { scope: SCOPE });
   });
+  return loaded ? login(loaded) : sdk().then(login);
 }

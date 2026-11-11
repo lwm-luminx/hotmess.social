@@ -144,3 +144,7 @@ only checks the signed-out pages.
   audience's Android app in AudienceKit, then into this file on the next build.
 
 Discover and sitemaps include every existing venue/event UUID, including Community and past events. Hidden/archived records have minimal content. Community events omit schedule/location; Public events expose editorial details. Chat is never rendered.
+
+## License and copyright
+
+Copyright © 2026 Love Wins Media, Inc. All rights reserved; see [LICENSE](LICENSE), which grants no license of any kind. This code is public so it can be read and security-scanned, **not** so it can be reused. Copying this work beyond what [LICENSE](LICENSE) allows is copyright infringement, and willful copying can be a federal crime (17 U.S.C. §§ 501, 506). Removing, altering or faking copyright or attribution notices is unlawful under 17 U.S.C. § 1202, and a federal crime under § 1204 when done willfully for commercial advantage or private financial gain. See [NOTICE.md](NOTICE.md) for the details.

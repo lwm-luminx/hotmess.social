@@ -153,12 +153,17 @@ export class MockAPI {
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 // FB.login answers with window.__fbLogin (default: a signed-in user) and
-// records the scope it was asked for in window.__fbScope.
+// records the scope it was asked for in window.__fbScope. Like a browser's
+// popup blocker, it answers with no authResponse unless the click is still
+// being handled, so a sign-in that awaits anything before FB.login fails.
 const FACEBOOK_SDK = `
+  let fbClicking = false;
+  addEventListener('click', () => { fbClicking = true; setTimeout(() => { fbClicking = false; }); }, true);
   window.FB = {
     init(options) { window.__fbInit = options; },
     login(callback, options) {
       window.__fbScope = options && options.scope;
+      if (!fbClicking) return callback({ status: 'unknown' });
       callback(window.__fbLogin ?? { authResponse: { accessToken: 'fb-user-token' } });
     },
   };
