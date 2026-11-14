@@ -4,7 +4,7 @@ import StoreButtons from '../components/StoreButtons.astro';
 
 // How Hot Mess is positioned (Rick, 2026-11-14): no targeted ads and no ad tracking. Venues and events that would
 // show up in Hot Mess anyway can sponsor premium placement, always disclosed as "Sponsored". Outside brands can't buy
-// ads. Keep this page in step with what the apps actually show.
+// ads. Publisher (Soapbox) stories carry the publisher's own ad relationship, kept distinct from Hot Mess's. Keep this page in step with what the apps actually show.
 const youSee = [
   {
     title: 'Sponsored venues and events',
@@ -54,6 +54,11 @@ const neverDo = [
         ))}
       </div>
       <p class="muted">None of these are chosen using anything about you: not your profile, your tribes or where you have been. They depend only on the place you’re looking at.</p>
+    </section>
+
+    <section class="wrap" aria-labelledby="publishers">
+      <h2 id="publishers">News from local publishers</h2>
+      <p>Hot Mess can show stories from local queer publishers, like the news for your city. Those stories belong to the publisher, and so does any advertising that comes with them. When you open one, you’re reading the publisher’s own work: they choose and answer for their ads, not Hot Mess. Hot Mess never shares anything about you with a publisher’s advertisers.</p>
     </section>
 
     <section class="wrap split" aria-labelledby="never">

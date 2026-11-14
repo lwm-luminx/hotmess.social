@@ -182,6 +182,7 @@ test('the money page says no targeted ads and labels sponsorship', async ({ page
   await expect(page).toHaveTitle('How Hot Mess is paid for · Hot Mess');
   await expect(page.getByRole('heading', { name: 'No targeted ads. No tracking.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sponsored venues and events' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'News from local publishers' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Free cards for queer charities' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Small venue/ })).toHaveCount(0);
   await expect(page.locator('.site-footer').getByRole('link', { name: 'No targeted ads' })).toHaveAttribute('href', '/money');
