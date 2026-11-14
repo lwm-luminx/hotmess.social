@@ -263,6 +263,13 @@ export const api = {
         device: device(),
       }),
     }, false),
+  // Signs in with a Google access token (POST /v1/token/google), which the API
+  // checks was issued to one of its client IDs. One Google refuses is 401.
+  signInWithGoogle: (accessToken: string) =>
+    send<TokenResponse>('/v1/token/google', {
+      method: 'POST',
+      body: JSON.stringify({ access_token: accessToken, host: AUDIENCE_HOST, device: device() }),
+    }, false),
   // The ways the audience lets people sign in (GET /v1/token/methods), which
   // AudienceKit's admin chooses, with the warning to show before each one that
   // has one, or null when the API can't say (an API from before the setting

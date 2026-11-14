@@ -98,6 +98,7 @@ export class MockAPI {
   constructor() {
     this.on('POST /v1/token', () => ({ json: TOKEN_RESPONSE }));
     this.on('POST /v1/token/apple', () => ({ json: TOKEN_RESPONSE }));
+    this.on('POST /v1/token/google', () => ({ json: TOKEN_RESPONSE }));
     this.on('GET /v1/branding', () => ({ json: { audience: { id: AUDIENCE_ID, name: 'Hot Mess', subdomain: 'hotmess' } } }));
     this.on(operation('ReportLocation'), () => ({ json: { reportLocation: NOW } }));
     // Asking for any other ID finds nothing, as GraphQL answers for a deleted record.
@@ -193,6 +194,29 @@ const APPLE_SDK = `
   } };
 `;
 
+// Google Identity Services' token client: initTokenClient records its config in
+// window.__googleInit, and requestAccessToken answers its callback with
+// window.__googleToken (default: an access token) or its error_callback with
+// window.__googleError. Like Safari, it refuses to open its popup unless the
+// click is still being handled.
+const GOOGLE_SDK = `
+  let googleClicking = false;
+  addEventListener('click', () => { googleClicking = true; setTimeout(() => { googleClicking = false; }); }, true);
+  window.google = { accounts: { oauth2: {
+    initTokenClient(config) {
+      window.__googleInit = { client_id: config.client_id, scope: config.scope };
+      return {
+        requestAccessToken() {
+          if (!googleClicking) return config.error_callback({ type: 'popup_failed_to_open' });
+          setTimeout(() => window.__googleError
+            ? config.error_callback(window.__googleError)
+            : config.callback(window.__googleToken ?? { access_token: 'google-access-token' }));
+        },
+      };
+    },
+  } } };
+`;
+
 export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audienceId?: string | null) => Promise<void> }>({
   // Automatic, so no test can reach the network by forgetting to ask for it.
   api: [async ({ page }, use) => {
@@ -203,6 +227,8 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audie
       route.fulfill({ contentType: 'text/javascript', body: FACEBOOK_SDK }));
     await page.route('https://appleid.cdn-apple.com/**', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: APPLE_SDK }));
+    await page.route('https://accounts.google.com/gsi/**', (route) =>
+      route.fulfill({ contentType: 'text/javascript', body: GOOGLE_SDK }));
     await page.route('https://www.googletagmanager.com/**', (route) => route.abort());
     await page.route(`${IMAGES}/**`, (route) => route.request().url().includes('broken')
       ? route.fulfill({ status: 404 })
