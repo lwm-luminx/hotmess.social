@@ -1,0 +1,11 @@
+---
+// Counts this page being opened, ourselves (server/visits.ts): the page's path and the site that linked here go to
+// POST /visit on our own Worker. No cookie, no identifier, no third party. Production builds only.
+---
+{import.meta.env.PROD && (
+  <script is:inline>
+    try {
+      navigator.sendBeacon('/visit', JSON.stringify({ path: location.pathname, referrer: document.referrer }));
+    } catch (e) {}
+  </script>
+)}

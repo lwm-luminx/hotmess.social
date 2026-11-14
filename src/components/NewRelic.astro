@@ -2,7 +2,9 @@
 // New Relic browser monitoring: the "hotmess.social" browser app (Pro + SPA, distributed tracing on) in the Hot Mess
 // Productions account. new-relic-browser.html is New Relic's copy/paste snippet as generated; its licenseKey is the
 // account's browser key, which every page using it ships, so it isn't a secret. Replace the file with a fresh copy
-// from the browser app's settings to update the agent. Production builds only, like Analytics.
+// from the browser app's settings to update the agent, then set privacy.cookies_enabled back to false in NREUM.init:
+// the site sets no analytics cookies and asks for no consent, so the agent must not keep a session cookie either.
+// Production builds only.
 import snippet from './new-relic-browser.html?raw';
 ---
 {import.meta.env.PROD && <Fragment set:html={snippet} />}
