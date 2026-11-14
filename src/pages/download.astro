@@ -21,8 +21,7 @@ import PosterCallout from '../components/PosterCallout.astro';
 </Base>
 
 <script>
-  // Phones leave for their store; desktops and anything unrecognised stay on the page with both links. The edge
-  // worker does the same with a 302 once it's in front of the site (edge/src/worker.ts).
+  // Phones leave for their store; desktops and anything unrecognised stay on the page with both links.
   import { downloadUrl } from '../lib/download';
 
   const url = downloadUrl(navigator.userAgent, navigator.maxTouchPoints);
