@@ -1,6 +1,5 @@
-// https://hotmess.social/download sends phones to their store. Shared by the page (src/pages/download.astro) and the
-// edge worker (edge/src/worker.ts), so both send people to the same place. Kept out of config.ts, which reads
-// import.meta.env and so can't load in the worker.
+// https://hotmess.social/download sends phones to their store (src/pages/download.astro). Kept out of config.ts, which
+// reads import.meta.env, so it stays a plain module the tests can load.
 export const APP_STORE_URL = 'https://apps.apple.com/us/app/hot-mess-gay-nightlife/id1195758383';
 
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=social.hotmess.android.app';

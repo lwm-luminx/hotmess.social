@@ -3,15 +3,18 @@ import { useEffect, useState } from 'react';
 import { api, session } from '../lib/api';
 import { facebookAccessToken, prepareFacebookSignIn } from '../lib/facebook';
 import { appleSignIn, offersApple, prepareAppleSignIn } from '../lib/apple';
+import { googleAccessToken, offersGoogle, prepareGoogleSignIn } from '../lib/google';
 import type { TokenResponse } from '../sdk';
 import './signin.css';
 
-type Method = 'apple' | 'facebook';
+type Method = 'apple' | 'google' | 'facebook';
 
 // How each method signs in, and its button. Apple's follows Apple's own style
-// (black, the Apple logo, "Continue with Apple").
+// (black, the Apple logo, "Continue with Apple"), and Google's Google's (white,
+// the "G" logo, "Continue with Google").
 const METHODS: Record<Method, { label: string; className: string; signIn: () => Promise<TokenResponse> }> = {
   apple: { label: 'Continue with Apple', className: 'button apple', signIn: async () => api.signInWithApple(await appleSignIn()) },
+  google: { label: 'Continue with Google', className: 'button google', signIn: async () => api.signInWithGoogle(await googleAccessToken()) },
   facebook: { label: 'Continue with Facebook', className: 'button', signIn: async () => api.signIn(await facebookAccessToken()) },
 };
 
@@ -23,12 +26,24 @@ function AppleLogo() {
   );
 }
 
+function GoogleLogo() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
 // lede replaces the line under the heading, for a page that says why it needs sign-in.
 export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; lede?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The ways in AudienceKit offers this audience, of the ones the website has
-  // (Facebook, and Apple when this build has a Services ID), with the warning
+  // (Facebook, Apple when this build has a Services ID, and Google when it has a
+  // client ID), with the warning
   // to show before each one that has one ("Facebook login is only for testers").
   // Facebook alone, with no warnings, when the API can't say.
   const [offered, setOffered] = useState<Method[]>(['facebook']);
@@ -43,6 +58,9 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
     setAppleReady(false);
     return prepareAppleSignIn().catch(() => {}).then(() => setAppleReady(true));
   };
+  // Google's window, likewise, opens only straight from the click.
+  const [googleReady, setGoogleReady] = useState(false);
+  const readyGoogle = () => prepareGoogleSignIn().catch(() => {}).then(() => setGoogleReady(true));
   useEffect(() => {
     let current = true;
     // Facebook's window may only open straight from the click too, so its SDK loads now (src/lib/facebook.ts).
@@ -50,12 +68,13 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
     api.signInMethods().then((answer) => {
       if (current) setAsked(true);
       if (!current || !answer) return;
-      const methods = (['apple', 'facebook'] as const).filter((method) =>
-        answer.methods.includes(method) && (method !== 'apple' || offersApple));
+      const methods = (['apple', 'google', 'facebook'] as const).filter((method) =>
+        answer.methods.includes(method) && (method !== 'apple' || offersApple) && (method !== 'google' || offersGoogle));
       setOffered(methods);
       setWarnings(answer.warnings);
       // Ready before the click, so the click can open Apple's window (src/lib/apple.ts).
       if (methods.includes('apple')) void readyApple();
+      if (methods.includes('google')) void readyGoogle();
     });
     return () => { current = false; };
   }, []);
@@ -106,10 +125,10 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
             key={method}
             className={METHODS[method].className}
             type="button"
-            disabled={busy || !asked || (method === 'apple' && !appleReady)}
+            disabled={busy || !asked || (method === 'apple' && !appleReady) || (method === 'google' && !googleReady)}
             onClick={() => (warnings[method] ? setWarning(method) : signIn(method))}
           >
-            {method === 'apple' ? <AppleLogo /> : null}
+            {method === 'apple' ? <AppleLogo /> : method === 'google' ? <GoogleLogo /> : null}
             {METHODS[method].label}
           </button>
         ))}
