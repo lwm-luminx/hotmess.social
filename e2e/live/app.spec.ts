@@ -27,6 +27,9 @@ test('the home page and the app load', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Get the app' })).toBeVisible();
   await page.goto('/app/');
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
+  // The 18+ confirmation unlocks the buttons (not there on a deploy from before it).
+  const adult = page.getByRole('checkbox', { name: /18 or older/ });
+  if (await adult.count()) await adult.check();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeEnabled();
 });
 

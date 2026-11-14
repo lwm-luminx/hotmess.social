@@ -244,6 +244,9 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audie
     // Any uncaught script error fails the test.
     const errors: Error[] = [];
     page.on('pageerror', (error) => errors.push(error));
+    // The 18+ confirmation the sign-in card asks for (SignIn.tsx), already given: most tests are about what comes
+    // after it. A test of the confirmation itself clears it with its own init script.
+    await page.addInitScript(() => { localStorage.setItem('hotmess.adult', '1'); });
     await use(page);
     expect(errors, 'uncaught page errors').toEqual([]);
   },
