@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
-import Analytics from '../components/Analytics.astro';
 import { BrandBand, BrandCredit, Container } from '@lwm-luminx/astro-components';
+import VisitCount from '../components/VisitCount.astro';
 import NewRelic from '../components/NewRelic.astro';
 import RecordBanner from '../components/RecordBanner.astro';
 import StoreGlyph from '../components/StoreGlyph.astro';
@@ -70,7 +70,7 @@ const path = Astro.url.pathname;
     <meta name="twitter:card" content="summary_large_image" />
     <!-- The Hot Mess app, so Facebook attributes shares to it. -->
     <meta property="fb:app_id" content={FACEBOOK_APP_ID} />
-    <Analytics />
+    <VisitCount />
   </head>
   <body>
     <BrandBand href={LOVE_WINS_URL} />
