@@ -1,6 +1,21 @@
 import { createHash } from 'node:crypto';
 import { test, expect, TOKEN, AUDIENCE_ID, NOW, VENUE, EVENT, PERSON, operation } from './fixtures';
 
+test("keeps sign-in locked until they confirm they're 18 or older, and remembers it", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('cleared')) localStorage.removeItem('hotmess.adult');
+    sessionStorage.setItem('cleared', '1');
+  });
+  await page.goto('/app/');
+  const facebook = page.getByRole('button', { name: 'Continue with Facebook' });
+  await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
+  await expect(facebook).toBeDisabled();
+
+  await page.getByRole('checkbox', { name: /18 or older/ }).check();
+  await expect(facebook).toBeEnabled();
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.adult'))).toBe('1');
+});
+
 test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   await page.goto('/app/');
   await expect(page.getByRole('heading', { name: 'Sign in to Hot Mess' })).toBeVisible();
