@@ -20,6 +20,14 @@ export const FACEBOOK_APP_ID: string =
 export const APPLE_SERVICES_ID: string =
   import.meta.env.PUBLIC_APPLE_SERVICES_ID ?? 'social.hotmess.signin';
 
+// The Google OAuth client Sign in with Google signs in with (src/lib/google.ts):
+// Hot Mess's Web application client, the one the Android app uses as its
+// serverClientId (hot_mess_android build.gradle.kts), which both APIs accept
+// (GOOGLE_CLIENT_IDS). Google accepts it only from the Authorized JavaScript
+// origins it lists: https://hotmess.social. Empty leaves Google off.
+export const GOOGLE_CLIENT_ID: string =
+  import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? '689253921795-pt1trs3ss1fk61jmnoce5425m5t8pt7d.apps.googleusercontent.com';
+
 // The host that names the Hot Mess audience to the API at sign-in.
 // hotmess.admin.audiencekit.com resolves by subdomain today; switch to
 // hotmess.social once that domain is verified in AudienceKit.

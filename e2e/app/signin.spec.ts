@@ -133,7 +133,7 @@ test('offers the methods the audience has on, and says so when none is', async (
   await expect(page.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toHaveCount(0);
 
-  api.on('GET /v1/token/methods', { json: { methods: ['google'] } });
+  api.on('GET /v1/token/methods', { json: { methods: ['review_code'] } });
   await page.reload();
   await expect(page.getByText("Signing in on the web isn't available right now.")).toBeVisible();
   await expect(page.getByRole('button')).toHaveCount(0);
@@ -277,4 +277,38 @@ test('shows the audience\'s warning before Facebook sign-in, with Cancel and Con
   await page.getByRole('alertdialog').getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
   expect(api.calls('POST /v1/token')).toHaveLength(1);
+});
+
+test('signs in with Google, then shows Now', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple', 'google'] } });
+  await page.goto('/app/');
+  await expect(page.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
+
+  expect(await page.evaluate(() => (window as any).__googleInit)).toEqual({
+    client_id: '689253921795-pt1trs3ss1fk61jmnoce5425m5t8pt7d.apps.googleusercontent.com',
+    scope: 'openid email profile',
+  });
+  const [signIn] = api.calls('POST /v1/token/google');
+  expect(signIn.postDataJSON()).toMatchObject({
+    access_token: 'google-access-token',
+    host: 'hotmess.admin.next.audiencekit.com',
+    device: { type: 'web', identifier: expect.any(String) },
+  });
+  expect(signIn.headers()['authorization']).toBeUndefined();
+  expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBe(TOKEN);
+});
+
+test('shows an error when Google sign-in is cancelled', async ({ page, api }) => {
+  api.on('GET /v1/token/methods', { json: { methods: ['google'] } });
+  await page.addInitScript(() => { (window as any).__googleError = { type: 'popup_closed' }; });
+  await page.goto('/app/');
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Google sign-in was cancelled');
+  expect(api.calls('POST /v1/token/google')).toEqual([]);
+  // The next try works.
+  await page.evaluate(() => { delete (window as any).__googleError; });
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page.getByRole('heading', { name: 'Seattle' })).toBeVisible();
 });
