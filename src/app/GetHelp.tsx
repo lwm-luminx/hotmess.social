@@ -350,6 +350,7 @@ function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiti
           </li>)}
         </ol>
         {alert.state === 'OPEN' ? <p className="muted small">Stay where you feel safest. If nobody picks it up in 2 minutes, we’ll help you reach a friend, a ride or 911.</p> : null}
+        {alert.state === 'ACKNOWLEDGED' ? <p className="muted small">A staff member at the venue told us they’re coming. Hot Mess can’t confirm that or how long it will take. If you’re in danger, call 911.</p> : null}
       </section>
       <section className="help-section">
         <h3>What you sent</h3>
