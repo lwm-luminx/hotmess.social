@@ -2,12 +2,13 @@
 import Base from '../layouts/Base.astro';
 import StoreButtons from '../components/StoreButtons.astro';
 
-// Hot Mess is ad-free (Rick, 2026-11-14): no outside ads, only sponsorships, meaning a sponsor pays to place existing
-// Hot Mess content (a venue's own listing or event). Keep this page in step with what the apps actually show.
+// How Hot Mess is positioned (Rick, 2026-11-14): no targeted ads and no ad tracking. Venues and events that would
+// show up in Hot Mess anyway can sponsor premium placement, always disclosed as "Sponsored". Outside brands can't buy
+// ads. Keep this page in step with what the apps actually show.
 const youSee = [
   {
-    title: 'Sponsored listings',
-    body: 'A venue or promoter can sponsor its own Hot Mess listing or event, so it also shows in a spot between listings. It’s the same listing you’d find anyway, labelled “Sponsored”, never the first thing you see and never an outside ad.',
+    title: 'Sponsored venues and events',
+    body: 'A venue or an event that’s already in Hot Mess can pay to be shown more prominently. It’s always labelled “Sponsored” and says who paid. Which sponsors you see depends on the place you’re looking at, never on who you are.',
   },
   {
     title: 'Hot Mess announcements',
@@ -24,20 +25,21 @@ const youSee = [
 ];
 
 const neverDo = [
-  'Run outside ads, banners or brand campaigns in Hot Mess.',
+  'Target ads or sponsored spots at you by who you are, what you look like, who you’re into or where you’ve been.',
+  'Let outside brands buy ads, banners or campaigns. Only venues and events already in Hot Mess can sponsor.',
+  'Hide that something is paid for. A sponsored spot is always labelled.',
+  'Track you for ads: the apps don’t collect your advertising ID or send events to Facebook or any ad network.',
   'Sell or share your data with advertisers or data brokers.',
-  'Let anyone target you by who you are, what you look like or who you’re into.',
-  'Put tracking pixels or ad networks in Hot Mess.',
   'Charge you to use Hot Mess.',
 ];
 ---
-<Base title="How Hot Mess is paid for" description="Hot Mess is free and ad-free. The only paid spots are sponsored Hot Mess listings, labelled and never targeted at you.">
+<Base title="How Hot Mess is paid for" description="Hot Mess is free, with no targeted ads and no ad tracking. Venues and events can sponsor a better spot, always labelled.">
   <main>
     <section class="hero">
       <div class="wrap">
         <p class="eyebrow">How Hot Mess is paid for</p>
-        <h1>No ads. Just the night.</h1>
-        <p class="lede">Hot Mess is free and ad-free: no outside ads, banners or brand campaigns. The only thing anyone can pay for is a sponsored spot for their own Hot Mess listing, clearly labelled, and it never pushes anyone else off the list.</p>
+        <h1>No targeted ads. No tracking.</h1>
+        <p class="lede">Hot Mess is free. Nothing in it is aimed at you because of who you are, and nothing follows you around for advertisers. Venues and events that are in Hot Mess anyway can pay for a better spot, and when they do it says “Sponsored”.</p>
       </div>
     </section>
 
@@ -51,7 +53,7 @@ const neverDo = [
           </article>
         ))}
       </div>
-      <p class="muted">None of these are chosen using anything about you: not your profile, your tribes or where you have been.</p>
+      <p class="muted">None of these are chosen using anything about you: not your profile, your tribes or where you have been. They depend only on the place you’re looking at.</p>
     </section>
 
     <section class="wrap split" aria-labelledby="never">
@@ -62,13 +64,14 @@ const neverDo = [
       <div>
         <h2 id="different">Why it works this way</h2>
         <p>A lot of free apps are paid for by learning about the people who use them and selling chances to reach them. For a community where being found by the wrong person can mean harassment or being outed, that's the wrong trade.</p>
+        <p>We do watch for crashes and slow screens (New Relic) and count visits to this website (Google Analytics), so we can fix things. None of it is used for ads or shared with advertisers.</p>
       </div>
     </section>
 
     <section class="wrap" aria-labelledby="where">
       <article class="card where">
         <h2 id="where">Who pays for it</h2>
-        <p>Hot Mess is run by <a href="https://lovewins.media">Love Wins Media</a>, which builds <a href="https://audiencekit.com">AudienceKit</a>, the platform Hot Mess runs on. Sponsored listings help, and Love Wins Media covers the rest of the hosting, moderation and development.</p>
+        <p>Hot Mess is run by <a href="https://lovewins.media">Love Wins Media</a>, which builds <a href="https://audiencekit.com">AudienceKit</a>, the platform Hot Mess runs on. Sponsorships help, and Love Wins Media covers the rest of the hosting, moderation and development.</p>
       </article>
     </section>
 
