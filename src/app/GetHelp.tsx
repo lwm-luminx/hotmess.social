@@ -261,8 +261,23 @@ function EscapeRows({ venue, rides, onSupport }: { venue: HelpVenue | null; ride
   </>;
 }
 
-/** "In danger right now? Call 911": the one red thing, always last. */
-function Emergency({ number = '911' }: { number?: string }) {
+/**
+ * The emergency number for the browser's region, for when the country's lines haven't loaded (or can't): 999 in the
+ * UK, 000 in Australia, 111 in New Zealand, 911 across North America, and 112 elsewhere, which mobile phones route
+ * to the local service almost everywhere. The same table as the apps' EmergencyNumber.
+ */
+export function emergencyNumber(language: string | undefined = typeof navigator === 'undefined' ? undefined : navigator.language): string {
+  const region = language?.split('-')[1]?.toUpperCase();
+  if (!region) return '911';
+  if (['GB', 'IM', 'JE', 'GG'].includes(region)) return '999';
+  if (region === 'AU') return '000';
+  if (region === 'NZ') return '111';
+  if (['US', 'CA', 'MX', 'PR', 'GU', 'VI', 'AS', 'MP'].includes(region)) return '911';
+  return '112';
+}
+
+/** "In danger right now? Call 911" (or the local number): the one red thing, always last. */
+function Emergency({ number = emergencyNumber() }: { number?: string }) {
   return <div className="help-emergency">
     <p className="small">In danger right now?</p>
     <a className="help-call" href={`tel:${number}`}>Call {number}</a>
@@ -349,8 +364,8 @@ function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiti
             <span><strong>{step.title}</strong>{step.note ? <span className="muted small"> {step.note}</span> : null}</span>
           </li>)}
         </ol>
-        {alert.state === 'OPEN' ? <p className="muted small">Stay where you feel safest. If nobody picks it up in 2 minutes, we’ll help you reach a friend, a ride or 911.</p> : null}
-        {alert.state === 'ACKNOWLEDGED' ? <p className="muted small">A staff member at the venue told us they’re coming. Hot Mess can’t confirm that or how long it will take. If you’re in danger, call 911.</p> : null}
+        {alert.state === 'OPEN' ? <p className="muted small">Stay where you feel safest. If nobody picks it up in 2 minutes, we’ll help you reach a friend, a ride or {emergencyNumber()}.</p> : null}
+        {alert.state === 'ACKNOWLEDGED' ? <p className="muted small">A staff member at the venue told us they’re coming. Hot Mess can’t confirm that or how long it will take. If you’re in danger, call {emergencyNumber()}.</p> : null}
       </section>
       <section className="help-section">
         <h3>What you sent</h3>
@@ -411,7 +426,7 @@ function Support({ sharedNote }: { sharedNote?: string | null }) {
   }, []);
   return <div className="help-support">
     {sharedNote ? <p className="help-note">{sharedNote}</p> : null}
-    {failed ? <p className="muted">These lines couldn’t load. In an emergency, call 911.</p>
+    {failed ? <p className="muted">These lines couldn’t load. In an emergency, call {emergencyNumber()}.</p>
       : !resources ? <p className="muted">Loading…</p>
       : <ul className="help-rows">
         {resources.lines.map((line) => <li key={line.id} className="help-line">
@@ -434,7 +449,7 @@ function Support({ sharedNote }: { sharedNote?: string | null }) {
       </ul>
     </section> : null}
     {resources?.checkedAt ? <p className="muted small">Checked {new Date(`${resources.checkedAt}T12:00:00`).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}.</p> : null}
-    <Emergency number={resources?.emergency ?? '911'} />
+    <Emergency number={resources?.emergency ?? emergencyNumber()} />
   </div>;
 }
 
