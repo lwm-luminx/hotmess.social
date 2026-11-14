@@ -2,9 +2,13 @@
 import Base from '../layouts/Base.astro';
 import StoreButtons from '../components/StoreButtons.astro';
 
-// Hot Mess sells no ads (Rick, 2026-11-14): nobody can buy a placement in it. Keep this page in step with what the
-// apps actually show: the audience's own announcements, free charity cards and labelled AudienceKit cards.
+// Hot Mess is ad-free (Rick, 2026-11-14): no outside ads, only sponsorships, meaning a sponsor pays to place existing
+// Hot Mess content (a venue's own listing or event). Keep this page in step with what the apps actually show.
 const youSee = [
+  {
+    title: 'Sponsored listings',
+    body: 'A venue or promoter can sponsor its own Hot Mess listing or event, so it also shows in a spot between listings. It’s the same listing you’d find anyway, labelled “Sponsored”, never the first thing you see and never an outside ad.',
+  },
   {
     title: 'Hot Mess announcements',
     body: 'News about Hot Mess itself, like a new feature or a change to the rules. Labelled “Announcement”.',
@@ -20,20 +24,20 @@ const youSee = [
 ];
 
 const neverDo = [
-  'Sell ads, promoted listings or placements in Hot Mess.',
+  'Run outside ads, banners or brand campaigns in Hot Mess.',
   'Sell or share your data with advertisers or data brokers.',
   'Let anyone target you by who you are, what you look like or who you’re into.',
   'Put tracking pixels or ad networks in Hot Mess.',
   'Charge you to use Hot Mess.',
 ];
 ---
-<Base title="How Hot Mess is paid for" description="Hot Mess is free and sells no ads. Nobody can pay to put a venue, an event or a brand in front of you.">
+<Base title="How Hot Mess is paid for" description="Hot Mess is free and ad-free. The only paid spots are sponsored Hot Mess listings, labelled and never targeted at you.">
   <main>
     <section class="hero">
       <div class="wrap">
         <p class="eyebrow">How Hot Mess is paid for</p>
-        <h1>No ads for sale.</h1>
-        <p class="lede">Hot Mess is free, and nobody can buy an ad in it. No venue, promoter or brand can pay to put a listing in front of you or push anyone else down the list.</p>
+        <h1>No ads. Just the night.</h1>
+        <p class="lede">Hot Mess is free and ad-free: no outside ads, banners or brand campaigns. The only thing anyone can pay for is a sponsored spot for their own Hot Mess listing, clearly labelled, and it never pushes anyone else off the list.</p>
       </div>
     </section>
 
@@ -64,7 +68,7 @@ const neverDo = [
     <section class="wrap" aria-labelledby="where">
       <article class="card where">
         <h2 id="where">Who pays for it</h2>
-        <p>Hot Mess is run by <a href="https://lovewins.media">Love Wins Media</a>, which builds <a href="https://audiencekit.com">AudienceKit</a>, the platform Hot Mess runs on. Love Wins Media covers the hosting, moderation and development.</p>
+        <p>Hot Mess is run by <a href="https://lovewins.media">Love Wins Media</a>, which builds <a href="https://audiencekit.com">AudienceKit</a>, the platform Hot Mess runs on. Sponsored listings help, and Love Wins Media covers the rest of the hosting, moderation and development.</p>
       </article>
     </section>
 

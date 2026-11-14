@@ -177,13 +177,14 @@ test('the home page links to the safety page', async ({ page }) => {
   await expect(page.locator('.site-footer').getByRole('link', { name: 'Safety', exact: true })).toHaveAttribute('href', '/safety');
 });
 
-test('the money page says Hot Mess sells no ads', async ({ page }) => {
+test('the money page says Hot Mess is ad-free with sponsored listings only', async ({ page }) => {
   await page.goto('/money');
   await expect(page).toHaveTitle('How Hot Mess is paid for · Hot Mess');
-  await expect(page.getByRole('heading', { name: 'No ads for sale.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No ads. Just the night.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sponsored listings' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Free cards for queer charities' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Small venue/ })).toHaveCount(0);
-  await expect(page.locator('.site-footer').getByRole('link', { name: 'No ads for sale' })).toHaveAttribute('href', '/money');
+  await expect(page.locator('.site-footer').getByRole('link', { name: 'Ad-free' })).toHaveAttribute('href', '/money');
 });
 
 test('the top nav links every page and marks the current one', async ({ page }) => {
