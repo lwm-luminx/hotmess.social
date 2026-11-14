@@ -1,10 +1,21 @@
 ---
 // New Relic browser monitoring: the "hotmess.social" browser app (Pro + SPA, distributed tracing on) in the Hot Mess
 // Productions account. new-relic-browser.html is New Relic's copy/paste snippet as generated; its licenseKey is the
-// account's browser key, which every page using it ships, so it isn't a secret. Replace the file with a fresh copy
-// from the browser app's settings to update the agent, then set privacy.cookies_enabled back to false in NREUM.init:
-// the site sets no analytics cookies and asks for no consent, so the agent must not keep a session cookie either.
-// Production builds only.
+// account's browser key, which every page using it ships, so it isn't a secret.
+//
+// What it may send is set in NREUM.init at the top of that file, and src/server/newRelicSnippet.test.ts holds it there:
+// - no cookie or stored session (privacy.cookies_enabled false): the site asks for no consent, so nothing is kept
+//   in the browser and visits can't be joined into a person;
+// - no session replay, session trace, click capture or console log forwarding;
+// - no request or response bodies (ajax.capture_payloads none);
+// - obfuscate rules rewrite every string before it leaves: record IDs become :id, share links /v/:code, anything
+//   under /app (the signed-in app) just /app, sign-in and search query values ?redacted, email addresses :email,
+//   and URL fragments are dropped.
+// New Relic still sees the visitor's IP address when the browser connects, as any server does; by its documentation it keeps only the
+// country, region and city it looks up from it.
+//
+// To update the agent, replace the file with a fresh copy from the browser app's settings and put the NREUM.init
+// line back as it was; the test fails until you do. Production builds only.
 import snippet from './new-relic-browser.html?raw';
 ---
 {import.meta.env.PROD && <Fragment set:html={snippet} />}
