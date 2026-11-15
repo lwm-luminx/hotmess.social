@@ -1,0 +1,26 @@
+---
+// A venue's safety poster, https://hotmess.social/help/<code> (audience_kit_api doc/SAFETY_ALERTS.md, "Safety
+// posters"): someone at the venue tells its staff on shift they feel unsafe, with no app or account. On an iPhone
+// without Hot Mess the App Clip claims the same link; everyone else (Android, desktop, an iPhone that opens it in
+// Safari) gets this page, which sends and follows the alert over the API's public REST calls (src/lib/posterSafetyApi.ts).
+import Base from '../../layouts/Base.astro';
+import { PosterHelpPage } from '../../app/GetHelp';
+import '../../app/signin.css';
+import '../../app/help.css';
+export const prerender = false;
+const code = Astro.params.code ?? '';
+if (!/^[0-9A-Za-z]{10}$/.test(code)) return new Response('Not found', { status: 404 });
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+---
+<Base title="Get help" description="Tell the staff on shift you need help, quietly. No app needed." canonical={false} noindex appClip>
+  <main class="wrap app" id="app">
+    <PosterHelpPage code={code} client:load />
+  </main>
+</Base>
+
+<style is:global>
+  .app { padding-top: 1.5rem; min-height: 50vh; }
+  .small { font-size: 0.875rem; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>

@@ -21,6 +21,8 @@ interface Props {
   appArgument?: string;
   /** The link preview's picture (a Public post's photo), in place of the Hot Mess card. */
   image?: string;
+  /** Offer the Hot Mess App Clip's card on load (a safety poster's /help/<code>), on an iPhone without the app. */
+  appClip?: boolean;
 }
 
 const {
@@ -30,6 +32,7 @@ const {
   noindex = false,
   appArgument,
   image: pageImage,
+  appClip = false,
 } = Astro.props;
 const canonical = hasCanonical ? new URL(Astro.url.pathname, Astro.site) : undefined;
 const image = pageImage ?? new URL('/og/hot-mess.png', Astro.site);
@@ -57,7 +60,7 @@ const path = Astro.url.pathname;
     <link rel="icon" href="/favicon.svg?v=misprint-1" type="image/svg+xml" sizes="any" />
     <meta name="theme-color" content="#a50000" />
     <!-- Safari's Smart App Banner: Open when the app is installed, Get when it isn't. -->
-    <meta name="apple-itunes-app" content={`app-id=${APP_STORE_ID}${appArgument ?? canonical ? `, app-argument=${appArgument ?? canonical}` : ''}`} />
+    <meta name="apple-itunes-app" content={`app-id=${APP_STORE_ID}${appArgument ?? canonical ? `, app-argument=${appArgument ?? canonical}` : ''}${appClip ? ', app-clip-bundle-id=social.hotmess.HotMess.Clip, app-clip-display=card' : ''}`} />
     <meta property="og:site_name" content="Hot Mess" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />

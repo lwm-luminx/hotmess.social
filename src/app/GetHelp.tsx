@@ -2,7 +2,7 @@
 // api/doc/design-system/SafetyAlerts.md). Mirrors hot_mess_ios HotMess/Features/Safety. Built so someone looking over
 // the user's shoulder sees nothing alarming: normal surfaces, no red except 911, and nothing here ever shows in chat
 // or on their profile.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Venue } from '../sdk';
 import {
   CONCERNS, PLACES, isActive, isUnanswered, lineNumbers, pickupAt, rideLink,
@@ -10,6 +10,7 @@ import {
 } from '../lib/safety';
 import { safety } from '../lib/safetyApi';
 import { APIError } from '../lib/api';
+import { posterSafety, type PosterVenue } from '../lib/posterSafetyApi';
 
 /** The venue "Get help" is about, with what "Message a friend" and "Get a ride" say. */
 interface HelpVenue { id: string; name: string; address: string | null; pickup?: RidePickup | null }
@@ -22,9 +23,22 @@ const helpVenue = (venue: Venue, point: string | null): HelpVenue => {
 const emptyDraft = (): SafetyDraft => ({ place: null, concerns: [], description: '' });
 
 // The API says what went wrong with a code (src/lib/apiErrors.ts), never with its message.
+// Except the poster page's limits, whose messages say what to do instead.
 const failure = (e: unknown) => e instanceof APIError && e.signedOut
   ? 'You’ve been signed out. Sign in again, or find a member of staff.'
-  : 'That didn’t go through. Try again, or find a member of staff.';
+  : e instanceof APIError && e.code === 'RATE_LIMITED'
+    ? `${e.message.includes('staff') ? e.message : 'Too many alerts from this phone just now.'} Or find any member of staff.`
+    : 'That didn’t go through. Try again, or find a member of staff.';
+
+/** The calls the flow makes: a signed-in member's (safetyApi), or a poster guest's (posterSafetyApi). */
+interface HelpApi {
+  send: (venueId: string, draft: SafetyDraft) => Promise<SafetyAlert>;
+  update: (id: string, draft: SafetyDraft) => Promise<SafetyAlert>;
+  remind: (id: string) => Promise<SafetyAlert>;
+  cancel: (id: string) => Promise<SafetyAlert>;
+  message: (id: string, body: string) => Promise<SafetyAlert>;
+  alert: (id: string) => Promise<SafetyAlert | null>;
+}
 
 /** A modal sheet: the browser's own dialog, so focus stays inside and Escape closes it. */
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -74,6 +88,33 @@ export function SafetyAlertPage({ id }: { id: string }) {
   return <section className="card help-page"><HelpFlow alertId={id} staffOnShift onClose={() => history.back()} inline /></section>;
 }
 
+/**
+ * A venue's safety poster, hotmess.social/help/<code>: the same flow for someone without the app or an account. It
+ * opens straight on "Tell staff quietly", since scanning the poster is the ask.
+ */
+export function PosterHelpPage({ code }: { code: string }) {
+  const api = useMemo(() => posterSafety(code), [code]);
+  const [poster, setPoster] = useState<PosterVenue | null | 'missing' | 'failed'>(null);
+  useEffect(() => {
+    let current = true;
+    api.venue().then((answer) => { if (current) setPoster(answer ?? 'missing'); }, () => { if (current) setPoster('failed'); });
+    return () => { current = false; };
+  }, [api]);
+  if (poster === null) return <section className="card help-page"><p className="muted">Loading…</p></section>;
+  if (poster === 'missing' || poster === 'failed') {
+    return <section className="card help-page">
+      <h1 className="help-page-title">Get help</h1>
+      <p>{poster === 'missing' ? 'This poster’s code isn’t in use any more.' : 'We couldn’t reach the venue’s staff from here just now.'} Find any member of staff, or ask at the bar.</p>
+      <Emergency />
+    </section>;
+  }
+  return <section className="card help-page">
+    <HelpFlow venue={{ id: poster.venue.id, name: poster.venue.name, address: null }} staffOnShift={poster.staffOnShift}
+      api={api} restore={api.restore} onClose={() => {}} inline startTelling />
+    <p className="muted small">No app or account needed. Only the venue’s staff see this, and nothing about you is shared.</p>
+  </section>;
+}
+
 /** "Need support?" from the account bar, any time. */
 export function SupportEntry() {
   const [open, setOpen] = useState(false);
@@ -85,12 +126,18 @@ export function SupportEntry() {
 
 type View = 'options' | 'tell' | 'add' | 'support';
 
-interface FlowProps { venue?: HelpVenue; alertId?: string; staffOnShift: boolean; onClose: () => void; inline?: boolean }
+interface FlowProps {
+  venue?: HelpVenue; alertId?: string; staffOnShift: boolean; onClose: () => void; inline?: boolean;
+  /** A poster guest's calls and their saved alert; a signed-in member's otherwise. */
+  api?: HelpApi; restore?: () => Promise<SafetyAlert | null>;
+  /** Open on the form rather than the options (the poster page). */
+  startTelling?: boolean;
+}
 
-function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: FlowProps) {
+function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline, api = safety, restore, startTelling }: FlowProps) {
   const [alert, setAlert] = useState<SafetyAlert | null>(null);
   const [venue, setVenue] = useState<HelpVenue | null>(given ?? null);
-  const [view, setView] = useState<View>('options');
+  const [view, setView] = useState<View>(startTelling ? 'tell' : 'options');
   const [draft, setDraft] = useState<SafetyDraft>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,11 +155,11 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
   useEffect(() => {
     let current = true;
     const load = alertId
-      ? safety.alert(alertId)
-      : safety.mine().then((alerts) => alerts.find((a) => isActive(a) && a.venue.id === given?.id) ?? null);
+      ? api.alert(alertId)
+      : restore ? restore() : safety.mine().then((alerts) => alerts.find((a) => isActive(a) && a.venue.id === given?.id) ?? null);
     load.then((found) => {
       if (!current) return;
-      if (found) apply(found); else if (alertId) setMissing(true);
+      if (found) { apply(found); setView('options'); } else if (alertId) setMissing(true);
     }, () => { if (current && alertId) setMissing(true); });
     return () => { current = false; };
   }, [alertId, given?.id]);
@@ -127,9 +174,10 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
     const timer = setInterval(() => {
       setNow(Date.now());
       ticks += 1;
-      if (ticks % 5 === 0 && document.visibilityState === 'visible') safety.alert(alertID).then((fresh) => { if (fresh) apply(fresh); }, () => {});
+      if (ticks % 5 === 0 && document.visibilityState === 'visible') api.alert(alertID).then((fresh) => { if (fresh) apply(fresh); }, () => {});
     }, 1000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alertID, active]);
 
   const run = async (action: () => Promise<SafetyAlert>) => {
@@ -149,11 +197,11 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
 
   const send = async () => {
     if (!venue) return;
-    if (await run(() => safety.send(venue.id, draft))) { setDraft(emptyDraft()); setView('options'); }
+    if (await run(() => api.send(venue.id, draft))) { setDraft(emptyDraft()); setView('options'); }
   };
   const addMore = async () => {
     if (!alert) return;
-    if (await run(() => safety.update(alert.id, draft))) { setDraft(emptyDraft()); setView('options'); }
+    if (await run(() => api.update(alert.id, draft))) { setDraft(emptyDraft()); setView('options'); }
   };
 
   const title = view === 'tell' ? 'Tell staff quietly' : view === 'add' ? 'Add more' : view === 'support' ? 'Need support?'
@@ -169,9 +217,9 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
   } else if (alert) {
     body = <AlertStatus alert={alert} venue={venue} rides={rides} now={now} busy={busy} keepsWaiting={keepsWaiting}
       onKeepWaiting={() => setKeepsWaiting(true)}
-      onRemind={() => { setKeepsWaiting(true); run(() => safety.remind(alert.id)); }}
-      onCancel={() => run(() => safety.cancel(alert.id))}
-      onMessage={(text) => run(() => safety.message(alert.id, text))}
+      onRemind={() => { setKeepsWaiting(true); run(() => api.remind(alert.id)); }}
+      onCancel={() => run(() => api.cancel(alert.id))}
+      onMessage={(text) => run(() => api.message(alert.id, text))}
       onAddMore={() => setView('add')} onSupport={() => setView('support')} />;
   } else if (missing) {
     body = <p className="muted">We couldn’t find that alert. It may belong to another account.</p>;
@@ -180,7 +228,9 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline }: Flow
   } else {
     body = <>
       <ul className="help-rows">
-        {venue && staffOnShift ? <li><HelpRow title="Tell staff I feel unsafe" subtitle="The staff on shift hear it quietly and can come find you."
+        {venue && (staffOnShift || restore) ? <li><HelpRow title="Tell staff I feel unsafe"
+          subtitle={staffOnShift ? 'The staff on shift hear it quietly and can come find you.'
+            : 'Nobody has the alerts on right now, so it goes to the managers if nobody picks it up. Finding staff in person may be faster.'}
           onClick={() => setView('tell')} /></li> : null}
         <EscapeRows venue={venue} rides={rides} onSupport={() => setView('support')} />
       </ul>
