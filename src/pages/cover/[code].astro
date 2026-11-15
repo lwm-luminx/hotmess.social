@@ -1,0 +1,24 @@
+---
+// A venue's lobby cover poster, https://hotmess.social/cover/<code> (audience_kit_api doc/DIGITAL_COVER_CHARGE.md,
+// "Cover poster"): pay tonight's cover, no app or account, and show the pass at the door. <code> is the venue's short
+// link code (VenueShortLink), so one printed poster never changes. On an iPhone without Hot Mess the App Clip claims
+// the same link and pays with Apple Pay; everyone else gets this page (src/app/CoverPage.tsx).
+import Base from '../../layouts/Base.astro';
+import { CoverPage } from '../../app/CoverPage';
+import '../../app/cover.css';
+export const prerender = false;
+const code = Astro.params.code ?? '';
+if (!/^[0-9A-Za-z]{8}$/.test(code)) return new Response('Not found', { status: 404 });
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+---
+<Base title="Pay cover" description="Pay tonight’s cover and show your pass at the door. No app needed." canonical={false} noindex appClip>
+  <main class="wrap app" id="app">
+    <CoverPage code={code} client:load />
+  </main>
+</Base>
+
+<style is:global>
+  .app { padding-top: 1.5rem; min-height: 50vh; }
+  .small { font-size: 0.875rem; }
+</style>
