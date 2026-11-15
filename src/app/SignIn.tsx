@@ -9,6 +9,18 @@ import './signin.css';
 
 type Method = 'apple' | 'google' | 'facebook';
 
+// Hot Mess is for adults (the terms say 18+), so nobody signs in on the web before confirming it, the same check
+// the apps make before sign-in. The confirmation is kept in this browser, so it's asked once.
+const ADULT_KEY = 'hotmess.adult';
+function confirmedAdult(): boolean {
+  try { return window.localStorage.getItem(ADULT_KEY) === '1'; } catch { return false; }
+}
+function rememberAdult(confirmed: boolean) {
+  try {
+    if (confirmed) window.localStorage.setItem(ADULT_KEY, '1'); else window.localStorage.removeItem(ADULT_KEY);
+  } catch { /* private browsing: asked again next time */ }
+}
+
 // How each method signs in, and its button. Apple's follows Apple's own style
 // (black, the Apple logo, "Continue with Apple"), and Google's Google's (white,
 // the "G" logo, "Continue with Google").
@@ -41,6 +53,7 @@ function GoogleLogo() {
 export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; lede?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adult, setAdult] = useState(confirmedAdult);
   // The ways in AudienceKit offers this audience, of the ones the website has
   // (Facebook, Apple when this build has a Services ID, and Google when it has a
   // client ID), with the warning
@@ -119,13 +132,24 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
           ? "Sign in to see what's happening around you. With Facebook, Hot Mess also finds your friends there."
           : "Sign in to see what's happening around you.")}
       </p>
+      <label className="signin-adult">
+        <input
+          type="checkbox"
+          checked={adult}
+          onChange={(event) => { setAdult(event.target.checked); rememberAdult(event.target.checked); }}
+        />
+        <span>
+          I'm 18 or older, and I agree to the <a href="https://audiencekit.com/terms/">Terms</a> and{' '}
+          <a href="https://audiencekit.com/privacy/">Privacy Policy</a>.
+        </span>
+      </label>
       <div className="signin-methods">
         {offered.map((method) => (
           <button
             key={method}
             className={METHODS[method].className}
             type="button"
-            disabled={busy || !asked || (method === 'apple' && !appleReady) || (method === 'google' && !googleReady)}
+            disabled={busy || !asked || !adult || (method === 'apple' && !appleReady) || (method === 'google' && !googleReady)}
             onClick={() => (warnings[method] ? setWarning(method) : signIn(method))}
           >
             {method === 'apple' ? <AppleLogo /> : method === 'google' ? <GoogleLogo /> : null}

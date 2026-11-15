@@ -1,0 +1,23 @@
+/* A venue's lobby cover poster page (src/app/CoverPage.tsx, src/pages/cover/[code].astro). */
+.cover-page { max-width: 520px; margin: 0 auto; padding: 1.25rem; display: grid; gap: 0.75rem; }
+.cover-page p { margin: 0; }
+.cover-eyebrow { font-weight: 800; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.cover-title { margin: 0; font-size: 1.7rem; line-height: 1.1; }
+.cover-event { font-weight: 600; font-size: 1.05rem; }
+.cover-price { font-size: 2rem; font-weight: 800; }
+.cover-checkout { display: grid; gap: 0.75rem; }
+.cover-quantity { display: flex; align-items: center; gap: 0.75rem; font-weight: 600; }
+.cover-quantity span { flex: 1; }
+.cover-quantity .button { min-width: 44px; min-height: 44px; padding: 0; font-size: 1.3rem; display: inline-flex; align-items: center; justify-content: center; }
+.cover-quantity output { min-width: 2ch; text-align: center; font-size: 1.2rem; font-weight: 800; }
+.cover-tiers { border: 0; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.cover-tiers legend { font-weight: 600; margin-bottom: 0.5rem; }
+.cover-tier { display: grid; grid-template-columns: auto 1fr auto; gap: 0.75rem; align-items: center; padding: 0.75rem 1rem;
+  border-radius: var(--radius); background: var(--surface-sunken); cursor: pointer; }
+.cover-pay { width: 100%; min-height: 48px; font-size: 1.05rem; }
+.cover-element { min-height: 120px; }
+.cover-error { color: var(--danger); font-weight: 600; }
+.cover-pass h2 { margin: 0; font-size: 1.15rem; }
+.cover-qr { background: #fff; border-radius: var(--radius); padding: 0.75rem; width: min(320px, 100%); justify-self: center; }
+.cover-qr svg { display: block; width: 100%; height: auto; }
+.cover-done { font-weight: 800; color: var(--accent); }

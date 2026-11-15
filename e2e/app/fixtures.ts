@@ -229,7 +229,6 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audie
       route.fulfill({ contentType: 'text/javascript', body: APPLE_SDK }));
     await page.route('https://accounts.google.com/gsi/**', (route) =>
       route.fulfill({ contentType: 'text/javascript', body: GOOGLE_SDK }));
-    await page.route('https://www.googletagmanager.com/**', (route) => route.abort());
     await page.route(`${IMAGES}/**`, (route) => route.request().url().includes('broken')
       ? route.fulfill({ status: 404 })
       : route.fulfill({ contentType: 'image/png', body: PNG }));
@@ -245,6 +244,9 @@ export const test = base.extend<{ api: MockAPI; signedIn: (token?: string, audie
     // Any uncaught script error fails the test.
     const errors: Error[] = [];
     page.on('pageerror', (error) => errors.push(error));
+    // The 18+ confirmation the sign-in card asks for (SignIn.tsx), already given: most tests are about what comes
+    // after it. A test of the confirmation itself clears it with its own init script.
+    await page.addInitScript(() => { localStorage.setItem('hotmess.adult', '1'); });
     await use(page);
     expect(errors, 'uncaught page errors').toEqual([]);
   },
