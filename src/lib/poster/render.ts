@@ -6,7 +6,7 @@ import { jpegPdf } from './pdf';
 import { posterStrings } from './strings';
 import { posterWords, sloganById, sloganFootnote, sloganSecondLine, SLOGANS, sloganText, type ArtKind, type SloganLanguage } from './slogans';
 
-export type FormatKey = 'letter' | 'print' | 'post' | 'story' | 'tv';
+export type FormatKey = 'letter' | 'print' | 'post' | 'portrait' | 'story' | 'wide' | 'tv';
 export type StyleKey = 'neon' | 'glitter' | 'riso' | 'sticker';
 export type QRMode = 'download' | 'event' | 'none';
 
@@ -44,8 +44,10 @@ export const DOWNLOAD_URL = 'https://hotmess.social/download';
 export const FORMATS: Record<FormatKey, Format> = {
   letter: { w: 850, h: 1100, label: 'Letter print', sub: '8.5 × 11 in · A4', exportScale: 3, page: [612, 792] },
   print: { w: 1100, h: 1700, label: 'Board print', sub: '11 × 17 in · A3', exportScale: 2, page: [792, 1224] },
-  post: { w: 1080, h: 1080, label: 'Instagram post', sub: '1:1', exportScale: 1, page: [810, 810] },
+  post: { w: 1080, h: 1080, label: 'Instagram post', sub: '1:1 square', exportScale: 1, page: [810, 810] },
+  portrait: { w: 1080, h: 1350, label: 'Instagram portrait', sub: '4:5 · Threads, Facebook', exportScale: 1, page: [810, 1012] },
   story: { w: 1080, h: 1920, label: 'Instagram story', sub: '9:16', exportScale: 1, page: [810, 1440] },
+  wide: { w: 1600, h: 900, label: 'Wide post', sub: '16:9 · X, Bluesky, Facebook', exportScale: 1, page: [1200, 675] },
   tv: { w: 1920, h: 1080, label: 'Venue TV', sub: '16:9 screen', exportScale: 1, page: [1440, 810] },
 };
 
@@ -451,14 +453,14 @@ function fitFont(ctx: Ctx, weight: number, size: number, family: string, text: s
 
 function layout(format: FormatKey, w: number, h: number, u: number, qr: boolean): Layout {
   const m = 6 * u, fh = qr ? 19 * u : 12 * u;
-  if (format === 'tv') {
+  if (format === 'tv' || format === 'wide') {
     return {
       art: { x: m, y: m, w: w * 0.34, h: h - 2 * m },
       text: { x: w * 0.4, y: m + 2 * u, w: w * 0.6 - m, h: h - 2 * m - fh - 6 * u },
       footer: { x: w * 0.4, y: h - m - fh, w: w * 0.6 - m, h: fh },
     };
   }
-  const ah = h * (format === 'post' ? 0.27 : 0.31);
+  const ah = h * (format === 'post' ? 0.27 : format === 'portrait' ? 0.29 : 0.31);
   return {
     art: { x: m, y: m, w: w - 2 * m, h: ah },
     text: { x: m, y: m + ah + 3 * u, w: w - 2 * m, h: h - 2 * m - ah - fh - 7 * u },
