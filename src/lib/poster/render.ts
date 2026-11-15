@@ -3,7 +3,8 @@
 
 import qrcode from 'qrcode-generator';
 import { jpegPdf } from './pdf';
-import { posterWords, sloganById, SLOGANS, type ArtKind, type Slogan } from './slogans';
+import { posterStrings } from './strings';
+import { posterWords, sloganById, sloganFootnote, sloganSecondLine, SLOGANS, sloganText, type ArtKind, type SloganLanguage } from './slogans';
 
 export type FormatKey = 'letter' | 'print' | 'post' | 'story' | 'tv';
 export type StyleKey = 'neon' | 'glitter' | 'riso' | 'sticker';
@@ -23,6 +24,8 @@ export interface PosterOptions {
   art: ArtKind | 'auto';
   qr: QRMode;
   event: PosterEvent;
+  /** The language the line and footer print in; English when left out. */
+  language?: SloganLanguage;
 }
 
 interface Format {
@@ -414,10 +417,10 @@ export const LOOKS: Record<StyleKey, Look> = {
 
 /* ---------- type ---------- */
 
-function fitText(ctx: Ctx, slogan: Slogan, box: Box, u: number, lineHeight: number): Fit {
-  const words = posterWords(slogan.text);
+function fitText(ctx: Ctx, text: string, box: Box, u: number, lineHeight: number, maxSize = 26 * u): Fit {
+  const words = posterWords(text);
   let last: Omit<Fit, 'y0'> | null = null;
-  for (let s = Math.min(box.h, 26 * u); s >= 2 * u; s *= 0.96) {
+  for (let s = Math.min(box.h, maxSize); s >= 2 * u; s *= 0.96) {
     ctx.font = `900 ${s}px ${DISPLAY}`;
     const space = ctx.measureText(' ').width * 1.1;
     const lines: FitLine[] = [];
@@ -492,12 +495,14 @@ export function qrTarget(o: PosterOptions): string | null {
 }
 
 function drawFooter(ctx: Ctx, f: Box, S: Look, u: number, o: PosterOptions) {
+  const t = posterStrings(o.language ?? 'en');
   ctx.save(); ctx.translate(f.x, f.y + f.h - 3.6 * u); ctx.rotate(-0.07);
   ctx.font = `${8 * u}px ${HAND}`; ctx.fillStyle = S.mark;
   if (S.markGlow) { ctx.shadowColor = S.mark; ctx.shadowBlur = 1.6 * u; }
   ctx.fillText('hot mess', 0, 0); ctx.restore();
   ctx.font = `600 ${1.7 * u}px ${BODY}`; ctx.fillStyle = S.ink; ctx.globalAlpha = 0.85;
-  ctx.fillText('hotmess.social · find your night', f.x, f.y + f.h - 0.3 * u); ctx.globalAlpha = 1;
+  fitFont(ctx, 600, 1.7 * u, BODY, `hotmess.social · ${t.tagline}`, qrTarget(o) ? f.w * 0.42 : f.w);
+  ctx.fillText(`hotmess.social · ${t.tagline}`, f.x, f.y + f.h - 0.3 * u); ctx.globalAlpha = 1;
 
   const target = qrTarget(o);
   if (!target) return;
@@ -506,14 +511,14 @@ function drawFooter(ctx: Ctx, f: Box, S: Look, u: number, o: PosterOptions) {
   const tx = qx - 2.4 * u, maxW = tx - (f.x + 30 * u);
   const lines: [number, number, string, string, number][] = o.qr === 'event'
     ? [[900, 4.6, DISPLAY, o.event.night.toUpperCase(), 4.4], [800, 2.3, BODY, o.event.venue, 8.4], [400, 2.1, BODY, o.event.when, 11.6]]
-    : [[900, 4.6, DISPLAY, 'GET HOT MESS', 4.4], [800, 2.3, BODY, 'Free on iPhone and Android', 8.4], [400, 2.1, BODY, 'Find your people tonight', 11.6]];
+    : [[900, 4.6, DISPLAY, t.getApp('Hot Mess').toUpperCase(), 4.4], [800, 2.3, BODY, t.freeOnPhones, 8.4], [400, 2.1, BODY, t.findYourPeople, 11.6]];
   ctx.textAlign = 'right'; ctx.fillStyle = S.ink;
   for (const [weight, size, family, text, y] of lines) {
     fitFont(ctx, weight, size * u, family, text, maxW);
     ctx.fillText(text, tx, qy + y * u);
   }
   ctx.globalAlpha = 0.7; ctx.font = `600 ${1.5 * u}px ${BODY}`;
-  ctx.fillText(o.qr === 'event' ? 'Scan to open it in Hot Mess →' : 'Scan to download →', tx, qy + q - 0.4 * u);
+  ctx.fillText(o.qr === 'event' ? t.scanToOpen('Hot Mess') : t.scanToDownload, tx, qy + q - 0.4 * u);
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
@@ -540,12 +545,21 @@ export function renderPoster(canvas: HTMLCanvasElement, o: PosterOptions, scale:
     ctx.restore();
   });
 
-  const fit = fitText(ctx, slogan, L.text, u, S.lineHeight);
+  // A bilingual poster sets the English line, then the Spanish one smaller under it, the pair centred in the box.
+  const second = sloganSecondLine(slogan, o.language);
+  const fit = fitText(ctx, sloganText(slogan, o.language), second ? { ...L.text, h: L.text.h * 0.56 } : L.text, u, S.lineHeight);
+  const fit2 = second ? fitText(ctx, second, { ...L.text, h: L.text.h * 0.38 }, u, S.lineHeight, fit.size * 0.72) : null;
+  if (fit2) {
+    const gap = fit.size * 0.4, start = L.text.y + (L.text.h - (fit.th + gap + fit2.th)) / 2;
+    fit.y0 = start; fit2.y0 = start + fit.th + gap;
+  }
   ctx.font = `900 ${fit.size}px ${DISPLAY}`; ctx.textBaseline = 'alphabetic';
   S.text(ctx, fit, L.text, u, R);
-  if (slogan.footnote) {
+  if (fit2) { ctx.font = `900 ${fit2.size}px ${DISPLAY}`; S.text(ctx, fit2, L.text, u, R); }
+  const footnote = sloganFootnote(slogan, o.language);
+  if (footnote) {
     ctx.font = `600 ${2 * u}px ${BODY}`; ctx.fillStyle = S.ink; ctx.globalAlpha = 0.9;
-    ctx.fillText(slogan.footnote, L.text.x, Math.min(fit.y0 + fit.th + 4 * u, L.footer.y - u)); ctx.globalAlpha = 1;
+    ctx.fillText(footnote, L.text.x, Math.min(fit.y0 + fit.th + 4 * u, L.footer.y - u)); ctx.globalAlpha = 1;
   }
   drawFooter(ctx, L.footer, S, u, o);
   S.overlay?.(ctx, w, h);

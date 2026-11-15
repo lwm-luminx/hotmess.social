@@ -11,6 +11,7 @@
     "e2e": "playwright test --project=app",
     "e2e:live": "E2E_SUITE=live playwright test --project=live",
     "generate-types": "wrangler types",
+    "sync-slogans": "node scripts/sync-slogans.mjs",
     "deploy": "npm run build && wrangler deploy"
   },
   "engines": {
