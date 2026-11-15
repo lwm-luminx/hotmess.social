@@ -21,6 +21,14 @@ createServer((req, res) => {
     return res.end(JSON.stringify({ data: { me: { self: { id: 'e2e-viewer' } } } }));
   }
   if (req.headers.authorization !== 'Bearer fixture-service-jwt') { res.statusCode = 401; return res.end('{}'); }
+  // The venue's board for its web sign (/venues/<id>/display), which the Velvet cast receiver falls back to.
+  if (url.pathname === `/v1/public/venues/${venue.id}/tonight`) return res.end(JSON.stringify({
+    venue: { id: venue.id, title: venue.title, time_zone: 'America/Los_Angeles' }, night: '2026-11-15',
+    events: [{ id: event.id, name: event.title }],
+    lineup: [{ id: 'a1', kind: 'act', role: 'dj', title: null, people: [{ name: 'DJ Fallback' }], more: 0,
+      starts_at: null, start_timing: 'none', state: 'on' }],
+    slogans: null,
+  }));
   if (url.pathname === '/v1/public/listings') return res.end(JSON.stringify({ listings: records, next_page: null, page_count: 1 }));
   const record = records.find(item => `/v1/public${item.path}` === url.pathname);
   res.statusCode = record ? 200 : 404;
