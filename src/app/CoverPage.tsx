@@ -65,7 +65,10 @@ export function CoverPage({ code }: { code: string }) {
         if (saved) {
           try {
             const admission = await coverPoster.confirm(saved.id, saved.token);
-            if (current) setPass(admission);
+            // Paid, or back from the bank's check (Stripe adds payment_intent to the address): show the pass. A
+            // checkout someone left before paying is forgotten, so the page offers to pay again.
+            const returning = new URLSearchParams(window.location.search).has('payment_intent');
+            if (admission.pass_secret || returning) { if (current) setPass(admission); } else saveCover(code, null);
           } catch (e) {
             if ((e as { status?: number }).status === 404) saveCover(code, null);
           }
