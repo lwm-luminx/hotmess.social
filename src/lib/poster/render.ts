@@ -2,6 +2,7 @@
 // The look is the late-night Hot Mess one (neon, glitter, riso, stickers), not the AudienceKit design system.
 
 import qrcode from 'qrcode-generator';
+import { addressLines } from './address';
 import { jpegPdf } from './pdf';
 import { posterStrings } from './strings';
 import { posterWords, sloganById, sloganFootnote, sloganSecondLine, SLOGANS, sloganText, type ArtKind, type SloganLanguage } from './slogans';
@@ -511,8 +512,13 @@ function drawFooter(ctx: Ctx, f: Box, S: Look, u: number, o: PosterOptions) {
   const q = Math.min(f.h, 17 * u), qx = f.x + f.w - q, qy = f.y + f.h - q;
   drawQR(ctx, target, qx, qy, q, u);
   const tx = qx - 2.4 * u, maxW = tx - (f.x + 30 * u);
+  // A venue's address prints on two lines, the street and then the town, under the night; the time follows.
+  const [street = '', ...town] = addressLines(o.event.venue);
+  const eventLines: [number, number, string, string][] = [[900, 4.6, DISPLAY, o.event.night.toUpperCase()],
+    [800, 2.3, BODY, street], ...town.map((line): [number, number, string, string] => [600, 2.1, BODY, line]),
+    [400, 2.1, BODY, o.event.when]];
   const lines: [number, number, string, string, number][] = o.qr === 'event'
-    ? [[900, 4.6, DISPLAY, o.event.night.toUpperCase(), 4.4], [800, 2.3, BODY, o.event.venue, 8.4], [400, 2.1, BODY, o.event.when, 11.6]]
+    ? eventLines.filter(([, , , text], i) => i === 0 || text).map((line, i) => [...line, i === 0 ? 4.4 : 5.4 + i * 3] as [number, number, string, string, number])
     : [[900, 4.6, DISPLAY, t.getApp('Hot Mess').toUpperCase(), 4.4], [800, 2.3, BODY, t.freeOnPhones, 8.4], [400, 2.1, BODY, t.findYourPeople, 11.6]];
   ctx.textAlign = 'right'; ctx.fillStyle = S.ink;
   for (const [weight, size, family, text, y] of lines) {

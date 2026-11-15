@@ -7,6 +7,7 @@ import PrintPosters from './PrintPosters';
 import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, sloganText, type ArtKind, type SloganLanguage, type SloganTheme } from '../../lib/poster/slogans';
 import { LANGUAGES } from '../../lib/poster/strings';
 import { NETWORKS, composeUrl, shareCaption, shareFormat, shareLink, type Network } from '../../lib/poster/share';
+import { addressLines } from '../../lib/poster/address';
 import {
   FORMATS, LOOKS, exportPdf, exportPng, exportSize, loadPosterFonts, posterFilename, renderPoster,
   type FormatKey, type PosterOptions, type QRMode, type StyleKey,
@@ -169,7 +170,7 @@ function ListingSearch({ kind, id, onPick, onSignedOut }: {
               {found.map((l) => (
                 <li key={l.id}>
                   <button type="button" onClick={() => (kind === 'event' ? setVenue(l) : onPick(l))}>
-                    <b>{l.name}</b><small>{l.place}</small>
+                    <b>{l.name}</b><small>{addressLines(l.place).map((line, i) => <span key={i} className="line">{line}</span>)}</small>
                   </button>
                 </li>
               ))}
@@ -223,7 +224,7 @@ function NightPicker({ venue, onPick, onBack, onSignedOut }: {
   return (
     <div className="listing-search">
       <div className="picked">
-        <p><b>{venue.name}</b><small>{venue.place}</small></p>
+        <p><b>{venue.name}</b><small>{addressLines(venue.place).map((line, i) => <span key={i} className="line">{line}</span>)}</small></p>
         <button type="button" className="button secondary" onClick={onBack}>Change venue</button>
       </div>
       <div className="results" aria-live="polite">
