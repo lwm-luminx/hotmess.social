@@ -3,7 +3,8 @@ import { api, APIError } from '../../lib/api';
 import { reportError } from '../../lib/errorReporting';
 import { eventListing, listingFromQuery, posterLines, venueListing, type ListingKind, type ListingRef, type PosterListing } from '../../lib/poster/listing';
 import SignedIn from '../../app/SignedIn';
-import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, type ArtKind, type SloganTheme } from '../../lib/poster/slogans';
+import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, sloganText, type ArtKind, type SloganLanguage, type SloganTheme } from '../../lib/poster/slogans';
+import { LANGUAGES } from '../../lib/poster/strings';
 import {
   FORMATS, LOOKS, exportPdf, exportPng, exportSize, loadPosterFonts, posterFilename, renderPoster,
   type FormatKey, type PosterOptions, type QRMode, type StyleKey,
@@ -20,6 +21,8 @@ const PRESETS: Preset[] = [
   { label: 'Bring all of you', options: { slogan: 'bring-all-of-you', format: 'story', style: 'neon', art: 'auto', qr: 'none', event: NO_EVENT } },
   { label: 'For the bar TV', options: { slogan: 'beautiful-person', format: 'tv', style: 'neon', art: 'auto', qr: 'download', event: NO_EVENT } },
   { label: 'Swipe less', options: { slogan: 'swipe-less', format: 'post', style: 'sticker', art: 'mic', qr: 'none', event: NO_EVENT } },
+  { label: 'Latin night', options: { slogan: 'latin-roll-rs', format: 'letter', style: 'neon', art: 'auto', qr: 'download', event: NO_EVENT, language: 'en-es' } },
+  { label: 'Bi night', options: { slogan: 'bi-both', format: 'post', style: 'glitter', art: 'auto', qr: 'download', event: NO_EVENT } },
 ];
 
 const QR_MODES: { value: QRMode; label: string }[] = [
@@ -46,7 +49,10 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
     const v = q.get(key);
     return v && allowed.includes(v) ? (v as T) : fallback;
   };
-  const slogan = sloganById(q.get('slogan') ?? '') ?? sloganById(base.slogan)!;
+  const language = pick<SloganLanguage>('lang', LANGUAGES.map((l) => l.value), 'en');
+  const asked = sloganById(q.get('slogan') ?? '');
+  // A Spanish poster only offers the lines that have a Spanish version.
+  const slogan = (asked && (language === 'en' || asked.es) ? asked : undefined) ?? sloganById(base.slogan)!;
   const adult = q.get('adult') === '1' || slogan.rating === 'adult_venue';
   const listing = listingFromQuery(q);
   return {
@@ -59,6 +65,7 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
       art: pick<ArtKind | 'auto'>('art', ['auto', ...Object.keys(ART_LABELS)], 'auto'),
       qr: pick<QRMode>('qr', QR_MODES.map((m) => m.value), listing ? 'event' : base.qr),
       event: NO_EVENT,
+      language,
     },
   };
 }
@@ -66,6 +73,7 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
 function toQuery(o: PosterOptions, adult: boolean, listing: ListingRef | null): string {
   const q = new URLSearchParams({ slogan: o.slogan, format: o.format, look: o.style });
   if (o.art !== 'auto') q.set('art', o.art);
+  if (o.language && o.language !== 'en') q.set('lang', o.language);
   // A listing implies its QR code; an event-mode poster with none yet keeps qr=event.
   if (o.qr === 'event' && listing) q.set(listing.kind, listing.id);
   else if (o.qr !== 'download') q.set('qr', o.qr);
@@ -239,12 +247,19 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const poster = useMemo<PosterOptions>(() => ({ ...options, event: posterLines(listing, link) }), [options, listing, link]);
 
   const slogan = sloganById(options.slogan) ?? SLOGANS[0];
-  const available = useMemo(() => slogansFor(adult), [adult]);
+  const language = options.language ?? 'en';
+  const available = useMemo(() => slogansFor(adult, language), [adult, language]);
   const update = (patch: Partial<PosterOptions>) => { setOptions((o) => ({ ...o, ...patch })); setStatus(''); };
 
   const onAdult = (on: boolean) => {
     setAdult(on);
-    if (!on && slogan.rating === 'adult_venue') update({ slogan: PRESETS[0].options.slogan });
+    if (!on && slogan.rating === 'adult_venue') update({ slogan: slogansFor(false, language)[0].id });
+  };
+
+  // A line without a Spanish version can't print on a Spanish poster, so switching moves to one that can.
+  const onLanguage = (next: SloganLanguage) => {
+    const lines = slogansFor(adult, next);
+    update({ language: next, slogan: lines.some((s) => s.id === options.slogan) ? options.slogan : lines[0].id });
   };
 
   const clearListing = () => { setListing(null); setLink(null); };
@@ -326,6 +341,19 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
         <h2 id="builder-h">Make it yours</h2>
         <form className="controls" onSubmit={(e) => e.preventDefault()}>
           <fieldset>
+            <legend>Language</legend>
+            <div className="qr-modes">
+              {LANGUAGES.map((l) => (
+                <label key={l.value}>
+                  <input type="radio" name="language" value={l.value} checked={language === l.value} onChange={() => onLanguage(l.value)} />
+                  {l.label}
+                </label>
+              ))}
+            </div>
+            {language !== 'en' && <p className="hint">Only the lines whose joke works in Spanish are offered. {language === 'en-es' ? 'The Spanish prints smaller under the English.' : ''}</p>}
+          </fieldset>
+
+          <fieldset>
             <legend>The line</legend>
             <label className="check">
               <input type="checkbox" checked={adult} onChange={(e) => onAdult(e.target.checked)} />
@@ -341,7 +369,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
                     {lines.map((s) => (
                       <label key={s.id} className={s.id === options.slogan ? 'opt on' : 'opt'}>
                         <input type="radio" name="slogan" value={s.id} checked={s.id === options.slogan} onChange={() => update({ slogan: s.id })} />
-                        <span>{plainText(s.text)}{s.rating === 'adult_venue' && <em className="tag">Adult venues</em>}</span>
+                        <span>{plainText(sloganText(s, language))}{language === 'en-es' && s.es && s.es !== s.text && <small lang="es"> {plainText(s.es)}</small>}{s.rating === 'adult_venue' && <em className="tag">Adult venues</em>}</span>
                       </label>
                     ))}
                   </div>
@@ -406,7 +434,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
 
         <div className="stage">
           <div className="frame">
-            <PosterCanvas options={poster} width={760} fontsReady={fontsReady} label={`Poster preview: ${plainText(slogan.text)}`} />
+            <PosterCanvas options={poster} width={760} fontsReady={fontsReady} label={`Poster preview: ${plainText(sloganText(slogan, language))}`} />
           </div>
           <div className="bar">
             <p className="meta">{FORMATS[options.format].label} · {FORMATS[options.format].sub} · {exportSize(options.format)}</p>

@@ -66,69 +66,124 @@
       "image": "/marquee/harness-hymnal-neon.jpg"
     },
     {
+      "id": "harness-or-hymnal",
+      "adult": false,
+      "image": "/marquee/harness-or-hymnal-glitter.jpg"
+    },
+    {
       "id": "friends-season",
       "adult": false,
-      "image": "/marquee/friends-season-glitter.jpg"
+      "image": "/marquee/friends-season-sticker.jpg"
     },
     {
       "id": "bring-all-of-you",
       "adult": false,
-      "image": "/marquee/bring-all-of-you-sticker.jpg"
+      "image": "/marquee/bring-all-of-you-riso.jpg"
     },
     {
       "id": "not-mining",
       "adult": false,
-      "image": "/marquee/not-mining-riso.jpg"
+      "image": "/marquee/not-mining-neon.jpg"
     },
     {
       "id": "broke-fabulous",
       "adult": false,
-      "image": "/marquee/broke-fabulous-neon.jpg"
+      "image": "/marquee/broke-fabulous-glitter.jpg"
     },
     {
       "id": "sober-vibe",
       "adult": false,
-      "image": "/marquee/sober-vibe-glitter.jpg"
+      "image": "/marquee/sober-vibe-sticker.jpg"
     },
     {
       "id": "tags-doors",
       "adult": false,
-      "image": "/marquee/tags-doors-sticker.jpg"
+      "image": "/marquee/tags-doors-riso.jpg"
     },
     {
       "id": "say-hi",
       "adult": false,
-      "image": "/marquee/say-hi-riso.jpg"
+      "image": "/marquee/say-hi-neon.jpg"
     },
     {
       "id": "ask-their-name",
       "adult": true,
-      "image": "/marquee/ask-their-name-neon.jpg"
+      "image": "/marquee/ask-their-name-glitter.jpg"
+    },
+    {
+      "id": "latin-roll-rs",
+      "adult": false,
+      "image": "/marquee/latin-roll-rs-sticker.jpg"
+    },
+    {
+      "id": "latin-gorgeous",
+      "adult": false,
+      "image": "/marquee/latin-gorgeous-riso.jpg"
+    },
+    {
+      "id": "esp-button",
+      "adult": false,
+      "image": "/marquee/esp-button-neon.jpg"
+    },
+    {
+      "id": "bilingual-bisexual",
+      "adult": false,
+      "image": "/marquee/bilingual-bisexual-glitter.jpg"
+    },
+    {
+      "id": "bi-both",
+      "adult": false,
+      "image": "/marquee/bi-both-sticker.jpg"
+    },
+    {
+      "id": "por-que-no",
+      "adult": false,
+      "image": "/marquee/por-que-no-riso.jpg"
+    },
+    {
+      "id": "why-choose",
+      "adult": false,
+      "image": "/marquee/why-choose-neon.jpg"
+    },
+    {
+      "id": "spanglish",
+      "adult": false,
+      "image": "/marquee/spanglish-glitter.jpg"
+    },
+    {
+      "id": "two-languages",
+      "adult": false,
+      "image": "/marquee/two-languages-sticker.jpg"
     },
     {
       "id": "cheeky-every-sense",
       "adult": false,
-      "image": "/marquee/cheeky-every-sense-glitter.jpg"
+      "image": "/marquee/cheeky-every-sense-riso.jpg"
     },
     {
       "id": "little-cheek",
       "adult": false,
-      "image": "/marquee/little-cheek-sticker.jpg"
+      "image": "/marquee/little-cheek-neon.jpg"
     },
     {
       "id": "other-cheek",
       "adult": false,
-      "image": "/marquee/other-cheek-riso.jpg"
+      "image": "/marquee/other-cheek-glitter.jpg"
     },
     {
       "id": "cheek-kisses",
       "adult": false,
-      "image": "/marquee/cheek-kisses-neon.jpg"
+      "image": "/marquee/cheek-kisses-sticker.jpg"
+    },
+    {
+      "id": "brothers-in-christ",
+      "adult": false,
+      "image": "/marquee/brothers-in-christ-riso.jpg"
     },
     {
       "id": "grab-a-cheek",
       "adult": true,
-      "image": "/marquee/grab-a-cheek-glitter.jpg"
+      "image": "/marquee/grab-a-cheek-neon.jpg"
     }
   ]
 }
