@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, APIError } from '../../lib/api';
 import { reportError } from '../../lib/errorReporting';
-import { eventListing, listingFromQuery, posterLines, venueListing, type ListingKind, type ListingRef, type PosterListing } from '../../lib/poster/listing';
+import { eventListing, listingFromQuery, nightsOf, posterLines, seriesListing, venueListing, type ListingRef, type PosterListing } from '../../lib/poster/listing';
 import SignedIn from '../../app/SignedIn';
-import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, type ArtKind, type SloganTheme } from '../../lib/poster/slogans';
+import PrintPosters from './PrintPosters';
+import { ART_LABELS, SLOGANS, THEMES, plainText, sloganById, slogansFor, sloganText, type ArtKind, type SloganLanguage, type SloganTheme } from '../../lib/poster/slogans';
+import { LANGUAGES } from '../../lib/poster/strings';
+import { NETWORKS, composeUrl, shareCaption, shareFormat, shareLink, type Network } from '../../lib/poster/share';
+import { addressLines } from '../../lib/poster/address';
 import {
   FORMATS, LOOKS, exportPdf, exportPng, exportSize, loadPosterFonts, posterFilename, renderPoster,
   type FormatKey, type PosterOptions, type QRMode, type StyleKey,
@@ -20,6 +24,8 @@ const PRESETS: Preset[] = [
   { label: 'Bring all of you', options: { slogan: 'bring-all-of-you', format: 'story', style: 'neon', art: 'auto', qr: 'none', event: NO_EVENT } },
   { label: 'For the bar TV', options: { slogan: 'beautiful-person', format: 'tv', style: 'neon', art: 'auto', qr: 'download', event: NO_EVENT } },
   { label: 'Swipe less', options: { slogan: 'swipe-less', format: 'post', style: 'sticker', art: 'mic', qr: 'none', event: NO_EVENT } },
+  { label: 'Latin night', options: { slogan: 'latin-roll-rs', format: 'letter', style: 'neon', art: 'auto', qr: 'download', event: NO_EVENT, language: 'en-es' } },
+  { label: 'Bi night', options: { slogan: 'bi-both', format: 'post', style: 'glitter', art: 'auto', qr: 'download', event: NO_EVENT } },
 ];
 
 const QR_MODES: { value: QRMode; label: string }[] = [
@@ -28,12 +34,14 @@ const QR_MODES: { value: QRMode; label: string }[] = [
   { value: 'none', label: 'No QR code' },
 ];
 
-/** What the poster is for: a venue, a night, or Hot Mess itself (the download poster). */
-type Subject = ListingKind | 'app';
+/** What the poster is for: a venue, a night (a one-off event or a whole series), or Hot Mess itself (the download poster). */
+type Subject = 'venue' | 'event' | 'app';
+
+const subjectOf = (listing: ListingRef): Subject => (listing.kind === 'venue' ? 'venue' : 'event');
 
 const SUBJECTS: { value: Subject; label: string; sub: string }[] = [
   { value: 'venue', label: 'Your venue', sub: 'Its code opens the venue in Hot Mess' },
-  { value: 'event', label: 'A night', sub: 'Its code opens the night in Hot Mess' },
+  { value: 'event', label: 'A night', sub: 'Find its venue, then pick the night or the series' },
   { value: 'app', label: 'Hot Mess', sub: 'Its code downloads the app' },
 ];
 
@@ -46,7 +54,10 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
     const v = q.get(key);
     return v && allowed.includes(v) ? (v as T) : fallback;
   };
-  const slogan = sloganById(q.get('slogan') ?? '') ?? sloganById(base.slogan)!;
+  const language = pick<SloganLanguage>('lang', LANGUAGES.map((l) => l.value), 'en');
+  const asked = sloganById(q.get('slogan') ?? '');
+  // A Spanish poster only offers the lines that have a Spanish version.
+  const slogan = (asked && (language === 'en' || asked.es) ? asked : undefined) ?? sloganById(base.slogan)!;
   const adult = q.get('adult') === '1' || slogan.rating === 'adult_venue';
   const listing = listingFromQuery(q);
   return {
@@ -59,6 +70,7 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
       art: pick<ArtKind | 'auto'>('art', ['auto', ...Object.keys(ART_LABELS)], 'auto'),
       qr: pick<QRMode>('qr', QR_MODES.map((m) => m.value), listing ? 'event' : base.qr),
       event: NO_EVENT,
+      language,
     },
   };
 }
@@ -66,6 +78,7 @@ function fromQuery(search: string): { options: PosterOptions; adult: boolean; li
 function toQuery(o: PosterOptions, adult: boolean, listing: ListingRef | null): string {
   const q = new URLSearchParams({ slogan: o.slogan, format: o.format, look: o.style });
   if (o.art !== 'auto') q.set('art', o.art);
+  if (o.language && o.language !== 'en') q.set('lang', o.language);
   // A listing implies its QR code; an event-mode poster with none yet keeps qr=event.
   if (o.qr === 'event' && listing) q.set(listing.kind, listing.id);
   else if (o.qr !== 'download') q.set('qr', o.qr);
@@ -98,15 +111,15 @@ export default function PosterStudio() {
   </SignedIn>;
 }
 
-type Found = { venues: PosterListing[]; events: PosterListing[] };
-
-/** Looks a venue or night up in Hot Mess by name; picking one makes it the poster's. */
+/** Looks a venue up in Hot Mess by name. For a night, picking the venue lists its nights to pick from. */
 function ListingSearch({ kind, id, onPick, onSignedOut }: {
-  kind?: ListingKind; id: string; onPick: (listing: PosterListing) => void; onSignedOut: () => void;
+  kind: 'venue' | 'event'; id: string; onPick: (listing: PosterListing) => void; onSignedOut: () => void;
 }) {
   const [term, setTerm] = useState('');
-  const [found, setFound] = useState<Found | null>(null);
+  const [found, setFound] = useState<PosterListing[] | null>(null);
   const [state, setState] = useState<'idle' | 'searching' | 'failed'>('idle');
+  // For a night: the venue picked, whose nights are listed.
+  const [venue, setVenue] = useState<PosterListing | null>(null);
 
   useEffect(() => {
     const search = term.trim();
@@ -115,9 +128,9 @@ function ListingSearch({ kind, id, onPick, onSignedOut }: {
     setState('searching');
     const timer = setTimeout(() => {
       api.posterSearch(search).then(
-        (r) => {
+        (venues) => {
           if (!current) return;
-          setFound({ venues: r.venues.map(venueListing), events: r.events.map((e) => eventListing(e)) });
+          setFound(venues.map(venueListing));
           setState('idle');
         },
         (e) => {
@@ -131,30 +144,15 @@ function ListingSearch({ kind, id, onPick, onSignedOut }: {
     return () => { current = false; clearTimeout(timer); };
   }, [term]);
 
-  const group = (title: string, listings: PosterListing[]) => listings.length > 0 && (
-    <div key={title}>
-      <h3>{title}</h3>
-      <ul>
-        {listings.map((l) => (
-          <li key={l.id}>
-            <button type="button" onClick={() => onPick(l)}>
-              <b>{l.name}</b><small>{[l.when, l.place].filter(Boolean).join(' · ')}</small>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  if (kind === 'event' && venue) {
+    return <NightPicker venue={venue} onPick={onPick} onBack={() => setVenue(null)} onSignedOut={onSignedOut} />;
+  }
 
-  const venues = kind === 'event' ? [] : found?.venues ?? [];
-  const events = kind === 'venue' ? [] : found?.events ?? [];
-  const none = found && venues.length + events.length === 0;
-  const what = kind === 'venue' ? 'your venue' : kind === 'event' ? 'your night' : 'your venue or night';
+  const none = found && found.length === 0;
   return (
     <div className="listing-search">
-      <label htmlFor={id}>Find {what}</label>
-      <input id={id} type="search" value={term} autoComplete="off"
-        placeholder={kind === 'venue' ? 'Venue name' : kind === 'event' ? 'Event or venue name' : 'Venue or event name'}
+      <label htmlFor={id}>{kind === 'venue' ? 'Find your venue' : 'Find the venue the night is at'}</label>
+      <input id={id} type="search" value={term} autoComplete="off" placeholder="Venue name"
         onChange={(e) => setTerm(e.target.value)} />
       <div className="results" aria-live="polite">
         {state === 'searching' && <p className="hint">Searching…</p>}
@@ -164,8 +162,78 @@ function ListingSearch({ kind, id, onPick, onSignedOut }: {
             <button type="button" className="link" onClick={onSignedOut}>sign in again</button>.
           </p>
         )}
-        {state === 'idle' && none && <p className="hint">Nothing in Hot Mess matches "{term.trim()}". {kind === 'venue' ? 'Listed venues show here.' : kind === 'event' ? 'Upcoming events show here.' : 'Upcoming events and listed venues show here.'}</p>}
-        {state === 'idle' && found && <>{group('Venues', venues)}{group('Upcoming events', events)}</>}
+        {state === 'idle' && none && <p className="hint">No venue in Hot Mess matches "{term.trim()}". Listed venues show here.</p>}
+        {state === 'idle' && found && found.length > 0 && (
+          <div>
+            <h3>Venues</h3>
+            <ul>
+              {found.map((l) => (
+                <li key={l.id}>
+                  <button type="button" onClick={() => (kind === 'event' ? setVenue(l) : onPick(l))}>
+                    <b>{l.name}</b><small>{addressLines(l.place).map((line, i) => <span key={i} className="line">{line}</span>)}</small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A venue's coming nights: each recurring series once, as a whole (its poster names the series and its schedule,
+ * never one of its dates), then the one-off events.
+ */
+function NightPicker({ venue, onPick, onBack, onSignedOut }: {
+  venue: PosterListing; onPick: (listing: PosterListing) => void; onBack: () => void; onSignedOut: () => void;
+}) {
+  const [nights, setNights] = useState<{ series: PosterListing[]; oneOffs: PosterListing[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let current = true;
+    api.posterNights(venue.id).then(
+      (events) => { if (current) setNights(nightsOf(events)); },
+      (e) => {
+        if (!current) return;
+        if (e instanceof APIError && e.signedOut) return onSignedOut();
+        if (!(e instanceof APIError) || e.reportable) reportError(e);
+        setFailed(true);
+      },
+    );
+    return () => { current = false; };
+  }, [venue.id]);
+
+  const group = (title: string, listings: PosterListing[]) => listings.length > 0 && (
+    <div key={title}>
+      <h3>{title}</h3>
+      <ul>
+        {listings.map((l) => (
+          <li key={l.id}>
+            <button type="button" onClick={() => onPick(l)}>
+              <b>{l.name}</b><small>{l.when}</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  return (
+    <div className="listing-search">
+      <div className="picked">
+        <p><b>{venue.name}</b><small>{addressLines(venue.place).map((line, i) => <span key={i} className="line">{line}</span>)}</small></p>
+        <button type="button" className="button secondary" onClick={onBack}>Change venue</button>
+      </div>
+      <div className="results" aria-live="polite">
+        {!nights && !failed && <p className="hint">Loading its nights…</p>}
+        {failed && <p className="hint">Hot Mess couldn't load this venue's nights. Try again in a moment.</p>}
+        {nights && nights.series.length + nights.oneOffs.length === 0 && (
+          <p className="hint">Nothing coming up at {venue.name} in Hot Mess. Make a poster for the venue itself instead.</p>
+        )}
+        {nights && <>{group('Regular nights', nights.series)}{group('One-off nights', nights.oneOffs)}</>}
       </div>
     </div>
   );
@@ -186,6 +254,7 @@ function qrHint(listing: PosterListing | null, link: string | null): string {
   if (!listing) return 'The poster takes its name, place and time from Hot Mess.';
   if (!link) return "Hot Mess couldn't make a link for this one, so the code opens the download page.";
   if (listing.kind === 'venue') return `The code is the venue's own link, ${link.replace(/^https:\/\//, '')}. It opens the venue in Hot Mess, or the app store on a phone without it, and it never expires.`;
+  if (listing.kind === 'series') return `A regular night's poster names the series and when it's on, not one date, so it stays up. Its code is the venue's own link, ${link.replace(/^https:\/\//, '')}, which shows the next one and never expires.`;
   return 'The poster takes its name, place and time from Hot Mess, and the code opens the night in Hot Mess for a year.';
 }
 
@@ -193,7 +262,9 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const [options, setOptions] = useState<PosterOptions>(PRESETS[0].options);
   const [adult, setAdult] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
-  const [busy, setBusy] = useState<'png' | 'pdf' | null>(null);
+  const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | null>(null);
+  // The caption for sharing, once someone edits it; until then it follows the poster.
+  const [caption, setCaption] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   // The venue or event the poster is for, and the share link its QR code opens.
   const [listing, setListing] = useState<PosterListing | null>(null);
@@ -208,7 +279,12 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
     setLoading(ref); setStatus('');
     const fetched = ref.kind === 'venue'
       ? api.posterVenue(ref.id).then((r) => ({ listing: venueListing(r.venue), link: r.link }))
-      : api.posterEvent(ref.id).then((r) => ({ listing: eventListing(r.event), link: r.link }));
+      : ref.kind === 'series'
+        ? api.posterSeries(ref.id).then((r) => ({ listing: seriesListing(r.series, r.events.find((e) => e.venue)?.venue), link: r.link }))
+        // A link to one date of a series makes the poster for the whole series.
+        : api.posterEvent(ref.id).then((r) => (r.event.eventSeries
+          ? api.posterSeries(r.event.eventSeries.id).then((s) => ({ listing: seriesListing(s.series, r.event.venue), link: s.link }))
+          : { listing: eventListing(r.event), link: r.link }));
     fetched.then(
       (r) => { setListing(r.listing); setLink(r.link); setLoading(null); },
       (e) => {
@@ -225,7 +301,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
     const initial = fromQuery(window.location.search);
     setOptions(initial.options);
     setAdult(initial.adult);
-    if (initial.listing && initial.options.qr === 'event') { setSubject(initial.listing.kind); choose(initial.listing); }
+    if (initial.listing && initial.options.qr === 'event') { setSubject(subjectOf(initial.listing)); choose(initial.listing); }
     else if (initial.options.qr === 'event') setSubject('venue');
     loadPosterFonts().then(() => setFontsReady(true));
   }, []);
@@ -239,12 +315,19 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const poster = useMemo<PosterOptions>(() => ({ ...options, event: posterLines(listing, link) }), [options, listing, link]);
 
   const slogan = sloganById(options.slogan) ?? SLOGANS[0];
-  const available = useMemo(() => slogansFor(adult), [adult]);
+  const language = options.language ?? 'en';
+  const available = useMemo(() => slogansFor(adult, language), [adult, language]);
   const update = (patch: Partial<PosterOptions>) => { setOptions((o) => ({ ...o, ...patch })); setStatus(''); };
 
   const onAdult = (on: boolean) => {
     setAdult(on);
-    if (!on && slogan.rating === 'adult_venue') update({ slogan: PRESETS[0].options.slogan });
+    if (!on && slogan.rating === 'adult_venue') update({ slogan: slogansFor(false, language)[0].id });
+  };
+
+  // A line without a Spanish version can't print on a Spanish poster, so switching moves to one that can.
+  const onLanguage = (next: SloganLanguage) => {
+    const lines = slogansFor(adult, next);
+    update({ language: next, slogan: lines.some((s) => s.id === options.slogan) ? options.slogan : lines[0].id });
   };
 
   const clearListing = () => { setListing(null); setLink(null); };
@@ -252,7 +335,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const pickSubject = (next: Subject) => {
     setSubject(next); setStatus('');
     if (next === 'app') { clearListing(); setOptions((o) => ({ ...o, qr: o.qr === 'event' ? 'download' : o.qr })); return; }
-    if (listing && listing.kind !== next) clearListing();
+    if (listing && subjectOf(listing) !== next) clearListing();
     setOptions((o) => ({ ...o, qr: 'event' }));
   };
 
@@ -266,7 +349,45 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
   const onQRMode = (qr: QRMode) => {
     update({ qr });
     if (qr !== 'event') setSubject('app');
-    else if (subject === 'app') setSubject(listing?.kind ?? 'venue');
+    else if (subject === 'app') setSubject(listing ? subjectOf(listing) : 'venue');
+  };
+
+  const defaultCaption = shareCaption(slogan, poster.event, language);
+  useEffect(() => setCaption(null), [options.slogan, language, listing]);
+
+  // Phones get the share sheet with the picture and caption; computers download it, copy the caption and open the
+  // network's composer. A poster in a size the network doesn't take is shared in its best one, and the preview follows.
+  const share = async (network: Network) => {
+    const format = shareFormat(network, options.format);
+    const shared = { ...poster, format };
+    const link = shareLink(poster.event);
+    const text = caption ?? defaultCaption;
+    const withLink = `${text}\n${link}`;
+    if (format !== options.format) update({ format });
+    const filename = posterFilename(shared, 'png');
+    const sheet = typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([], filename, { type: 'image/png' })] });
+    // Opened now, while the click still counts, so a popup blocker lets it through; it's pointed at the composer below.
+    const tab = sheet ? null : window.open('about:blank', '_blank');
+    setBusy('share'); setStatus('Getting it ready to share…');
+    try {
+      const blob = await exportPng(shared);
+      await navigator.clipboard?.writeText(withLink).catch(() => undefined);
+      if (sheet) {
+        await navigator.share({ files: [new File([blob], filename, { type: 'image/png' })], text: withLink });
+        setStatus(`Shared. The caption is copied too, for apps that leave it out (Instagram does): paste it in.`);
+      } else {
+        saveBlob(blob, filename);
+        if (tab) { tab.opener = null; tab.location.href = composeUrl(network, text, link); }
+        setStatus(NETWORKS[network].compose
+          ? `Downloaded ${filename} and opened ${NETWORKS[network].label} with the caption. Add the picture to the post.`
+          : `Downloaded ${filename} and copied the caption. Instagram posts from its app or instagram.com: upload the picture and paste the caption.`);
+      }
+    } catch (e) {
+      tab?.close();
+      setStatus(e instanceof DOMException && e.name === 'AbortError' ? '' : 'That poster could not be shared. Try downloading the PNG.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const download = async (kind: 'png' | 'pdf') => {
@@ -299,11 +420,11 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
         {subject !== 'app' && (
           <div className="event">
             {loading && <p className="hint">Loading the listing…</p>}
-            {!loading && listing && listing.kind === subject && <Picked listing={listing} onChange={clearListing} />}
-            {!loading && !(listing && listing.kind === subject) && (
+            {!loading && listing && subjectOf(listing) === subject && <Picked listing={listing} onChange={clearListing} />}
+            {!loading && !(listing && subjectOf(listing) === subject) && (
               <ListingSearch key={subject} kind={subject} id="poster-subject-search" onPick={pickListing} onSignedOut={onSignedOut} />
             )}
-            <p className="hint">{qrHint(listing && listing.kind === subject ? listing : null, link)}</p>
+            <p className="hint">{qrHint(listing && subjectOf(listing) === subject ? listing : null, link)}</p>
           </div>
         )}
       </section>
@@ -326,6 +447,19 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
         <h2 id="builder-h">Make it yours</h2>
         <form className="controls" onSubmit={(e) => e.preventDefault()}>
           <fieldset>
+            <legend>Language</legend>
+            <div className="qr-modes">
+              {LANGUAGES.map((l) => (
+                <label key={l.value}>
+                  <input type="radio" name="language" value={l.value} checked={language === l.value} onChange={() => onLanguage(l.value)} />
+                  {l.label}
+                </label>
+              ))}
+            </div>
+            {language !== 'en' && <p className="hint">Only the lines whose joke works in Spanish are offered. {language === 'en-es' ? 'The Spanish prints smaller under the English.' : ''}</p>}
+          </fieldset>
+
+          <fieldset>
             <legend>The line</legend>
             <label className="check">
               <input type="checkbox" checked={adult} onChange={(e) => onAdult(e.target.checked)} />
@@ -341,7 +475,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
                     {lines.map((s) => (
                       <label key={s.id} className={s.id === options.slogan ? 'opt on' : 'opt'}>
                         <input type="radio" name="slogan" value={s.id} checked={s.id === options.slogan} onChange={() => update({ slogan: s.id })} />
-                        <span>{plainText(s.text)}{s.rating === 'adult_venue' && <em className="tag">Adult venues</em>}</span>
+                        <span>{plainText(sloganText(s, language))}{language === 'en-es' && s.es && s.es !== s.text && <small lang="es"> {plainText(s.es)}</small>}{s.rating === 'adult_venue' && <em className="tag">Adult venues</em>}</span>
                       </label>
                     ))}
                   </div>
@@ -406,7 +540,7 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
 
         <div className="stage">
           <div className="frame">
-            <PosterCanvas options={poster} width={760} fontsReady={fontsReady} label={`Poster preview: ${plainText(slogan.text)}`} />
+            <PosterCanvas options={poster} width={760} fontsReady={fontsReady} label={`Poster preview: ${plainText(sloganText(slogan, language))}`} />
           </div>
           <div className="bar">
             <p className="meta">{FORMATS[options.format].label} · {FORMATS[options.format].sub} · {exportSize(options.format)}</p>
@@ -415,9 +549,22 @@ function PosterBuilder({ onSignedOut }: { onSignedOut: () => void }) {
               <button type="button" className="button secondary" disabled={busy !== null} onClick={() => download('png')}>PNG image</button>
             </div>
           </div>
+          <section className="share" aria-labelledby="share-h">
+            <h3 id="share-h">Share it</h3>
+            <div className="networks">
+              {(Object.keys(NETWORKS) as Network[]).map((n) => (
+                <button key={n} type="button" className="button secondary" disabled={busy !== null} onClick={() => share(n)}>{NETWORKS[n].label}</button>
+              ))}
+            </div>
+            <label htmlFor="poster-caption">Caption</label>
+            <textarea id="poster-caption" rows={4} value={caption ?? defaultCaption} onChange={(e) => setCaption(e.target.value)} />
+            <p className="hint">The link to {listing ? listing.name : 'the app'} is added to the post. Each network gets its best size: a poster in another size is shared at that one.</p>
+          </section>
           <p className="status" role="status">{status}</p>
         </div>
       </section>
+
+      {listing?.kind === 'venue' && subject === 'venue' && <PrintPosters venue={listing} language={language} onSignedOut={onSignedOut} />}
     </div>
   );
 }

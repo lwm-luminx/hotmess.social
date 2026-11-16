@@ -1,4 +1,4 @@
-import { test, expect, VENUE, EVENT, TOKEN, operation } from './fixtures';
+import { test, expect, VENUE, EVENT, TOKEN, operation, graphqlError } from './fixtures';
 
 test('the home page leads with the stores', async ({ page }) => {
   await page.goto('/');
@@ -56,39 +56,55 @@ test('the poster page builds a poster once signed in', async ({ page, request, a
   expect((await request.get('/poster/hot-mess-poster.pdf')).headers()['content-type']).toContain('pdf');
 });
 
-test('a poster for a night is filled from its Hot Mess listing', async ({ page, api, signedIn }) => {
+test('a poster for a night is picked from its venue: a one-off, or a whole series', async ({ page, api, signedIn }) => {
   const LINK = `https://hotmess.social/events/${EVENT.id}?e=v3.abcdefghijklmnopqrstuv`;
-  const posterEvent = { id: EVENT.id, name: EVENT.name, startAt: EVENT.startAt, endAt: EVENT.endAt, venue: { name: VENUE.name, venue: { id: VENUE.id, name: VENUE.name, locale: { name: 'Seattle' } } } };
+  const SERIES_ID = '33333333-3333-4333-8333-333333333333';
+  const at = { name: VENUE.name, venue: { id: VENUE.id, name: VENUE.name, locale: { name: 'Seattle' } } };
+  const series = { id: SERIES_ID, name: 'Bear Night', recurrenceText: 'Every week on Thursday', startTime: '21:00', timeZone: 'America/Los_Angeles' };
+  const posterEvent = { id: EVENT.id, name: EVENT.name, startAt: EVENT.startAt, endAt: EVENT.endAt, venue: at, eventSeries: null };
+  const dates = ['2026-10-16T04:00:00Z', '2026-10-23T04:00:00Z'].map((startAt, i) => (
+    { id: `4444444${i}-4444-4444-8444-444444444444`, name: 'Bear Night', startAt, endAt: null, venue: at, eventSeries: series }));
   api.on(operation('PosterSearch'), { json: {
     venues: { list: { nodes: [{ id: VENUE.id, name: VENUE.name, locale: { name: 'Seattle' }, profile: { address: VENUE.profile.address } }] } },
-    events: { list: { nodes: [posterEvent] } },
   } });
+  api.on(operation('PosterNights'), { json: { venues: { venue: { events: { upcoming: { nodes: [...dates, posterEvent] } } } } } });
   api.on(operation('PosterEvent'), { json: { events: { event: posterEvent }, shareLink: { url: LINK } } });
+  api.on(operation('PosterSeries'), { json: { events: { eventSeries: { ...series, events: dates } } } });
   await signedIn();
   await page.goto('/poster');
 
-  // The first step asks who the poster is for; a night's search shows only nights.
+  // A night is found through its venue.
   await page.locator('.subjects label', { hasText: 'A night' }).click();
-  // No typing the night in by hand: it's looked up in Hot Mess.
   await expect(page.getByRole('textbox', { name: 'Night' })).toHaveCount(0);
-  await page.getByRole('searchbox', { name: 'Find your night' }).fill('mess');
-  await expect(page.getByRole('button', { name: /Mess Hall Fridays/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Venues' })).toHaveCount(0);
+  await page.getByRole('searchbox', { name: 'Find the venue the night is at' }).fill('neigh');
+  await page.getByRole('button', { name: /Neighbours/ }).click();
+
+  // A series is offered once, as a whole; its dates never are.
+  await expect(page.getByRole('heading', { name: 'Regular nights' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Bear Night/ })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /Bear Night/ })).toContainText('Every week on Thursday · 9 PM');
+  await expect(page.getByRole('heading', { name: 'One-off nights' })).toBeVisible();
+
   await page.getByRole('button', { name: /Mess Hall Fridays/ }).click();
   await expect(page.locator('.subject .picked')).toContainText('Neighbours · Seattle');
   await expect(page).toHaveURL(new RegExp(`event=${EVENT.id}`));
   await expect(page.getByRole('radio', { name: 'Your venue or night' })).toBeChecked();
   await expect(page.locator('.subject .hint')).toContainText('for a year');
-
-  const [search] = api.calls(operation('PosterSearch'));
-  expect(search.postDataJSON().variables).toEqual({ search: 'mess' });
-  expect(search.headers()['authorization']).toBe(`Bearer ${TOKEN}`);
   const [listing] = api.calls(operation('PosterEvent'));
   expect(listing.postDataJSON().variables).toEqual({ id: EVENT.id, path: `/events/${EVENT.id}` });
 
+  // The series' poster names its schedule, and its code is the venue's link, which outlives any date.
+  await page.locator('.subject .picked').getByRole('button', { name: 'Change' }).click();
+  await page.getByRole('searchbox', { name: 'Find the venue the night is at' }).fill('neigh');
+  await page.getByRole('button', { name: /Neighbours/ }).click();
+  await page.getByRole('button', { name: /Bear Night/ }).click();
+  await expect(page.locator('.subject .picked')).toContainText('Every week on Thursday · 9 PM');
+  await expect(page).toHaveURL(new RegExp(`series=${SERIES_ID}`));
+  await expect(page.locator('.subject .hint')).toContainText('hotmess.social/v/');
+
   // A linked poster loads its listing again.
   await page.reload();
-  await expect(page.locator('.subject .picked')).toContainText('Mess Hall Fridays');
+  await expect(page.locator('.subject .picked')).toContainText('Bear Night');
 });
 
 test("a venue's poster carries its short link, which never expires", async ({ page, api, signedIn }) => {
@@ -109,6 +125,56 @@ test("a venue's poster carries its short link, which never expires", async ({ pa
   await page.locator('.subjects label').filter({ hasText: 'downloads the app' }).click();
   await expect(page.getByRole('radio', { name: 'Download the app' })).toBeChecked();
   await expect(page).not.toHaveURL(/venue=/);
+});
+
+test("a venue's managers print its cover and safety posters; anyone else is told to ask", async ({ page, api, signedIn }) => {
+  const posterVenue = { id: VENUE.id, name: VENUE.name, locale: { name: 'Seattle' }, profile: { address: VENUE.profile.address } };
+  api.on(operation('PosterVenue'), { json: { venues: { venue: posterVenue } } });
+  api.on(operation('PosterCover'), { json: { venues: { venue: { id: VENUE.id, tickets: { cover: { cents: 1000, payable: true } } } } } });
+  api.on(operation('PrintSafetyPoster'), graphqlError('FORBIDDEN', "Only the venue's managers can print its safety poster"));
+  await signedIn();
+  await page.goto(`/poster?venue=${VENUE.id}`);
+
+  const print = page.locator('.print-posters');
+  await expect(print.getByRole('heading', { name: `Print posters for ${VENUE.name}` })).toBeVisible();
+  // The cover poster's code is the venue's own cover page, and the preview is the poster itself.
+  await expect(print.locator('.hint').filter({ hasText: 'hotmess.social/cover/' })).toBeVisible();
+  await expect(print.frameLocator('iframe').locator('body')).toContainText(VENUE.name);
+
+  // It downloads as a PDF the site makes from the poster's options (Cloudflare's browser isn't here, so it's faked).
+  const pdfs: Record<string, unknown>[] = [];
+  await page.route('**/poster/pdf', (route) => {
+    pdfs.push(route.request().postDataJSON());
+    return route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.7\n%%EOF\n',
+      headers: { 'content-disposition': 'attachment; filename="the-cover-poster.pdf"' } });
+  });
+  const download = page.waitForEvent('download');
+  await print.getByRole('button', { name: 'Download the cover poster (PDF)' }).click();
+  expect((await download).suggestedFilename()).toBe('the-cover-poster.pdf');
+  expect(pdfs[0]).toMatchObject({ kind: 'cover', venueName: VENUE.name, paper: 'letter', link: expect.stringMatching(/^https:\/\/hotmess\.social\/cover\//) });
+
+  // The safety poster previews a sample; printing asks the API for the code, which only managers get.
+  await print.getByText('Safety poster', { exact: true }).click();
+  await expect(print.frameLocator('iframe').locator('body')).toContainText(/sample/i);
+  await print.getByRole('button', { name: 'Download the safety poster (PDF)' }).click();
+  await expect(print).toContainText(`Only ${VENUE.name}'s managers can print its safety poster`);
+  const [asked] = api.calls(operation('PrintSafetyPoster'));
+  expect(asked.postDataJSON().variables).toEqual({ venueId: VENUE.id });
+});
+
+test('sharing on a computer downloads the poster and opens the composer with the caption', async ({ page, context, signedIn }) => {
+  await context.route('https://x.com/**', (route) => route.fulfill({ contentType: 'text/html', body: 'composer' }));
+  await signedIn();
+  await page.goto('/poster?slogan=latin-roll-rs&format=letter');
+  await expect(page.getByLabel('Caption')).toHaveValue(/Latin night, for those who can roll their Rs\.\n#HotMess/);
+  const [download, composer] = await Promise.all([
+    page.waitForEvent('download'), context.waitForEvent('page'), page.getByRole('button', { name: 'X', exact: true }).click(),
+  ]);
+  // X takes a wide picture, so a Letter poster is shared at 16:9 and the preview follows.
+  expect(download.suggestedFilename()).toBe('hot-mess-latin-roll-rs-wide-riso.png');
+  await expect(page.getByRole('radio', { name: /Wide post/ })).toBeChecked();
+  await composer.waitForURL(/x\.com\/intent\/post\?text=Latin%20night/);
+  await expect(page.getByRole('status')).toContainText('opened X with the caption');
 });
 
 test('the navbar signs in and out', async ({ page }) => {

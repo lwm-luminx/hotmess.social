@@ -182,16 +182,25 @@ const POST_PAGE = `query Post($id: ID!) {
   }
 }`;
 
-// The poster builder (src/components/poster/) looks a venue or event up by name, and fills the poster from the one
-// picked. A venue's QR code is its short link (/v/<code>, src/lib/venueShortLink.ts), which never expires; an event's
-// is a share link that opens for a year (a printed poster's lifetime). Its ?e=v3.<hash> is a signature the API checks,
+// The poster builder (src/components/poster/) looks a venue up by name, then fills the poster from it or from one of its
+// nights: a one-off event, or a whole recurring series (never one date of a series). A venue's or a series' QR code is
+// the venue's short link (/v/<code>, src/lib/venueShortLink.ts), which never expires; a one-off event's is a share link
+// that opens for a year (a printed poster's lifetime). Its ?e=v3.<hash> is a signature the API checks,
 // never an expiry to read here.
 const POSTER_VENUE = 'id name locale { name } profile { address }';
-const POSTER_EVENT = 'id name startAt endAt venue { name venue { id name locale { name } } }';
+const POSTER_SERIES = 'id name recurrenceText startTime timeZone';
+const POSTER_EVENT = `id name startAt endAt venue { name venue { id name locale { name } } } eventSeries { ${POSTER_SERIES} }`;
 
 const POSTER_SEARCH = `query PosterSearch($search: String!) {
-  venues { list(search: $search, first: 6) { nodes { ${POSTER_VENUE} } } }
-  events { list(search: $search, first: 6) { nodes { ${POSTER_EVENT} } } }
+  venues { list(search: $search, first: 8) { nodes { ${POSTER_VENUE} } } }
+}`;
+
+const POSTER_NIGHTS = `query PosterNights($id: ID!) {
+  venues { venue(id: $id) { events { upcoming(first: 50) { nodes { ${POSTER_EVENT} } } } } }
+}`;
+
+const POSTER_SERIES_LISTING = `query PosterSeries($id: ID!) {
+  events { eventSeries(id: $id) { ${POSTER_SERIES} events { ${POSTER_EVENT} } } }
 }`;
 
 const POSTER_VENUE_LISTING = `query PosterVenue($id: ID!) {
@@ -203,11 +212,29 @@ const POSTER_EVENT_LISTING = `query PosterEvent($id: ID!, $path: String!) {
   shareLink(path: $path, lifetime: YEAR) { url }
 }`;
 
+const POSTER_COVER = `query PosterCover($id: ID!) {
+  venues { venue(id: $id) { id tickets { cover { cents payable } } } }
+}`;
+
+const PRINT_SAFETY_POSTER = `mutation PrintSafetyPoster($venueId: ID!) {
+  printSafetyPoster(input: { venueId: $venueId }) { safetyPoster { code url } }
+}`;
+
 export interface PosterVenue {
   id: string;
   name: string | null;
   locale: { name: string | null } | null;
   profile: { address: string | null } | null;
+}
+
+export interface PosterSeries {
+  id: string;
+  name: string;
+  /** Its rule in words, e.g. "Every week on Thursday". */
+  recurrenceText: string | null;
+  /** HH:MM, local to timeZone; "" for no time. */
+  startTime: string;
+  timeZone: string;
 }
 
 export interface PosterEvent {
@@ -216,6 +243,8 @@ export interface PosterEvent {
   startAt: string | null;
   endAt: string | null;
   venue: { name: string | null; venue: { id: string; name: string | null; locale: { name: string | null } | null } | null } | null;
+  /** The series it's one date of; null for a one-off. */
+  eventSeries: PosterSeries | null;
 }
 
 export interface Post {
@@ -307,11 +336,24 @@ export const api = {
     found((await graphql<{ people: { person: Person | null } }>(PERSON_PAGE, { id })).people.person),
   post: async (id: string): Promise<Post> =>
     found((await graphql<{ posts: { post: Post | null } }>(POST_PAGE, { id })).posts.post),
-  // Venues (visible ones, by name) and upcoming events (by their name or their venue's) matching a search.
-  posterSearch: async (search: string): Promise<{ venues: PosterVenue[]; events: PosterEvent[] }> => {
-    const result = await graphql<{ venues: { list: { nodes: PosterVenue[] } }; events: { list: { nodes: PosterEvent[] } } }>(
-      POSTER_SEARCH, { search });
-    return { venues: result.venues.list.nodes, events: result.events.list.nodes };
+  // Venues (visible ones) matching a search by name. A night is picked from its venue's (posterNights).
+  posterSearch: async (search: string): Promise<PosterVenue[]> =>
+    (await graphql<{ venues: { list: { nodes: PosterVenue[] } } }>(POSTER_SEARCH, { search })).venues.list.nodes,
+  // A venue's upcoming events, each with the series it belongs to, for the night picker (src/lib/poster/listing.ts
+  // nightsOf folds a series' dates into one choice).
+  posterNights: async (venueId: string): Promise<PosterEvent[]> => {
+    const result = await graphql<{ venues: { venue: { events: { upcoming: { nodes: PosterEvent[] } } } | null } }>(
+      POSTER_NIGHTS, { id: venueId });
+    return nodes(found(result.venues.venue).events.upcoming);
+  },
+  // A series for a poster, its coming dates (for its venue), and the link its QR code opens: its venue's short link,
+  // which outlives any one date.
+  posterSeries: async (id: string): Promise<{ series: PosterSeries; events: PosterEvent[]; link: string | null }> => {
+    const result = await graphql<{ events: { eventSeries: (PosterSeries & { events: PosterEvent[] }) | null } }>(
+      POSTER_SERIES_LISTING, { id });
+    const { events, ...series } = found(result.events.eventSeries);
+    const venueId = events.find((e) => e.venue?.venue)?.venue?.venue?.id;
+    return { series, events, link: venueId ? venueShortLink(venueId) : null };
   },
   // A venue or event for a poster, and the link its QR code opens: a venue's short link, or an event's signed share
   // link (null when the API won't sign one).
@@ -320,6 +362,16 @@ export const api = {
     const venue = found(result.venues.venue);
     return { venue, link: venueShortLink(venue.id) };
   },
+  // What a venue charges at the door, for its cover poster: null when it has no cover set up here.
+  posterCover: async (id: string): Promise<{ cents: number | null; payable: boolean } | null> => {
+    const result = await graphql<{ venues: { venue: { tickets: { cover: { cents: number | null; payable: boolean } | null } | null } | null } }>(
+      POSTER_COVER, { id });
+    return found(result.venues.venue).tickets?.cover ?? null;
+  },
+  // The venue's safety poster link, made the first time; only its managers get one (FORBIDDEN for anyone else).
+  printSafetyPoster: async (venueId: string): Promise<string> =>
+    (await graphql<{ printSafetyPoster: { safetyPoster: { url: string } } }>(PRINT_SAFETY_POSTER, { venueId }))
+      .printSafetyPoster.safetyPoster.url,
   posterEvent: async (id: string): Promise<{ event: PosterEvent; link: string | null }> => {
     const result = await graphql<{ events: { event: PosterEvent | null }; shareLink: { url: string } | null }>(
       POSTER_EVENT_LISTING, { id, path: `/events/${id}` });

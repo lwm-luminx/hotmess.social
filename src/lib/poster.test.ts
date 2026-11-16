@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SLOGANS, THEMES, plainText, posterWords, slogansFor } from './poster/slogans.ts';
+import { SLOGANS, THEMES, plainText, posterWords, sloganSecondLine, slogansFor, sloganText } from './poster/slogans.ts';
+import { posterStrings } from './poster/strings.ts';
 import { jpegPdf } from './poster/pdf.ts';
 
 test('adult-venue lines only show for a flagged venue', () => {
@@ -61,4 +62,28 @@ test('the drawn TV slides match the slogan library (re-run scripts/marquee-slide
   const drawn = JSON.parse(await readFile(new URL('../../public/marquee/slogans.json', import.meta.url), 'utf8'));
   assert.deepEqual(drawn, marqueeManifest());
   for (const slide of drawn.slides) await access(new URL(`../../public${slide.image}`, import.meta.url));
+});
+
+test('a Spanish poster offers only lines with a Spanish version, and both languages print the pair', () => {
+  const es = slogansFor(false, 'es');
+  assert.ok(es.length > 0 && es.every((s) => s.es));
+  const bi = SLOGANS.find((s) => s.id === 'latin-roll-rs')!;
+  assert.equal(sloganText(bi, 'es'), bi.es);
+  assert.equal(sloganText(bi, 'en-es'), bi.text);
+  assert.equal(sloganSecondLine(bi, 'en-es'), bi.es);
+  assert.equal(sloganSecondLine(bi, 'en'), null);
+  // The bi night line is the same in both, so it prints once.
+  assert.equal(sloganSecondLine(SLOGANS.find((s) => s.id === 'bi-both')!, 'en-es'), null);
+});
+
+test('both harness lines are in the shared library', () => {
+  const ids = SLOGANS.map((s) => s.id);
+  assert.ok(ids.includes('harness-hymnal') && ids.includes('harness-or-hymnal'));
+  assert.equal(SLOGANS.find((s) => s.id === 'harness-hymnal')!.es, undefined);
+});
+
+test('footer words follow the language', () => {
+  assert.equal(posterStrings('en').tagline, 'find your night');
+  assert.equal(posterStrings('es').tagline, 'encuentra tu noche');
+  assert.equal(posterStrings('en-es').tagline, 'find your night · encuentra tu noche');
 });

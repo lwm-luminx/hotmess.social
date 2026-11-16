@@ -2,10 +2,12 @@
 // The look is the late-night Hot Mess one (neon, glitter, riso, stickers), not the AudienceKit design system.
 
 import qrcode from 'qrcode-generator';
+import { addressLines } from './address';
 import { jpegPdf } from './pdf';
-import { posterWords, sloganById, SLOGANS, type ArtKind, type Slogan } from './slogans';
+import { posterStrings } from './strings';
+import { posterWords, sloganById, sloganFootnote, sloganSecondLine, SLOGANS, sloganText, type ArtKind, type SloganLanguage } from './slogans';
 
-export type FormatKey = 'letter' | 'print' | 'post' | 'story' | 'tv';
+export type FormatKey = 'letter' | 'print' | 'post' | 'portrait' | 'story' | 'wide' | 'tv';
 export type StyleKey = 'neon' | 'glitter' | 'riso' | 'sticker';
 export type QRMode = 'download' | 'event' | 'none';
 
@@ -23,6 +25,8 @@ export interface PosterOptions {
   art: ArtKind | 'auto';
   qr: QRMode;
   event: PosterEvent;
+  /** The language the line and footer print in; English when left out. */
+  language?: SloganLanguage;
 }
 
 interface Format {
@@ -41,8 +45,10 @@ export const DOWNLOAD_URL = 'https://hotmess.social/download';
 export const FORMATS: Record<FormatKey, Format> = {
   letter: { w: 850, h: 1100, label: 'Letter print', sub: '8.5 × 11 in · A4', exportScale: 3, page: [612, 792] },
   print: { w: 1100, h: 1700, label: 'Board print', sub: '11 × 17 in · A3', exportScale: 2, page: [792, 1224] },
-  post: { w: 1080, h: 1080, label: 'Instagram post', sub: '1:1', exportScale: 1, page: [810, 810] },
+  post: { w: 1080, h: 1080, label: 'Instagram post', sub: '1:1 square', exportScale: 1, page: [810, 810] },
+  portrait: { w: 1080, h: 1350, label: 'Instagram portrait', sub: '4:5 · Threads, Facebook', exportScale: 1, page: [810, 1012] },
   story: { w: 1080, h: 1920, label: 'Instagram story', sub: '9:16', exportScale: 1, page: [810, 1440] },
+  wide: { w: 1600, h: 900, label: 'Wide post', sub: '16:9 · X, Bluesky, Facebook', exportScale: 1, page: [1200, 675] },
   tv: { w: 1920, h: 1080, label: 'Venue TV', sub: '16:9 screen', exportScale: 1, page: [1440, 810] },
 };
 
@@ -414,10 +420,10 @@ export const LOOKS: Record<StyleKey, Look> = {
 
 /* ---------- type ---------- */
 
-function fitText(ctx: Ctx, slogan: Slogan, box: Box, u: number, lineHeight: number): Fit {
-  const words = posterWords(slogan.text);
+function fitText(ctx: Ctx, text: string, box: Box, u: number, lineHeight: number, maxSize = 26 * u): Fit {
+  const words = posterWords(text);
   let last: Omit<Fit, 'y0'> | null = null;
-  for (let s = Math.min(box.h, 26 * u); s >= 2 * u; s *= 0.96) {
+  for (let s = Math.min(box.h, maxSize); s >= 2 * u; s *= 0.96) {
     ctx.font = `900 ${s}px ${DISPLAY}`;
     const space = ctx.measureText(' ').width * 1.1;
     const lines: FitLine[] = [];
@@ -448,14 +454,14 @@ function fitFont(ctx: Ctx, weight: number, size: number, family: string, text: s
 
 function layout(format: FormatKey, w: number, h: number, u: number, qr: boolean): Layout {
   const m = 6 * u, fh = qr ? 19 * u : 12 * u;
-  if (format === 'tv') {
+  if (format === 'tv' || format === 'wide') {
     return {
       art: { x: m, y: m, w: w * 0.34, h: h - 2 * m },
       text: { x: w * 0.4, y: m + 2 * u, w: w * 0.6 - m, h: h - 2 * m - fh - 6 * u },
       footer: { x: w * 0.4, y: h - m - fh, w: w * 0.6 - m, h: fh },
     };
   }
-  const ah = h * (format === 'post' ? 0.27 : 0.31);
+  const ah = h * (format === 'post' ? 0.27 : format === 'portrait' ? 0.29 : 0.31);
   return {
     art: { x: m, y: m, w: w - 2 * m, h: ah },
     text: { x: m, y: m + ah + 3 * u, w: w - 2 * m, h: h - 2 * m - ah - fh - 7 * u },
@@ -492,28 +498,35 @@ export function qrTarget(o: PosterOptions): string | null {
 }
 
 function drawFooter(ctx: Ctx, f: Box, S: Look, u: number, o: PosterOptions) {
+  const t = posterStrings(o.language ?? 'en');
   ctx.save(); ctx.translate(f.x, f.y + f.h - 3.6 * u); ctx.rotate(-0.07);
   ctx.font = `${8 * u}px ${HAND}`; ctx.fillStyle = S.mark;
   if (S.markGlow) { ctx.shadowColor = S.mark; ctx.shadowBlur = 1.6 * u; }
   ctx.fillText('hot mess', 0, 0); ctx.restore();
   ctx.font = `600 ${1.7 * u}px ${BODY}`; ctx.fillStyle = S.ink; ctx.globalAlpha = 0.85;
-  ctx.fillText('hotmess.social · find your night', f.x, f.y + f.h - 0.3 * u); ctx.globalAlpha = 1;
+  fitFont(ctx, 600, 1.7 * u, BODY, `hotmess.social · ${t.tagline}`, qrTarget(o) ? f.w * 0.42 : f.w);
+  ctx.fillText(`hotmess.social · ${t.tagline}`, f.x, f.y + f.h - 0.3 * u); ctx.globalAlpha = 1;
 
   const target = qrTarget(o);
   if (!target) return;
   const q = Math.min(f.h, 17 * u), qx = f.x + f.w - q, qy = f.y + f.h - q;
   drawQR(ctx, target, qx, qy, q, u);
   const tx = qx - 2.4 * u, maxW = tx - (f.x + 30 * u);
+  // A venue's address prints on two lines, the street and then the town, under the night; the time follows.
+  const [street = '', ...town] = addressLines(o.event.venue);
+  const eventLines: [number, number, string, string][] = [[900, 4.6, DISPLAY, o.event.night.toUpperCase()],
+    [800, 2.3, BODY, street], ...town.map((line): [number, number, string, string] => [600, 2.1, BODY, line]),
+    [400, 2.1, BODY, o.event.when]];
   const lines: [number, number, string, string, number][] = o.qr === 'event'
-    ? [[900, 4.6, DISPLAY, o.event.night.toUpperCase(), 4.4], [800, 2.3, BODY, o.event.venue, 8.4], [400, 2.1, BODY, o.event.when, 11.6]]
-    : [[900, 4.6, DISPLAY, 'GET HOT MESS', 4.4], [800, 2.3, BODY, 'Free on iPhone and Android', 8.4], [400, 2.1, BODY, 'Find your people tonight', 11.6]];
+    ? eventLines.filter(([, , , text], i) => i === 0 || text).map((line, i) => [...line, i === 0 ? 4.4 : 5.4 + i * 3] as [number, number, string, string, number])
+    : [[900, 4.6, DISPLAY, t.getApp('Hot Mess').toUpperCase(), 4.4], [800, 2.3, BODY, t.freeOnPhones, 8.4], [400, 2.1, BODY, t.findYourPeople, 11.6]];
   ctx.textAlign = 'right'; ctx.fillStyle = S.ink;
   for (const [weight, size, family, text, y] of lines) {
     fitFont(ctx, weight, size * u, family, text, maxW);
     ctx.fillText(text, tx, qy + y * u);
   }
   ctx.globalAlpha = 0.7; ctx.font = `600 ${1.5 * u}px ${BODY}`;
-  ctx.fillText(o.qr === 'event' ? 'Scan to open it in Hot Mess →' : 'Scan to download →', tx, qy + q - 0.4 * u);
+  ctx.fillText(o.qr === 'event' ? t.scanToOpen('Hot Mess') : t.scanToDownload, tx, qy + q - 0.4 * u);
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
@@ -540,12 +553,21 @@ export function renderPoster(canvas: HTMLCanvasElement, o: PosterOptions, scale:
     ctx.restore();
   });
 
-  const fit = fitText(ctx, slogan, L.text, u, S.lineHeight);
+  // A bilingual poster sets the English line, then the Spanish one smaller under it, the pair centred in the box.
+  const second = sloganSecondLine(slogan, o.language);
+  const fit = fitText(ctx, sloganText(slogan, o.language), second ? { ...L.text, h: L.text.h * 0.56 } : L.text, u, S.lineHeight);
+  const fit2 = second ? fitText(ctx, second, { ...L.text, h: L.text.h * 0.38 }, u, S.lineHeight, fit.size * 0.72) : null;
+  if (fit2) {
+    const gap = fit.size * 0.4, start = L.text.y + (L.text.h - (fit.th + gap + fit2.th)) / 2;
+    fit.y0 = start; fit2.y0 = start + fit.th + gap;
+  }
   ctx.font = `900 ${fit.size}px ${DISPLAY}`; ctx.textBaseline = 'alphabetic';
   S.text(ctx, fit, L.text, u, R);
-  if (slogan.footnote) {
+  if (fit2) { ctx.font = `900 ${fit2.size}px ${DISPLAY}`; S.text(ctx, fit2, L.text, u, R); }
+  const footnote = sloganFootnote(slogan, o.language);
+  if (footnote) {
     ctx.font = `600 ${2 * u}px ${BODY}`; ctx.fillStyle = S.ink; ctx.globalAlpha = 0.9;
-    ctx.fillText(slogan.footnote, L.text.x, Math.min(fit.y0 + fit.th + 4 * u, L.footer.y - u)); ctx.globalAlpha = 1;
+    ctx.fillText(footnote, L.text.x, Math.min(fit.y0 + fit.th + 4 * u, L.footer.y - u)); ctx.globalAlpha = 1;
   }
   drawFooter(ctx, L.footer, S, u, o);
   S.overlay?.(ctx, w, h);

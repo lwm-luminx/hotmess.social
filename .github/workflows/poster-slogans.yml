@@ -1,0 +1,30 @@
+name: Poster slogans
+
+# Checks that src/lib/poster/slogans.json and src/lib/poster/kit/ match what the AudienceKit console's poster builder
+# prints from (GET /v1/poster/slogans and /v1/poster/kit on the API this site uses), so the two builders match. On a
+# mismatch: npm run sync-posters, node scripts/marquee-slides.mjs, commit. Advisory (continue-on-error) like the
+# GraphQL documents check, because the API's next deploy can land before or after a PR here; a daily run catches a
+# line added in the API.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: slogans.json and the poster kit match the API
+        continue-on-error: true
+        run: node scripts/sync-slogans.mjs --check
