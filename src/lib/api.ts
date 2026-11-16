@@ -196,7 +196,7 @@ const POSTER_SEARCH = `query PosterSearch($search: String!) {
 }`;
 
 const POSTER_NIGHTS = `query PosterNights($id: ID!) {
-  venues { venue(id: $id) { events { upcoming(first: 100) { nodes { ${POSTER_EVENT} } } } } }
+  venues { venue(id: $id) { events { upcoming(first: 50) { nodes { ${POSTER_EVENT} } } } } }
 }`;
 
 const POSTER_SERIES_LISTING = `query PosterSeries($id: ID!) {
