@@ -30,3 +30,16 @@ test('only Public listings preview with their photo', () => {
   assert.equal(previewImage({ ...venue, visibility: 'community' }), undefined);
   assert.equal(previewImage(undefined), undefined);
 });
+
+test('a share card previews with its own line, else an address or when and where', async () => {
+  const { cardDescription } = await import('./preview.ts');
+  const base = { title: 'The Balcony Club', siteName: 'Hot Mess' };
+  assert.equal(cardDescription({ ...base, kind: 'venue', description: 'On Hot Mess', address: '150 N 8th St, Boise' }),
+    'The Balcony Club · 150 N 8th St, Boise');
+  assert.equal(cardDescription({ ...base, kind: 'venue', description: 'Rooftop bar.' }), 'Rooftop bar.');
+  assert.equal(cardDescription({ ...base, kind: 'event', description: '', startAt: '2026-10-16T21:00:00-07:00',
+    venueName: 'Purr' }), 'Fri, Oct 16 · 9 PM at Purr');
+  assert.equal(cardDescription({ ...base, kind: 'person', title: '406 Pride',
+    description: 'Featured on Hot Mess in Billings.' }), 'Featured on Hot Mess in Billings.');
+  assert.equal(cardDescription({ ...base, kind: 'venue', description: '' }), 'The Balcony Club on Hot Mess');
+});

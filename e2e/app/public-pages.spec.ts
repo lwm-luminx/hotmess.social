@@ -43,3 +43,21 @@ test('sitemap index lists the site pages and every listings page', async ({ requ
   expect(pages.status()).toBe(200);
   expect(await pages.text()).toContain('<loc>https://hotmess.social/safety</loc>');
 });
+
+test('a public person link previews with their name, line and picture', async ({ request }) => {
+  const response = await request.get('/people/33333333-3333-4333-8333-333333333333');
+  expect(response.status()).toBe(200);
+  const html = await response.text();
+  expect(html).toContain('<meta property="og:title" content="Kiki Riot">');
+  expect(html).toContain('<meta property="og:description" content="Featured on Hot Mess in Seattle.">');
+  expect(html).toContain('<meta property="og:image" content="https://api.audiencekit.com/v1/photos/kiki">');
+  expect(response.headers()['x-robots-tag']).toBe('noindex');
+});
+
+test('a Community performer link names no one', async ({ request }) => {
+  const response = await request.get('/people/44444444-4444-4444-8444-444444444444');
+  expect(response.status()).toBe(200);
+  const html = await response.text();
+  expect(html).toContain('<meta property="og:title" content="A performer on Hot Mess">');
+  expect(response.headers()['cache-control']).toBe('private, no-store');
+});

@@ -5,14 +5,26 @@ const venue = { kind: 'venue', id: '11111111-1111-4111-8111-111111111111', title
 const event = { kind: 'event', id: '22222222-2222-4222-8222-222222222222', title: 'Mess Hall',
   description: 'Music and performances.' };
 const records = [venue, event].map(item => ({ ...item, path: `/${item.kind === 'venue' ? 'venues' : 'events'}/${item.id}` }));
+const cards = {
+  '/people/33333333-3333-4333-8333-333333333333': { kind: 'person', id: '33333333-3333-4333-8333-333333333333',
+    site_name: 'Hot Mess', title: 'Kiki Riot', description: 'Featured on Hot Mess in Seattle.',
+    image: { url: 'https://api.audiencekit.com/v1/photos/kiki', alt: 'Kiki Riot' } },
+  '/people/44444444-4444-4444-8444-444444444444': { kind: 'person', id: '44444444-4444-4444-8444-444444444444',
+    site_name: 'Hot Mess', title: 'A performer on Hot Mess', description: "Sign in to Hot Mess to see who's performing.",
+    image: null, visibility: 'community' },
+};
 createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   res.setHeader('Content-Type', 'application/json');
   if (url.pathname === '/v1/token/service') return res.end(JSON.stringify({ token: 'fixture-service-jwt', expiresAt: '2099-01-01T00:00:00Z' }));
   if (url.pathname === '/v1/share') {
-    const expiry = parseInt((url.searchParams.get('e') ?? '').split('.')[0], 36) * 1000;
+    // People have no public listing: their page previews from the share card alone (ShareCard#person).
+    const card = cards[url.searchParams.get('path')];
+    const token = url.searchParams.get('e');
+    if (token === null) { res.statusCode = card ? 200 : 404; return res.end(JSON.stringify(card ?? {})); }
+    const expiry = parseInt(token.split('.')[0], 36) * 1000;
     res.statusCode = expiry > Date.now() ? 200 : 410;
-    return res.end('{}');
+    return res.end(JSON.stringify(res.statusCode === 200 ? card ?? {} : {}));
   }
   // Discover's session check (src/server/publicContent.ts signedIn): the e2e session (e2e/app/fixtures.ts TOKEN) is signed in.
   if (url.pathname === '/v1/branding') return res.end(JSON.stringify({ audience: { id: 'a0000000-0000-4000-8000-000000000000' } }));
