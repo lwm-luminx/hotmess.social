@@ -1,39 +1,61 @@
 ---
 import Base from '../../layouts/Base.astro';
 import AppShell from '../../components/AppShell.astro';
-import { listing, signedLinkStatus } from '../../server/publicContent';
+import { listing, shareLink } from '../../server/publicContent';
 import { routeFor, pathFor } from '../../lib/routes';
-import { previewDescription, previewImage } from '../../lib/preview';
+import { cardDescription, previewDescription, previewImage } from '../../lib/preview';
+import type { PublicListing } from '../../lib/publicListing';
+import type { ShareCard } from '../../lib/shareCard';
 export const prerender = false;
 const route = routeFor(Astro.url.pathname);
 if (!route || route.kind === 'now') return new Response('Not found', { status: 404 });
 const path = pathFor(route);
 if (Astro.url.pathname !== path) return Astro.redirect(`${path}${Astro.url.search}`, 301);
-let record;
+const signature = Astro.url.searchParams.get('e');
+let record: PublicListing | null | undefined;
+let card: ShareCard | null = null;
 let status = 200;
-try {
-  const signature = Astro.url.searchParams.get('e');
-  if (signature !== null) status = await signedLinkStatus(path, signature);
-  // Venues, events and posts have public listings; people and safety alerts are for the signed-in app alone.
-  if (status === 200 && (route.kind === 'venue' || route.kind === 'event' || route.kind === 'post')) record = await listing(path);
-} catch { status = 503; }
+let listingFailed = false;
+// The share card (no site credential needed) checks a signed link and previews venues, events and people. The
+// listing adds a venue's or event's full public details and the indexable page. Either can stand in for the other's
+// preview, so a link only fails when the API can say nothing at all.
+const sharing = route.kind === 'venue' || route.kind === 'event' || route.kind === 'person';
+const [shared, listed] = await Promise.allSettled([
+  sharing || signature !== null ? shareLink(path, signature) : Promise.resolve(null),
+  route.kind === 'venue' || route.kind === 'event' || route.kind === 'post' ? listing(path) : Promise.resolve(undefined),
+]);
+if (shared.status === 'fulfilled' && shared.value) {
+  card = shared.value.card;
+  // An unsigned link still opens the signed-in app when there's no public card; only a signed one is refused.
+  if (signature !== null) status = shared.value.status;
+} else if (signature !== null) status = 503;
+if (listed.status === 'fulfilled') record = listed.value;
+else { listingFailed = true; console.error('share page: public listing unavailable', listed.reason); }
+if (status === 200 && listingFailed && !card) status = 503;
 if (![200, 404, 410].includes(status)) status = 503;
+// Never show a record's details for a link that was refused.
+if (status !== 200) { record = undefined; card = null; }
 // Unpublished records still open the signed-in SPA, but never enter the search index. A Community post's listing is
 // only a sign-in shell, so it never does either.
 const indexable = status === 200 && !!record && (record.kind !== 'post' || record.visibility === 'public');
-const maxAge = { venue: 86400, event: 21600, post: 3600 }[route.kind as 'venue' | 'event' | 'post'] ?? 3600;
+const maxAge = { venue: 86400, event: 21600, post: 3600, person: 3600 }[route.kind as 'venue' | 'event' | 'post' | 'person'] ?? 3600;
 const isPost = record?.kind === 'post';
 const title = status === 410 ? 'Link expired'
-  : isPost ? (record!.visibility === 'public' ? `Post by ${record!.title}` : 'A post on Hot Mess') : record?.title ?? 'Hot Mess';
-// A Public listing previews with its own photo (a post's first photo, else its poster's picture).
-const image = previewImage(record);
+  : isPost ? (record!.visibility === 'public' ? `Post by ${record!.title}` : 'A post on Hot Mess')
+  : record?.title ?? card?.title ?? 'Hot Mess';
+const description = record || !card ? previewDescription(record) : cardDescription(card);
+// A Public listing previews with its own photo (a post's first photo, else its poster's picture); the share card's
+// picture stands in when there's no listing (a person) or the listing has none.
+const image = previewImage(record) ?? card?.image;
+// A person's page is public when their card is: it's cached like a listing, but stays out of the search index.
+const cacheable = indexable || (status === 200 && route.kind === 'person' && !!card && card.visibility !== 'community');
 Astro.response.status = status;
-Astro.response.headers.set('Cache-Control', indexable && !Astro.url.searchParams.has('e')
+Astro.response.headers.set('Cache-Control', cacheable && signature === null
   ? `public, max-age=300, s-maxage=${maxAge}` : 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', indexable ? 'index, follow' : 'noindex');
 if (status === 503) Astro.response.headers.set('Retry-After', '60');
 ---
-<Base title={title} description={previewDescription(record)} canonical={status === 200} image={image}>
+<Base title={title} description={description} canonical={status === 200} image={image}>
     {status === 200 || status === 410 ? <AppShell initialPath={path + Astro.url.search} publicListing={record ?? undefined} expired={status === 410} />
       : <main class="wrap"><p>{status === 410 ? 'This link has expired. Ask for a new link.' : status === 404 ? 'This page is unavailable.' : 'Details are temporarily unavailable. Please try again shortly.'}</p></main>}
 </Base>
