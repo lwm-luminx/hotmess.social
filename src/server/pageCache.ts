@@ -4,7 +4,7 @@ export function pageCacheKey(request: Request): Request | null {
   const url = new URL(request.url);
   if (url.searchParams.has('e')) return null; // Always validate signed-link expiry before rendering.
   if (!/^\/(venues|events|posts|people)\/[0-9a-f-]{36}$/.test(url.pathname) &&
-      url.pathname !== '/sitemap.xml') return null;
+      !/^\/resources(\/[\w-]+)?$/.test(url.pathname) && url.pathname !== '/sitemap.xml') return null;
   const page = url.searchParams.get('page');
   url.search = '';
   if (page && url.pathname === '/sitemap.xml') url.searchParams.set('page', page);

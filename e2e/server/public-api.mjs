@@ -32,6 +32,32 @@ createServer((req, res) => {
     if (req.headers.authorization !== 'Bearer e2e.session.jwt') { res.statusCode = 401; return res.end('{}'); }
     return res.end(JSON.stringify({ data: { me: { self: { id: 'e2e-viewer' } } } }));
   }
+  // The public community resource directory (hotmess.social /resources): no credential, like the API's.
+  if (url.pathname === '/v1/audience/a0000000-0000-4000-8000-000000000000/community_resources/locales') {
+    return res.end(JSON.stringify({ locales: [
+      { id: 'l0000000-0000-4000-8000-000000000001', name: 'Seattle', label: 'Seattle', country: null,
+        time_zone: 'America/Los_Angeles', resource_count: 2 },
+      { id: 'l0000000-0000-4000-8000-000000000002', name: 'Toronto', label: 'toronto', country: null,
+        time_zone: 'America/Toronto', resource_count: 1 },
+    ] }));
+  }
+  if (url.pathname === '/v1/audience/a0000000-0000-4000-8000-000000000000/community_resources') {
+    if (url.searchParams.get('locale_id') !== 'l0000000-0000-4000-8000-000000000001') { res.statusCode = 404; return res.end('{}'); }
+    return res.end(JSON.stringify({
+      locale: { id: 'l0000000-0000-4000-8000-000000000001', name: 'Seattle' }, quick_exit: 'Leave now',
+      advocacy: ['You deserve better.'],
+      needs: [{ key: 'food', label: 'I need food', facets: ['food'] },
+        { key: 'safe', label: "I don't feel safe at home", facets: ['dv-stalking'] }],
+      resources: [
+        { id: 'r1', title: 'Cathedral Kitchen', name: 'Cathedral Kitchen', sensitive: false, facets: ['food', 'no-id-required'],
+          description: 'Free dinner, no questions asked.', address: '804 9th Ave, Seattle, WA 98104', phone: '+12063825555',
+          hours: [{ days: [1, 2, 3, 4, 5], from: '17:00', until: '19:00' }], sessions: [] },
+        { id: 'r2', title: 'Support line', name: 'The NW Network', sensitive: true, facets: ['dv-stalking', 'lgbtq-affirming'],
+          description: 'Support for LGBTQ survivors.', phone: '+12065687777', url: 'https://nwnetwork.org',
+          hours: [{ days: [], from: '00:00', until: '23:59' }], sessions: [] },
+      ],
+    }));
+  }
   if (req.headers.authorization !== 'Bearer fixture-service-jwt') { res.statusCode = 401; return res.end('{}'); }
   // The venue's board for its web sign (/venues/<id>/display), which the Velvet cast receiver falls back to.
   if (url.pathname === `/v1/public/venues/${venue.id}/tonight`) return res.end(JSON.stringify({
