@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { publicListing, type PublicListing } from '../lib/publicListing';
 import { venueTonight, type VenueTonight } from '../lib/venueDisplay';
 import { shareCard, type ShareCard } from '../lib/shareCard';
+import { resourceDirectory, resourceLocales, type ResourceDirectory, type ResourceLocale } from '../lib/communityResources';
 
 interface Settings { PUBLIC_CONTENT_API_BASE?: string; PUBLIC_CONTENT_HOST?: string;
   PUBLIC_SITE_ORIGIN?: string; AUDIENCEKIT_SERVICE_TOKEN?: string }
@@ -101,4 +102,23 @@ export async function shortLink(code: string): Promise<string | null> {
   if (!response.ok) throw new Error('Public content is unavailable');
   const { path } = await response.json() as { path?: unknown };
   return typeof path === 'string' && /^\/venues\/[0-9a-f-]{36}\/chat$/.test(path) ? path : null;
+}
+/**
+ * The cities with community resources (food, shelter, clinics, crisis and DV lines), live from the API's public
+ * directory: no site credential, the same answer for everyone (audience_kit_api CommunityResourcesController).
+ */
+export async function resourceCities(): Promise<ResourceLocale[]> {
+  const response = await fetch(`${apiBase()}/v1/audience/${await audience()}/community_resources/locales`,
+    { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error('Community resources are unavailable');
+  return resourceLocales(await response.json());
+}
+/** A city's community resource directory, live from the API, or null for no such city. */
+export async function resourceDirectoryFor(localeId: string): Promise<ResourceDirectory | null> {
+  const query = new URLSearchParams({ locale_id: localeId });
+  const response = await fetch(`${apiBase()}/v1/audience/${await audience()}/community_resources?${query}`,
+    { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Community resources are unavailable');
+  return resourceDirectory(await response.json());
 }
