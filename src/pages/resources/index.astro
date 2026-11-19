@@ -1,0 +1,55 @@
+---
+// Every Hot Mess city's help directory: food, shelter, clinics and testing, someone to talk to, and DV support.
+// Read live from the API's public community resource endpoints on each request (edge-cached for 10 minutes), so it
+// always matches what the apps show under "Find help nearby".
+import Base from '../../layouts/Base.astro';
+import { resourceCities } from '../../server/publicContent';
+import { byCountry, citySlug, type ResourceLocale } from '../../lib/communityResources';
+export const prerender = false;
+let cities: ResourceLocale[] = [];
+let failed = false;
+try { cities = await resourceCities(); } catch (e) { failed = true; console.error('resources: cities unavailable', e); }
+const groups = byCountry(cities);
+const total = cities.reduce((sum, c) => sum + c.resourceCount, 0);
+Astro.response.headers.set('cache-control', failed ? 'no-store' : 'public, max-age=300, s-maxage=600');
+if (failed) Astro.response.status = 503;
+---
+<Base title="Find help nearby" description="Food, shelter, clinics and testing, crisis lines and support if you don't feel safe at home, in every Hot Mess city.">
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Find help nearby</p>
+        <h1>Help in your city</h1>
+        <p class="lede">Food, somewhere safe to sleep, a clinic or testing, someone to talk to, and support if you don’t feel safe at home. {total > 0 && <>{total.toLocaleString('en-US')} places across {cities.length} cities.</>}</p>
+        <p class="urgent">In an emergency in the US or Canada, call <a href="tel:911">911</a>. For a mental health crisis in the US, call or text <a href="tel:988">988</a>.</p>
+      </div>
+    </section>
+    <section class="wrap cities" aria-label="Cities">
+      {failed && <p class="card note">We couldn’t load the cities just now. Try again in a minute, or open Hot Mess and tap Get help.</p>}
+      {groups.map((group) => (
+        <section aria-labelledby={`c-${group.country}`}>
+          <h2 id={`c-${group.country}`}>{group.country}</h2>
+          <ul class="city-list">
+            {group.cities.map((city) => (
+              <li><a href={`/resources/${citySlug(city)}`}>{city.name}</a> <span class="muted">{city.resourceCount}</span></li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <p class="muted fine">Gathered from public sources and checked as we go. Call ahead before you travel: hours change. Hot Mess is not an emergency service. See also <a href="/safety">Safety on Hot Mess</a>.</p>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .hero { padding: clamp(3rem, 9vw, 6rem) 0 clamp(1.5rem, 4vw, 2.5rem); background: radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%); }
+  .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
+  h1 { font-size: clamp(2.2rem, 6.5vw, 4rem); font-weight: 800; margin: 0 0 1rem; max-width: 16ch; }
+  .lede { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--ink-muted); max-width: 56ch; margin: 0 0 1rem; }
+  .urgent { margin: 0; }
+  h2 { font-size: 1.4rem; margin: 2.5rem 0 .75rem; }
+  .city-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .25rem 1.5rem; }
+  .city-list li { padding: .35rem 0; border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); display: flex; justify-content: space-between; gap: .5rem; }
+  .note { padding: 1rem 1.25rem; }
+  .fine { margin: 2.5rem 0 3rem; font-size: .9rem; }
+</style>
