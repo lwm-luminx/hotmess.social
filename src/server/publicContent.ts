@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { publicListing, type PublicListing } from '../lib/publicListing';
 import { venueTonight, type VenueTonight } from '../lib/venueDisplay';
+import { shareCard, type ShareCard } from '../lib/shareCard';
 
 interface Settings { PUBLIC_CONTENT_API_BASE?: string; PUBLIC_CONTENT_HOST?: string;
   PUBLIC_SITE_ORIGIN?: string; AUDIENCEKIT_SERVICE_TOKEN?: string }
@@ -74,11 +75,16 @@ export async function signedIn(authorization: string | null): Promise<boolean> {
   const body = await response.json() as { data?: { me?: { self?: { id?: string } } | null } };
   return !!body.data?.me?.self?.id;
 }
-export async function signedLinkStatus(path: string, signature: string): Promise<number> {
-  const query = new URLSearchParams({ path, e: signature,
-    host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });
+/**
+ * The API's answer for a share link (GET /v1/share): its status (200, 404 nothing to share, 410 expired or forged)
+ * and, on 200, the card a link preview shows. `signature` is the link's `e`, or null for an unsigned link.
+ */
+export async function shareLink(path: string, signature: string | null): Promise<{ status: number; card: ShareCard | null }> {
+  const query = new URLSearchParams({ path, host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });
+  if (signature !== null) query.set('e', signature);
   const response = await fetch(`${apiBase()}/v1/share?${query}`, { signal: AbortSignal.timeout(8000) });
-  return response.status;
+  if (response.status !== 200) return { status: response.status, card: null };
+  return { status: 200, card: shareCard(await response.json()) };
 }
 /** Tonight at a venue for its display (/venues/<id>/display), or null when it has none. */
 export async function tonight(id: string): Promise<VenueTonight | null> {

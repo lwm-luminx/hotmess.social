@@ -1,4 +1,5 @@
 import type { PublicListing } from './publicListing';
+import type { ShareCard } from './shareCard';
 
 // What a link preview (iMessage, Facebook, WhatsApp, Slack) shows for a venue or event page. Most venues have no
 // description of their own, so the preview falls back to where it is, or when and where for an event, rather than an
@@ -18,6 +19,23 @@ export function previewDescription(record: PublicListing | null | undefined): st
     return parts.length ? parts.join(' · ').replace(' · at ', ' at ') : `${record.title} on Hot Mess`;
   }
   return 'Sign in to see more details.';
+}
+
+/**
+ * A share card's line, when the page has no listing to preview (a person, or the listings are unavailable): its own
+ * description, else the same address or when-and-where fallback a listing gets, rather than the API's bare
+ * "On Hot Mess".
+ */
+export function cardDescription(card: ShareCard): string {
+  const generic = !card.description || card.description === `On ${card.siteName}`;
+  if (!generic) return card.description;
+  if (card.kind === 'venue' && card.address) return `${card.title} · ${card.address}`;
+  if (card.kind === 'event') {
+    const parts = [card.isCanceled ? 'Canceled' : '', when(card.startAt), card.venueName ? `at ${card.venueName}` : '']
+      .filter(Boolean);
+    if (parts.length) return parts.join(' · ').replace(' · at ', ' at ');
+  }
+  return card.description || `${card.title} on ${card.siteName}`;
 }
 
 /** A Public venue's or event's own photo; Community listings carry none. */
