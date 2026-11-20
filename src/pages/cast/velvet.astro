@@ -5,6 +5,9 @@
 // It lays the board out as the marquee does: the join QR code top left beside the venue, the chat in the right third,
 // drawn as guests see the room. With `slogans: { adult }` in the message (the venue's TV slogans on), Hot Mess slogan
 // slides rotate in between, full screen, taking turns with the upcoming events' posters in `posters`.
+// `mode` picks what this TV shows when one sender drives several (Velvet Display on a Mac): "board" (the default, all
+// of it), "lineup" (no chat), "chat" (the chat wall, the whole screen) or "posters" (the upcoming events' posters back to
+// back). A mode it can't fill (no chat, no posters) shows the board.
 // Nothing here signs in or reads the API, so the page shows nothing until a phone sends it something. When the last
 // phone leaves, the TV keeps going on the web sign's board (/venues/<id>/display): the public lineup, no chat.
 // Registered as a Custom Receiver in the Google Cast SDK Developer Console; the apps carry its application ID.
@@ -104,10 +107,30 @@ export const prerender = true;
             });
             board.appendChild(list);
           }
-          showChat(data.chat);
+          var list = Array.isArray(data.posters) ? data.posters : [];
+          var mode = data.mode;
+          if (mode === 'chat' && !data.chat) mode = 'board';
+          if (mode === 'posters' && !list.length) mode = 'board';
+          setMode(mode);
+          showChat(mode === 'lineup' || mode === 'posters' ? null : data.chat);
           fit();
-          slogans(data.slogans && typeof data.slogans === 'object' ? { adult: data.slogans.adult === true } : null);
-          posters(data.posters || []);
+          // The chat wall is only the chat; posters only are only the posters, without the slogans between them.
+          var wantsSlogans = mode !== 'chat' && mode !== 'posters' && data.slogans && typeof data.slogans === 'object';
+          slogans(wantsSlogans ? { adult: data.slogans.adult === true } : null);
+          posters(mode === 'chat' ? [] : list);
+          postersOnly(mode === 'posters');
+        }
+
+        // What the screen is for: the body's class lays it out (see the styles below).
+        function setMode(mode) {
+          ['lineup', 'chat', 'posters'].forEach(function (name) {
+            document.body.classList.toggle('mode-' + name, mode === name);
+          });
+        }
+
+        function postersOnly(on) {
+          window.velvetPostersOnlyWanted = on;
+          if (window.velvetPostersOnly) window.velvetPostersOnly(on);
         }
 
         // Upcoming events' posters for the rotation, cleaned there; a message before the bundle loads leaves them for it.
@@ -190,6 +213,8 @@ export const prerender = true;
         // No phone left: the web sign's board for this venue, read again each minute.
         function fallback() {
           showChat(null);
+          setMode('board');
+          postersOnly(false);
           if (!venueId || fallbackTimer) return;
           function load() {
             fetch('/venues/' + encodeURIComponent(venueId) + '/display', { cache: 'no-store' })
@@ -246,16 +271,24 @@ export const prerender = true;
       const receiver = window as unknown as {
         velvetSlogans: SloganRotation; velvetSlogansWanted?: { adult: boolean } | null;
         velvetPosters: (list: unknown) => void; velvetPostersWanted?: unknown;
+        velvetPostersOnly: (on: boolean) => void; velvetPostersOnlyWanted?: boolean;
       };
       receiver.velvetSlogans = sloganRotation(document.body);
       receiver.velvetSlogans.set(receiver.velvetSlogansWanted ?? null);
       receiver.velvetPosters = (list) => receiver.velvetSlogans.posters(eventPosters(list));
       receiver.velvetPosters(receiver.velvetPostersWanted ?? []);
+      receiver.velvetPostersOnly = (on) => receiver.velvetSlogans.postersOnly(on);
+      receiver.velvetPostersOnly(receiver.velvetPostersOnlyWanted ?? false);
     </script>
   </body>
 </html>
 
 <style is:global>
+  /* The chat wall: the room, the whole screen. */
+  body.mode-chat .screen #board { display: none; }
+  body.mode-chat #chat { flex: 1 1 auto; border-left: 0; }
+  /* Posters only: black between posters rather than the board. */
+  body.mode-posters .screen #board { visibility: hidden; }
   .screen { display: flex; height: 100%; }
   .screen #board { flex: 1; min-width: 0; background-size: cover; background-position: center; }
   header.with-qr { align-items: center; justify-content: flex-start; gap: clamp(14px, 3vmin, 40px); }

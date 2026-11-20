@@ -132,6 +132,36 @@ test('shows the room’s chat in the right third when the phone sends it, as tex
   await expect(chat).toBeHidden();
 });
 
+test('a TV set to one thing by Velvet Display shows only that', async ({ page }) => {
+  await open(page);
+  const room = { messages: [{ sender: 'Sam', text: 'hello', venue: false }] };
+  const posters = [{ id: 'e1', name: 'Drag Bingo', when: 'Tomorrow · 9 PM', billing: '', cover: 'Free', image: null,
+    link: 'https://hotmess.social/events/e1' }];
+  // The chat wall: the room across the whole screen, no board, no slides.
+  await send(page, { ...board, chat: room, slogans: { adult: false }, posters, mode: 'chat' });
+  await expect(page.locator('body')).toHaveClass(/mode-chat/);
+  await expect(page.locator('#board')).toBeHidden();
+  await expect(page.locator('#messages li p')).toHaveText('hello');
+  const width = await page.evaluate(() => document.getElementById('chat')!.offsetWidth / window.innerWidth);
+  expect(width).toBeGreaterThan(0.95);
+  // The lineup alone leaves the chat off even when it's sent.
+  await send(page, { ...board, chat: room, mode: 'lineup' });
+  await expect(page.locator('#chat')).toBeHidden();
+  await expect(page.locator('#board .lineup li')).toHaveCount(3);
+  // Posters only: straight to a poster, with the board out of sight behind it.
+  await send(page, { ...board, chat: room, posters, mode: 'posters' });
+  await expect(page.locator('body')).toHaveClass(/mode-posters/);
+  await expect(page.locator('#chat')).toBeHidden();
+  await expect(page.locator('.event-poster .name')).toHaveText('Drag Bingo');
+  await expect(page.locator('.event-poster')).toBeVisible();
+  // A mode it can't fill shows the board: chat without a room, posters without posters.
+  await send(page, { ...board, mode: 'chat' });
+  await expect(page.locator('body')).not.toHaveClass(/mode-chat/);
+  await expect(page.locator('#board')).toBeVisible();
+  await send(page, { ...board, mode: 'posters' });
+  await expect(page.locator('body')).not.toHaveClass(/mode-posters/);
+});
+
 test('when the last phone leaves, the TV keeps going on the venue’s public web sign, without chat', async ({ page }) => {
   await open(page);
   await send(page, { ...board, chat: { messages: [{ sender: 'Sam', text: 'hi', venue: false }] } });
