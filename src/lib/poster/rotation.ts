@@ -13,6 +13,8 @@ export interface SloganRotation {
   set(slogans: { adult: boolean } | null): void;
   /** Upcoming events' posters, already cleaned (eventPosters); [] for none. */
   posters(posters: EventPoster[]): void;
+  /** Posters back to back with no board or slogans between (a TV set to show only posters). */
+  postersOnly(on: boolean): void;
 }
 
 export function sloganRotation(screen: HTMLElement): SloganRotation {
@@ -22,6 +24,7 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
   let posters: EventPoster[] = [];
   let lastPoster: string | null = null;
   let postersTurn = false;
+  let only = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const slide = document.createElement('div');
   slide.className = 'slogan-slide';
@@ -113,11 +116,16 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
 
   function schedule() {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(show, BOARD_SECONDS * 1000);
+    timer = setTimeout(show, only ? 0 : BOARD_SECONDS * 1000);
   }
 
   async function show() {
     if (!running()) return;
+    if (only) {
+      // None to show: look again after the board's turn rather than spinning.
+      if (!showPoster()) timer = setTimeout(show, BOARD_SECONDS * 1000);
+      return;
+    }
     postersTurn = !postersTurn;
     if (postersTurn && showPoster()) return;
     if (await showSlogan()) return;
@@ -163,6 +171,12 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
     posters(list) {
       posters = list;
       stopOrStart();
+    },
+    postersOnly(on) {
+      if (on === only) return;
+      only = on;
+      // Straight to a poster (or back to the board's pace) rather than waiting out the board's turn.
+      if (slide.hidden && poster.hidden && running()) schedule();
     },
   };
 }
