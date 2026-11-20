@@ -4,7 +4,7 @@
 // urn:x-cast:com.audiencekit.velvet channel: the lineup, and the room's live chat when the sign-in may moderate it.
 // It lays the board out as the marquee does: the join QR code top left beside the venue, the chat in the right third,
 // drawn as guests see the room. With `slogans: { adult }` in the message (the venue's TV slogans on), Hot Mess slogan
-// slides rotate in between, full screen.
+// slides rotate in between, full screen, taking turns with the upcoming events' posters in `posters`.
 // Nothing here signs in or reads the API, so the page shows nothing until a phone sends it something. When the last
 // phone leaves, the TV keeps going on the web sign's board (/venues/<id>/display): the public lineup, no chat.
 // Registered as a Custom Receiver in the Google Cast SDK Developer Console; the apps carry its application ID.
@@ -107,6 +107,13 @@ export const prerender = true;
           showChat(data.chat);
           fit();
           slogans(data.slogans && typeof data.slogans === 'object' ? { adult: data.slogans.adult === true } : null);
+          posters(data.posters || []);
+        }
+
+        // Upcoming events' posters for the rotation, cleaned there; a message before the bundle loads leaves them for it.
+        function posters(list) {
+          window.velvetPostersWanted = list;
+          if (window.velvetPosters) window.velvetPosters(list);
         }
 
         // The slogan rotation (bundled below), on while the phone or the web sign's board asks for it. A message that
@@ -196,6 +203,9 @@ export const prerender = true;
                 fit();
                 var mode = next.getAttribute('data-slogans');
                 slogans(mode === 'adult' || mode === 'general' ? { adult: mode === 'adult' } : null);
+                var list = null;
+                try { list = JSON.parse(next.getAttribute('data-posters') || '[]'); } catch (e) { list = []; }
+                posters(list);
               }).catch(function () {});
           }
           fallbackTimer = setInterval(load, 60000);
@@ -225,6 +235,7 @@ export const prerender = true;
       // The join QR code's drawing, bundled for the receiver above: an SVG string at high error correction.
       import qrcode from 'qrcode-generator';
       import { sloganRotation, type SloganRotation } from '../../lib/poster/rotation';
+      import { eventPosters } from '../../lib/poster/eventPosters';
       (window as unknown as { velvetQR: (text: string) => string }).velvetQR = (text: string) => {
         const qr = qrcode(0, 'H');
         qr.addData(text);
@@ -232,9 +243,14 @@ export const prerender = true;
         return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
       };
       // The slogan slides' rotation, for show() above; off until a message turns it on.
-      const receiver = window as unknown as { velvetSlogans: SloganRotation; velvetSlogansWanted?: { adult: boolean } | null };
+      const receiver = window as unknown as {
+        velvetSlogans: SloganRotation; velvetSlogansWanted?: { adult: boolean } | null;
+        velvetPosters: (list: unknown) => void; velvetPostersWanted?: unknown;
+      };
       receiver.velvetSlogans = sloganRotation(document.body);
       receiver.velvetSlogans.set(receiver.velvetSlogansWanted ?? null);
+      receiver.velvetPosters = (list) => receiver.velvetSlogans.posters(eventPosters(list));
+      receiver.velvetPosters(receiver.velvetPostersWanted ?? []);
     </script>
   </body>
 </html>
