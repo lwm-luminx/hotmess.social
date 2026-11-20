@@ -3,11 +3,20 @@
 // its QR code, short so the code scans from across the room. It redirects to the venue's chat, /venues/<id>/chat,
 // which opens the room in Hot Mess or sends a phone without the app to its store. The apps claim /v/* as an app link
 // and follow this redirect themselves, since a redirect within the site never opens an app.
-import { shortLink } from '../../server/publicContent';
+// When the site's credentialed read fails, the cover poster's public read of the same code still finds the venue, so a
+// scan in the room never lands on the wrong screen.
+import { shortLink, venueForCode } from '../../server/publicContent';
 export const prerender = false;
+const code = Astro.params.code ?? '';
 let path: string | null = null;
-try { path = await shortLink(Astro.params.code ?? ''); } catch {
-  return new Response('Try again in a moment', { status: 503, headers: { 'Retry-After': '30' } });
+try { path = await shortLink(code); } catch (error) {
+  console.error('short link: public read failed, trying the cover read', error);
+  try {
+    const venue = await venueForCode(code);
+    path = venue ? `/venues/${venue}/chat` : null;
+  } catch {
+    return new Response('Try again in a moment', { status: 503, headers: { 'Retry-After': '30' } });
+  }
 }
 if (!path) return new Response('Not found', { status: 404 });
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');

@@ -94,6 +94,21 @@ export async function tonight(id: string): Promise<VenueTonight | null> {
   if (!response.ok) throw new Error('Public content is unavailable');
   return venueTonight(await response.json() as Record<string, unknown>);
 }
+/**
+ * The venue a short code names, from the cover poster's public read (`GET /v1/cover/:code`, the same code), which needs
+ * no site credential: what /v/<code> falls back on when the credentialed read fails. Null for no such venue.
+ */
+export async function venueForCode(code: string): Promise<string | null> {
+  if (!/^[0-9a-zA-Z]{8}$/.test(code)) return null;
+  const url = new URL(`${apiBase()}/v1/cover/${code}`);
+  url.searchParams.set('host', new URL(siteOrigin()).host);
+  const response = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Public content is unavailable');
+  const { venue } = await response.json() as { venue?: { id?: unknown } };
+  const id = typeof venue?.id === 'string' ? venue.id.toLowerCase() : '';
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id) ? id : null;
+}
 /** Where a venue's short link (/v/<code>) goes, its chat (`/venues/<id>/chat`), or null for no such venue. */
 export async function shortLink(code: string): Promise<string | null> {
   if (!/^[0-9a-zA-Z]{8}$/.test(code)) return null;
