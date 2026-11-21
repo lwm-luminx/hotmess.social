@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import qrcode from 'qrcode-generator';
 import {
-  money, nightLabel, offer, pageLanguage, passCode, timeLabel, PASS_WINDOW,
+  clampToScale, coverPrice, estimateTotal, money, nightLabel, offer, stepScale, pageLanguage, passCode, timeLabel, PASS_WINDOW,
   type CoverJSON, type CoverPosterJSON, type GuestAdmissionJSON, type Language, type NightJSON,
 } from '../lib/coverPoster';
 import { coverPoster, loadStripe, saveCover, savedCover, type StripeJS } from '../lib/coverPosterApi';
@@ -26,6 +26,8 @@ const COPY = {
     admits: (n: number) => `Admits ${n}`, checkedIn: 'Checked in', pending: 'Waiting for the payment to go through…',
     keep: 'Keep this page open, or get Hot Mess to keep your pass and see what’s on.', getApp: 'Get Hot Mess',
     seeVenue: 'See the venue', failedPay: 'That didn’t go through. Check your card and try again.',
+    sliding: (range: string) => `${range}, pay what you can`, howMuch: 'How much each?',
+    suggested: (price: string) => `Suggested ${price}`, less: 'Pay less', more: 'Pay more',
   },
   es: {
     loading: 'Cargando…', missing: 'El código de este póster ya no se usa. Pregunta en la puerta.', failed: 'No pudimos cargar el cover de esta noche.',
@@ -40,6 +42,8 @@ const COPY = {
     admits: (n: number) => n === 1 ? 'Entra 1 persona' : `Entran ${n} personas`, checkedIn: 'Ya entraste', pending: 'Esperando a que se confirme el pago…',
     keep: 'Deja esta página abierta, o descarga Hot Mess para guardar tu pase y ver qué hay.', getApp: 'Descargar Hot Mess',
     seeVenue: 'Ver el lugar', failedPay: 'No se pudo. Revisa tu tarjeta e inténtalo de nuevo.',
+    sliding: (range: string) => `${range}, paga lo que puedas`, howMuch: '¿Cuánto cada uno?',
+    suggested: (price: string) => `Sugerido ${price}`, less: 'Pagar menos', more: 'Pagar más',
   },
 } as const;
 
@@ -106,17 +110,23 @@ function Offer({ poster, night, t, language, code, onPaid }: {
   const fromLine = from ? <p className="muted">{t.from(from)}</p> : null;
   // A next night is never sold here: guest checkout sells tonight only.
   if (!night.tonight && what.kind !== 'nothing' && what.kind !== 'tickets') {
-    const price = 'cover' in what ? money(what.cover.amount_cents, what.cover.currency, language) : null;
-    return <>{price ? <p className="cover-price">{price}</p> : <p>{t.free}</p>}{fromLine}<p className="muted">{t.nextSold}</p></>;
+    const price = 'cover' in what ? coverPrice(what.cover, language) : null;
+    const slides = 'cover' in what && what.cover.scale;
+    return <>{price ? <p className="cover-price">{slides ? t.sliding(price) : price}</p> : <p>{t.free}</p>}{fromLine}<p className="muted">{t.nextSold}</p></>;
   }
   switch (what.kind) {
     case 'buy': return <>{fromLine}<Checkout venueId={poster.venue.id} cover={what.cover} t={t} language={language} code={code} onPaid={onPaid} /></>;
-    case 'app': return <>{fromLine}<p>{t.inApp(money(what.cover.amount_cents, what.cover.currency, language))}</p><GetApp t={t} /></>;
-    case 'door': return <>{fromLine}<p>{t.door(money(what.cover.amount_cents, what.cover.currency, language))}</p></>;
+    case 'app': return <>{fromLine}<p>{t.inApp(shownPrice(what.cover, t, language))}</p><GetApp t={t} /></>;
+    case 'door': return <>{fromLine}<p>{t.door(shownPrice(what.cover, t, language))}</p></>;
     case 'tickets': return <><p>{t.tickets}</p><a className="button" href={what.url} rel="noopener">{t.getTickets}</a></>;
     case 'free': return <p>{t.free}</p>;
     case 'nothing': return <p>{t.nothing}</p>;
   }
+}
+
+/** "$10", or "$5–$30, pay what you can" for a sliding scale. */
+function shownPrice(cover: CoverJSON, t: Copy, language: Language): string {
+  return cover.scale ? t.sliding(coverPrice(cover, language)) : coverPrice(cover, language);
 }
 
 function Checkout({ venueId, cover, t, language, code, onPaid }: {
@@ -130,14 +140,18 @@ function Checkout({ venueId, cover, t, language, code, onPaid }: {
   const [total, setTotal] = useState<number | null>(null);
   const mount = useRef<HTMLDivElement>(null);
   const payment = useRef<{ stripe: StripeJS; elements: ReturnType<StripeJS['elements']>; id: string; token: string } | null>(null);
+  // A sliding scale (never with tiers): each cover's amount, starting at the suggested one.
+  const scale = cover.tiers.length === 0 ? cover.scale ?? null : null;
+  const [amount, setAmount] = useState(() => (scale ? clampToScale(scale.suggested_cents, scale) : cover.amount_cents));
   const price = cover.tiers.find((x) => x.id === tier) ?? cover;
-  const estimate = price.total_cents * quantity;
+  const each = scale ? { amount_cents: amount, total_cents: estimateTotal(cover, amount) } : price;
+  const estimate = each.total_cents * quantity;
 
   const start = async () => {
     setStage('starting');
     setError(null);
     try {
-      const [checkout, Stripe] = await Promise.all([coverPoster.start(venueId, quantity, tier), loadStripe()]);
+      const [checkout, Stripe] = await Promise.all([coverPoster.start(venueId, quantity, tier, scale ? amount : null), loadStripe()]);
       saveCover(code, { id: checkout.admission.id, token: checkout.claim_token, night: checkout.admission.night });
       setTotal(checkout.admission.total_cents);
       if (!checkout.payment_intent_client_secret) {
@@ -201,15 +215,26 @@ function Checkout({ venueId, cover, t, language, code, onPaid }: {
         <span><b>{x.name}</b>{x.description ? <span className="muted"> · {x.description}</span> : null}</span>
         <span>{money(x.amount_cents, cover.currency, language)}</span>
       </label>)}
-    </fieldset> : <p className="cover-price">{money(cover.amount_cents, cover.currency, language)} <span className="muted small">{t.each}</span></p>}
+    </fieldset> : scale ? <div className="cover-scale">
+      <p className="cover-price">{t.sliding(coverPrice(cover, language))}</p>
+      <div className="cover-quantity">
+        <span>{t.howMuch}</span>
+        <button type="button" className="button secondary" aria-label={t.less} disabled={amount <= scale.min_cents}
+          onClick={() => setAmount((n) => stepScale(n, -1, scale))}>−</button>
+        <output aria-live="polite">{money(amount, cover.currency, language)}</output>
+        <button type="button" className="button secondary" aria-label={t.more} disabled={amount >= scale.max_cents}
+          onClick={() => setAmount((n) => stepScale(n, 1, scale))}>+</button>
+      </div>
+      <p className="muted small">{t.suggested(money(scale.suggested_cents, cover.currency, language))}</p>
+    </div> : <p className="cover-price">{money(cover.amount_cents, cover.currency, language)} <span className="muted small">{t.each}</span></p>}
     <div className="cover-quantity">
       <span>{t.howMany}</span>
       <button type="button" className="button secondary" aria-label="−" disabled={quantity <= 1} onClick={() => setQuantity((n) => n - 1)}>−</button>
       <output aria-live="polite">{quantity}</output>
       <button type="button" className="button secondary" aria-label="+" disabled={quantity >= max} onClick={() => setQuantity((n) => n + 1)}>+</button>
     </div>
-    {price.total_cents !== price.amount_cents ? <p className="muted small">
-      {t.cover} {money(price.amount_cents * quantity, cover.currency, language)} · {t.fee} {money((price.total_cents - price.amount_cents) * quantity, cover.currency, language)}
+    {each.total_cents !== each.amount_cents ? <p className="muted small">
+      {t.cover} {money(each.amount_cents * quantity, cover.currency, language)} · {t.fee} {money((each.total_cents - each.amount_cents) * quantity, cover.currency, language)}
     </p> : null}
     {error ? <p className="cover-error" role="alert">{error}</p> : null}
     <button className="button cover-pay" type="button" onClick={start} disabled={stage === 'starting'}>

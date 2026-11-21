@@ -69,6 +69,8 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
       image: text(event.image),
       people: Array.isArray(event.people) ? event.people.filter((name): name is string => typeof name === 'string') : [],
       coverCents: typeof event.cover_cents === 'number' ? event.cover_cents : null,
+      coverMinCents: typeof event.cover_min_cents === 'number' ? event.cover_min_cents : null,
+      coverMaxCents: typeof event.cover_max_cents === 'number' ? event.cover_max_cents : null,
     })).filter((event) => event.name),
   };
 }

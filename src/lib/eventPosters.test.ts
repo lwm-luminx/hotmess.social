@@ -43,9 +43,11 @@ test('the web sign words its posters as Velvet does', async () => {
       people: ['Anya', 'Darcy'], coverCents: 0 },
     { id: 'b', name: 'Karaoke', startAt: '2026-10-11T04:30:00Z', night: '2026-10-10', image: null, people: [], coverCents: 1050 },
     { id: 'c', name: 'Drag Brunch', startAt: '2026-10-17T19:00:00Z', night: '2026-10-17', image: null, people: [], coverCents: null },
+    { id: 'd', name: 'Benefit', startAt: '2026-10-18T04:00:00Z', night: '2026-10-17', image: null, people: [],
+      coverCents: 1500, coverMinCents: 500, coverMaxCents: 3000 },
   ], '2026-10-09', 'America/Los_Angeles');
-  assert.deepEqual(posters.map((p) => p.when), ['Tonight · 9 PM', 'Tomorrow · 9:30 PM', 'Sat, Oct 17 · 12 PM']);
-  assert.deepEqual(posters.map((p) => p.cover), ['Free', '$10.50 cover', null]);
+  assert.deepEqual(posters.map((p) => p.when), ['Tonight · 9 PM', 'Tomorrow · 9:30 PM', 'Sat, Oct 17 · 12 PM', 'Sat, Oct 17 · 9 PM']);
+  assert.deepEqual(posters.map((p) => p.cover), ['Free', '$10.50 cover', null, '$5–$30 cover, pay what you can']);
   assert.equal(posters[0].billing, 'with Anya · Darcy');
   assert.equal(posters[2].link, 'https://hotmess.social/events/c');
 });

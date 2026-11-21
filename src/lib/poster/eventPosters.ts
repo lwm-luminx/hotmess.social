@@ -72,6 +72,9 @@ export interface UpcomingEvent {
   image: string | null;
   people: string[];
   coverCents: number | null;
+  /** A sliding-scale cover's least and most (coverCents is then the suggested amount). */
+  coverMinCents?: number | null;
+  coverMaxCents?: number | null;
 }
 
 function nextDay(night: string): string {
@@ -82,6 +85,16 @@ function nextDay(night: string): string {
 
 function dollars(cents: number): string {
   return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+}
+
+/** "Free", "$10 cover", or a sliding scale's "$5–$30 cover, pay what you can", as Velvet words it. */
+export function coverLine(event: Pick<UpcomingEvent, 'coverCents' | 'coverMinCents' | 'coverMaxCents'>): string | null {
+  if (event.coverCents == null) return null;
+  if (event.coverCents === 0) return 'Free';
+  if (event.coverMinCents != null && event.coverMaxCents != null) {
+    return `${dollars(event.coverMinCents)}–${dollars(event.coverMaxCents)} cover, pay what you can`;
+  }
+  return `${dollars(event.coverCents)} cover`;
 }
 
 /** "Tonight · 9 PM", "Tomorrow · 9:30 PM" or "Fri, Dec 5 · 9 PM", at the venue, as Velvet words it. */
@@ -108,7 +121,7 @@ export function postersFromTonight(upcoming: UpcomingEvent[], tonight: string, z
     name: event.name,
     when: posterWhen(event, tonight, zone),
     billing: event.people.length ? `with ${event.people.slice(0, 4).join(' · ')}` : '',
-    cover: event.coverCents == null ? null : event.coverCents === 0 ? 'Free' : `${dollars(event.coverCents)} cover`,
+    cover: coverLine(event),
     image: event.image,
     link: `https://hotmess.social/events/${encodeURIComponent(event.id)}`,
   })));

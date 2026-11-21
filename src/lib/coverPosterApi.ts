@@ -60,8 +60,11 @@ export const coverPoster = {
       throw e;
     }
   },
-  start: (venueId: string, quantity: number, tier: string | null) =>
-    call<GuestCheckout>('POST', 'clip/covers', { venue_id: venueId, quantity, tier }),
+  /** `amountCents` is what the guest chose to pay for each cover on a sliding scale; null pays the set price. */
+  start: (venueId: string, quantity: number, tier: string | null, amountCents: number | null = null) =>
+    call<GuestCheckout>('POST', 'clip/covers', {
+      venue_id: venueId, quantity, tier, ...(amountCents == null ? {} : { amount_cents: amountCents }),
+    }),
   confirm: async (id: string, token: string) =>
     (await call<{ admission: GuestAdmissionJSON }>('POST', `clip/covers/${encodeURIComponent(id)}/confirm`, { claim_token: token })).admission,
 };
