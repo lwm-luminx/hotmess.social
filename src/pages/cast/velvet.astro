@@ -61,7 +61,28 @@ export const prerender = true;
         var venueId = null;
         var fallbackTimer = null;
 
-        function el(tag, className, text) {
+        // A picture too small to fill the TV without being blown up more than half again (a venue's old profile
+      // photo) looks soft behind the board: it's skipped, as on the Apple TV and Mac (Rick, 2026-11-21).
+      var backdropChecks = {};
+      function sharpBackdrop(target, url) {
+        var apply = function (sharp) {
+          if (!sharp) return;
+          target.style.backgroundImage = 'linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.85)), url("' +
+            url.replace(/["\\]/g, '') + '")';
+          target.classList.add('photo');
+        };
+        if (url in backdropChecks) return apply(backdropChecks[url]);
+        var probe = new Image();
+        probe.onload = function () {
+          var stretch = Math.max(1920 / Math.max(probe.naturalWidth, 1), 1080 / Math.max(probe.naturalHeight, 1));
+          backdropChecks[url] = stretch <= 1.5;
+          apply(backdropChecks[url]);
+        };
+        probe.onerror = function () { backdropChecks[url] = false; };
+        probe.src = url;
+      }
+
+      function el(tag, className, text) {
           var node = document.createElement(tag);
           if (className) node.className = className;
           if (text != null) node.textContent = text;
@@ -231,9 +252,9 @@ export const prerender = true;
           var lineup = data.lineup || [];
           // With nothing on, the venue's own photo fills the room instead of a dark panel.
           var photo = !lineup.length && typeof data.venue.photo === 'string' && data.venue.photo.indexOf('https://') === 0;
-          board.style.backgroundImage = photo
-            ? 'linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.85)), url("' + data.venue.photo.replace(/["\\]/g, '') + '")' : '';
-          board.classList.toggle('photo', photo);
+          board.style.backgroundImage = '';
+          board.classList.remove('photo');
+          if (photo) sharpBackdrop(board, data.venue.photo);
           if (!lineup.length) {
             board.appendChild(el('p', 'idle', events.length ? 'The lineup is coming soon.' : 'Nothing on tonight yet.'));
             var coming = (Array.isArray(data.comingUp) ? data.comingUp : []).filter(function (event) {

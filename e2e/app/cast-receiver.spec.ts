@@ -92,14 +92,30 @@ test('the join QR code is the venue’s short link, or the link the phone sends'
   await expect(page.locator('header .join')).toHaveCount(0);
 });
 
+/** A picture of the given size for the backdrop's sharpness check (an SVG's width and height are its natural size). */
+async function picture(page: Page, url: string, width: number, height: number) {
+  await page.route(url, (route) => route.fulfill({ contentType: 'image/svg+xml',
+    body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#405"/></svg>` }));
+}
+
 test('a night with nothing on shows the venue’s photo and says so', async ({ page }) => {
   await open(page);
+  await picture(page, 'https://example.com/room.jpg', 1920, 1080);
   await send(page, { ...board, events: [], lineup: [], venue: { ...board.venue, photo: 'https://example.com/room.jpg' } });
   await expect(page.locator('#board .idle')).toHaveText('Nothing on tonight yet.');
   await expect(page.locator('#board')).toHaveClass(/photo/);
   expect(await page.locator('#board').evaluate((el) => el.style.backgroundImage)).toContain('https://example.com/room.jpg');
   await send(page, { ...board, events: ['Mess Hall'], lineup: [], venue: { ...board.venue, photo: 'javascript:alert(1)' } });
   await expect(page.locator('#board .idle')).toHaveText('The lineup is coming soon.');
+  await expect(page.locator('#board')).not.toHaveClass(/photo/);
+});
+
+test('a photo too small to fill the TV without blurring stays off the backdrop', async ({ page }) => {
+  await open(page);
+  await picture(page, 'https://example.com/small.jpg', 640, 360);
+  await send(page, { ...board, events: [], lineup: [], venue: { ...board.venue, photo: 'https://example.com/small.jpg' } });
+  await expect(page.locator('#board .idle')).toHaveText('Nothing on tonight yet.');
+  await page.waitForTimeout(500);
   await expect(page.locator('#board')).not.toHaveClass(/photo/);
 });
 
