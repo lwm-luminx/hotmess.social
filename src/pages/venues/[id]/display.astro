@@ -46,6 +46,7 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
     <main id="board" data-zone={zone}
       data-slogans={data?.slogans ? (data.slogans.adult ? 'adult' : 'general') : 'off'}
       data-slogans-hidden={JSON.stringify(data?.slogans?.hidden ?? [])}
+      data-slogans-slides={data?.slogans?.slides ? JSON.stringify(data.slogans.slides) : ''}
       data-posters={JSON.stringify(posters)}
       data-social={JSON.stringify(data?.social ?? [])} data-venue-name={data?.venue.title ?? ''}>
       {status !== 200 ? (
@@ -110,6 +111,7 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
                 board.setAttribute('data-zone', next.getAttribute('data-zone'));
                 board.setAttribute('data-slogans', next.getAttribute('data-slogans'));
                 board.setAttribute('data-slogans-hidden', next.getAttribute('data-slogans-hidden') || '[]');
+                board.setAttribute('data-slogans-slides', next.getAttribute('data-slogans-slides') || '');
                 board.setAttribute('data-posters', next.getAttribute('data-posters') || '[]');
                 board.setAttribute('data-social', next.getAttribute('data-social') || '[]');
                 fit();
@@ -132,7 +134,9 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
           var mode = board.getAttribute('data-slogans');
           var hidden = [];
           try { hidden = JSON.parse(board.getAttribute('data-slogans-hidden') || '[]'); } catch (e) { hidden = []; }
-          if (window.velvetSlogans) window.velvetSlogans.set(mode === 'off' || !mode ? null : { adult: mode === 'adult', hidden: hidden });
+          var own = null;
+          try { own = JSON.parse(board.getAttribute('data-slogans-slides') || 'null'); } catch (e) { own = null; }
+          if (window.velvetSlogans) window.velvetSlogans.set(mode === 'off' || !mode ? null : { adult: mode === 'adult', hidden: hidden, slides: own });
           if (window.velvetPosters) window.velvetPosters(board.getAttribute('data-posters'));
           if (window.velvetSocial) window.velvetSocial(board.getAttribute('data-social'), board.getAttribute('data-venue-name'));
         }
@@ -180,7 +184,9 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
       const mode = board?.getAttribute('data-slogans');
       let hidden: unknown = [];
       try { hidden = JSON.parse(board?.getAttribute('data-slogans-hidden') || '[]'); } catch { hidden = []; }
-      rotation.set(mode === 'off' || !mode ? null : { adult: mode === 'adult', hidden });
+      let own: unknown = null;
+      try { own = JSON.parse(board?.getAttribute('data-slogans-slides') || 'null'); } catch { own = null; }
+      rotation.set(mode === 'off' || !mode ? null : { adult: mode === 'adult', hidden, slides: own });
       posters(board?.getAttribute('data-posters'));
       social(board?.getAttribute('data-social'), board?.getAttribute('data-venue-name'));
     </script>

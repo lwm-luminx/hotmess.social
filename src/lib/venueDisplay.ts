@@ -3,7 +3,7 @@
 // what anyone signed out may see. Performers who aren't Public are counted, never named.
 
 import type { UpcomingEvent } from './poster/eventPosters.ts';
-import { hiddenSlides } from './poster/marquee.ts';
+import { audienceSlides, hiddenSlides, type MarqueeSlide } from './poster/marquee.ts';
 
 export interface DisplayPerson { name: string; image?: string }
 export interface DisplayEntry {
@@ -26,7 +26,7 @@ export interface VenueTonight {
   /** Slogan slides between the lineup (src/lib/poster/marquee.ts), with the venue's adult lines or not; null when the
    * venue turned them off. */
   /** Slogan slides on (with the adult lines or not, and the ids the venue turned off), or null for off. */
-  slogans: { adult: boolean; hidden: string[] } | null;
+  slogans: { adult: boolean; hidden: string[]; slides: MarqueeSlide[] | null } | null;
   /** Public events from tonight through two weeks, for the full-screen posters (src/lib/poster/eventPosters.ts). */
   upcoming: UpcomingEvent[];
   /** The venue's social profiles for the follow-us slide, as the API gives them (src/lib/poster/social.ts cleans them). */
@@ -58,7 +58,8 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
     })),
     slogans: body.slogans && typeof body.slogans === 'object'
       ? { adult: (body.slogans as Record<string, unknown>).adult === true,
-          hidden: hiddenSlides((body.slogans as Record<string, unknown>).hidden) } : null,
+          hidden: hiddenSlides((body.slogans as Record<string, unknown>).hidden),
+          slides: audienceSlides((body.slogans as Record<string, unknown>).slides) } : null,
     social: list(body.social),
     upcoming: list(body.upcoming).map((event) => ({
       id: String(event.id),
