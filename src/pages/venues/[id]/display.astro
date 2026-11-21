@@ -45,7 +45,8 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
   <body>
     <main id="board" data-zone={zone}
       data-slogans={data?.slogans ? (data.slogans.adult ? 'adult' : 'general') : 'off'}
-      data-posters={JSON.stringify(posters)}>
+      data-posters={JSON.stringify(posters)}
+      data-social={JSON.stringify(data?.social ?? [])} data-venue-name={data?.venue.title ?? ''}>
       {status !== 200 ? (
         <p class="idle">{status === 404 ? 'This venue has no display.' : 'Reconnecting…'}</p>
       ) : (
@@ -108,6 +109,7 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
                 board.setAttribute('data-zone', next.getAttribute('data-zone'));
                 board.setAttribute('data-slogans', next.getAttribute('data-slogans'));
                 board.setAttribute('data-posters', next.getAttribute('data-posters') || '[]');
+                board.setAttribute('data-social', next.getAttribute('data-social') || '[]');
                 fit();
                 slogans();
               }
@@ -128,6 +130,7 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
           var mode = board.getAttribute('data-slogans');
           if (window.velvetSlogans) window.velvetSlogans.set(mode === 'off' || !mode ? null : { adult: mode === 'adult' });
           if (window.velvetPosters) window.velvetPosters(board.getAttribute('data-posters'));
+          if (window.velvetSocial) window.velvetSocial(board.getAttribute('data-social'), board.getAttribute('data-venue-name'));
         }
         fit();
         slogans();
@@ -160,15 +163,20 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
       // the upcoming events' posters from data-posters.
       import { sloganRotation } from '../../../lib/poster/rotation';
       import { eventPosters } from '../../../lib/poster/eventPosters';
+      import { socialProfiles } from '../../../lib/poster/social';
       const rotation = sloganRotation(document.body);
       const posters = (json: string | null | undefined) => {
         try { rotation.posters(eventPosters(JSON.parse(json || '[]'))); } catch { rotation.posters([]); }
       };
-      Object.assign(window, { velvetSlogans: rotation, velvetPosters: posters });
+      const social = (json: string | null | undefined, venueName?: string | null) => {
+        try { rotation.social(socialProfiles(JSON.parse(json || '[]')), venueName); } catch { rotation.social([]); }
+      };
+      Object.assign(window, { velvetSlogans: rotation, velvetPosters: posters, velvetSocial: social });
       const board = document.getElementById('board');
       const mode = board?.getAttribute('data-slogans');
       rotation.set(mode === 'off' || !mode ? null : { adult: mode === 'adult' });
       posters(board?.getAttribute('data-posters'));
+      social(board?.getAttribute('data-social'), board?.getAttribute('data-venue-name'));
     </script>
   </body>
 </html>

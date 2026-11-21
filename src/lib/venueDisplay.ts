@@ -27,6 +27,8 @@ export interface VenueTonight {
   slogans: { adult: boolean } | null;
   /** Public events from tonight through two weeks, for the full-screen posters (src/lib/poster/eventPosters.ts). */
   upcoming: UpcomingEvent[];
+  /** The venue's social profiles for the follow-us slide, as the API gives them (src/lib/poster/social.ts cleans them). */
+  social: unknown[];
 }
 
 const text = (value: unknown) => typeof value === 'string' ? value : null;
@@ -54,6 +56,7 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
     })),
     slogans: body.slogans && typeof body.slogans === 'object'
       ? { adult: (body.slogans as Record<string, unknown>).adult === true } : null,
+    social: list(body.social),
     upcoming: list(body.upcoming).map((event) => ({
       id: String(event.id),
       name: text(event.name) ?? '',

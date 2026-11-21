@@ -2,11 +2,14 @@
 // slides take turns: an upcoming event's poster (eventPosters.ts), then a slogan (marquee.ts), taking the lines in a
 // shuffled order so a long night doesn't loop the same few; either stands in when the other has none. The web sign and
 // the Velvet cast receiver run it; `set` turns the slogans on (with whether the venue's adult lines may show) or off,
-// and `posters` sets the events' posters, which show whether or not the slogans are on.
+// and `posters` sets the events' posters, which show whether or not the slogans are on. `social` sets the venue's social
+// media profiles (social.ts): a "follow us" slide with a code to each, once after every round of the posters (or in
+// their place when there are none).
 
 import qrcode from 'qrcode-generator';
 import { BOARD_SECONDS, SLIDE_SECONDS, slidesFor, type MarqueeManifest, type MarqueeSlide } from './marquee.ts';
 import { nextPoster, posterKicker, type EventPoster } from './eventPosters.ts';
+import type { SocialProfile } from './social.ts';
 
 export interface SloganRotation {
   /** Slides on, with the venue's adult lines or not; null turns them off and takes any slide down. */
@@ -15,6 +18,8 @@ export interface SloganRotation {
   posters(posters: EventPoster[]): void;
   /** Posters back to back with no board or slogans between (a TV set to show only posters). */
   postersOnly(on: boolean): void;
+  /** The venue's social profiles (already cleaned, socialProfiles) and its name, for the follow-us slide; [] for none. */
+  social(profiles: SocialProfile[], venueName?: string | null): void;
 }
 
 export function sloganRotation(screen: HTMLElement): SloganRotation {
@@ -25,6 +30,9 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
   let lastPoster: string | null = null;
   let postersTurn = false;
   let only = false;
+  let social: SocialProfile[] = [];
+  let socialVenue = '';
+  let socialDue = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const slide = document.createElement('div');
   slide.className = 'slogan-slide';
@@ -38,8 +46,13 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
   poster.hidden = true;
   poster.setAttribute('aria-hidden', 'true');
   screen.appendChild(poster);
+  const follow = document.createElement('div');
+  follow.className = 'social-slide';
+  follow.hidden = true;
+  follow.setAttribute('aria-hidden', 'true');
+  screen.appendChild(follow);
 
-  const running = () => adult !== null || posters.length > 0;
+  const running = () => adult !== null || posters.length > 0 || social.length > 0;
 
   function load(): Promise<MarqueeManifest | null> {
     manifest ??= fetch('/marquee/slogans.json').then((r) => (r.ok ? r.json() as Promise<MarqueeManifest> : null)).catch(() => null);
@@ -55,6 +68,7 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
   function hide() {
     slide.hidden = true;
     poster.hidden = true;
+    follow.hidden = true;
     document.body.classList.remove('showing-slogan');
   }
 
@@ -94,11 +108,47 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
     poster.appendChild(code);
   }
 
-  /** The next event's poster, up once its banner is in (or straight away without one); false with none. */
+  /** The follow-us slide: the venue's name and each network with its handle and a code to the profile. */
+  function drawSocial() {
+    follow.textContent = '';
+    const words = el('div', 'words');
+    words.appendChild(el('p', 'kicker', 'Follow us'));
+    words.appendChild(el('h2', 'name', socialVenue || 'Follow us'));
+    follow.appendChild(words);
+    const cards = el('div', 'cards');
+    for (const profile of social) {
+      const card = el('div', 'card');
+      const qr = qrcode(0, 'M');
+      qr.addData(profile.url);
+      qr.make();
+      const box = el('div', 'qr');
+      box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      card.appendChild(box);
+      card.appendChild(el('p', 'network', profile.network));
+      card.appendChild(el('p', 'handle', profile.handle));
+      cards.appendChild(card);
+    }
+    follow.appendChild(cards);
+  }
+
+  /** The follow-us slide, up straight away (it has no pictures to wait for); false without profiles. */
+  function showSocial(): boolean {
+    if (!social.length) return false;
+    socialDue = false;
+    drawSocial();
+    follow.hidden = false;
+    up();
+    return true;
+  }
+
+  /** The next event's poster, up once its banner is in (or straight away without one); false with none. After the last
+   * poster of a round, or in place of posters when there are none, the follow-us slide takes the turn. */
   function showPoster(): boolean {
+    if (social.length && (socialDue || !posters.length)) return showSocial();
     const event = nextPoster(posters, lastPoster);
     if (!event) return false;
     lastPoster = event.id;
+    if (social.length && event.id === posters[posters.length - 1].id) socialDue = true;
     draw(event);
     const reveal = () => {
       if (!running()) return;
@@ -154,7 +204,7 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
       if (timer) clearTimeout(timer);
       timer = null;
       hide();
-    } else if (slide.hidden && poster.hidden && !timer) {
+    } else if (slide.hidden && poster.hidden && follow.hidden && !timer) {
       schedule();
     }
   }
@@ -176,7 +226,13 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
       if (on === only) return;
       only = on;
       // Straight to a poster (or back to the board's pace) rather than waiting out the board's turn.
-      if (slide.hidden && poster.hidden && running()) schedule();
+      if (slide.hidden && poster.hidden && follow.hidden && running()) schedule();
+    },
+    social(profiles, venueName) {
+      social = profiles;
+      socialVenue = venueName ?? '';
+      if (!social.length) socialDue = false;
+      stopOrStart();
     },
   };
 }

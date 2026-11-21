@@ -12,6 +12,8 @@
 // chat, no posters, no photos, no lyrics) shows the board.
 // For "photos" Velvet Display sends `photos` ([{ id, url, caption?, credit, alt?, width?, height? }], newest first,
 // https previews only; the sender has already left out hidden and old ones).
+// `social` ([{ provider, handle, url }], the venue's social media profiles) puts a "follow us" slide with a code to each
+// in the poster loop, once after every round of posters (src/lib/poster/social.ts, rotation.ts).
 // Velvet Display also sends `nowPlaying` ({ title, artist, artwork }, the song in the room, along the bottom of the
 // board), `comingUp` ([{ name, when }], the next nights' events, shown when tonight has no lineup) and, for "lyrics",
 // `lyrics` ({ title, artist, lines: [{ t, text }], position, playing }): the lines with their times in seconds and where
@@ -269,7 +271,7 @@ export const prerender = true;
           var list = Array.isArray(data.posters) ? data.posters : [];
           var mode = data.mode;
           if (mode === 'chat' && !data.chat) mode = 'board';
-          if (mode === 'posters' && !list.length) mode = 'board';
+          if (mode === 'posters' && !list.length && !(Array.isArray(data.social) && data.social.length)) mode = 'board';
           if (mode === 'lyrics' && !(data.lyrics && Array.isArray(data.lyrics.lines) && data.lyrics.lines.length)) mode = 'board';
           if (mode === 'photos' && !cleanPhotos(data.photos).length) mode = 'board';
           setMode(mode);
@@ -288,6 +290,7 @@ export const prerender = true;
           var wantsSlogans = mode !== 'chat' && mode !== 'posters' && mode !== 'lyrics' && mode !== 'photos' && data.slogans && typeof data.slogans === 'object';
           slogans(wantsSlogans ? { adult: data.slogans.adult === true } : null);
           posters(mode === 'chat' || mode === 'lyrics' || mode === 'photos' ? [] : list);
+          social(mode === 'chat' || mode === 'lyrics' || mode === 'photos' ? [] : data.social, data.venue.name);
           postersOnly(mode === 'posters');
         }
 
@@ -296,6 +299,12 @@ export const prerender = true;
           ['lineup', 'chat', 'posters', 'lyrics', 'photos'].forEach(function (name) {
             document.body.classList.toggle('mode-' + name, mode === name);
           });
+        }
+
+        // The venue's social profiles for the follow-us slide, cleaned there; a message before the bundle loads leaves them.
+        function social(list, venueName) {
+          window.velvetSocialWanted = [list, venueName];
+          if (window.velvetSocial) window.velvetSocial(list, venueName);
         }
 
         function postersOnly(on) {
@@ -404,6 +413,9 @@ export const prerender = true;
                 var list = null;
                 try { list = JSON.parse(next.getAttribute('data-posters') || '[]'); } catch (e) { list = []; }
                 posters(list);
+                var profiles = null;
+                try { profiles = JSON.parse(next.getAttribute('data-social') || '[]'); } catch (e) { profiles = []; }
+                social(profiles, next.getAttribute('data-venue-name'));
               }).catch(function () {});
           }
           fallbackTimer = setInterval(load, 60000);
@@ -434,6 +446,7 @@ export const prerender = true;
       import qrcode from 'qrcode-generator';
       import { sloganRotation, type SloganRotation } from '../../lib/poster/rotation';
       import { eventPosters } from '../../lib/poster/eventPosters';
+      import { socialProfiles } from '../../lib/poster/social';
       (window as unknown as { velvetQR: (text: string) => string }).velvetQR = (text: string) => {
         const qr = qrcode(0, 'H');
         qr.addData(text);
@@ -445,6 +458,7 @@ export const prerender = true;
         velvetSlogans: SloganRotation; velvetSlogansWanted?: { adult: boolean } | null;
         velvetPosters: (list: unknown) => void; velvetPostersWanted?: unknown;
         velvetPostersOnly: (on: boolean) => void; velvetPostersOnlyWanted?: boolean;
+        velvetSocial: (list: unknown, venueName?: string | null) => void; velvetSocialWanted?: [unknown, string | null];
       };
       receiver.velvetSlogans = sloganRotation(document.body);
       receiver.velvetSlogans.set(receiver.velvetSlogansWanted ?? null);
@@ -452,6 +466,8 @@ export const prerender = true;
       receiver.velvetPosters(receiver.velvetPostersWanted ?? []);
       receiver.velvetPostersOnly = (on) => receiver.velvetSlogans.postersOnly(on);
       receiver.velvetPostersOnly(receiver.velvetPostersOnlyWanted ?? false);
+      receiver.velvetSocial = (list, venueName) => receiver.velvetSlogans.social(socialProfiles(list), venueName);
+      receiver.velvetSocial(...(receiver.velvetSocialWanted ?? [[], null]));
     </script>
   </body>
 </html>
