@@ -197,6 +197,36 @@ test('a TV set to sing-along lyrics follows the song’s clock, line by line', a
   await expect(page.locator('#board .lineup li')).toHaveCount(3);
 });
 
+test('a TV set to the photo wall shows the photographers’ photos, credited, and turns them over', async ({ page }) => {
+  await page.clock.install();
+  await open(page);
+  const photos = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i) => ({
+    id, url: `https://example.com/${id}.jpg`, credit: i < 3 ? 'Ana Lens' : 'Bo Flash',
+    caption: id === 'a' ? 'Encore at Mess Hall' : undefined,
+  }));
+  photos.push({ id: 'x', url: 'http://insecure.example.com/x.jpg', credit: 'Nope', caption: undefined });
+  await send(page, { ...board, mode: 'photos', photos, chat: { messages: [{ sender: 'Sam', text: 'hi', venue: false }] } });
+  await expect(page.locator('#board')).toBeHidden();
+  await expect(page.locator('#chat')).toBeHidden();
+  await expect(page.locator('#photos')).toBeVisible();
+  await expect(page.locator('#photos .tile')).toHaveCount(5);
+  await expect(page.locator('#photos .tile.large img')).toHaveAttribute('src', 'https://example.com/a.jpg');
+  await expect(page.locator('#photos .tile.large figcaption')).toContainText('Encore at Mess Hall');
+  await expect(page.locator('#photos .venue-name')).toHaveText('Neighbours');
+  await expect(page.locator('#photos .credit')).toHaveText('Photos by Ana Lens and Bo Flash');
+  await expect(page.locator('#photos img[src^="http://"]')).toHaveCount(0);
+  // Every 12 seconds the next photo leads.
+  await page.clock.runFor(12_500);
+  await expect(page.locator('#photos .tile.large img')).toHaveAttribute('src', 'https://example.com/b.jpg');
+  // The same list again doesn't start the wall over.
+  await send(page, { ...board, mode: 'photos', photos });
+  await expect(page.locator('#photos .tile.large img')).toHaveAttribute('src', 'https://example.com/b.jpg');
+  // With no photos, the TV shows the board.
+  await send(page, { ...board, mode: 'photos', photos: [] });
+  await expect(page.locator('#photos')).toBeHidden();
+  await expect(page.locator('#board .lineup li')).toHaveCount(3);
+});
+
 test('when the last phone leaves, the TV keeps going on the venue’s public web sign, without chat', async ({ page }) => {
   await open(page);
   await send(page, { ...board, chat: { messages: [{ sender: 'Sam', text: 'hi', venue: false }] } });
