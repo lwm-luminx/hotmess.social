@@ -191,6 +191,27 @@ test('the poster loop follows each round of posters with the venue’s social pr
   await expect(page.locator('body')).toHaveClass(/mode-posters/);
 });
 
+test('the slogan slides leave out the standard posters the venue turned off', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await page.route('**/marquee/slogans.json', (route) => route.fulfill({ json: { slides: [
+    { id: 'kept', adult: false, image: '/marquee/kept-test.png' },
+    { id: 'turned-off', adult: false, image: '/marquee/turned-off-test.png' },
+    { id: 'cheeky', adult: true, image: '/marquee/cheeky-test.png' },
+  ] } }));
+  await page.route('**/marquee/*-test.png', (route) => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.clock.install();
+  await open(page);
+  await send(page, { ...board, slogans: { adult: false, hidden: ['turned-off'] } });
+  // Each break, the one line left: never the one turned off, nor the adult line at a venue not flagged for it.
+  for (let i = 0; i < 3; i++) {
+    await page.clock.runFor(45_500);
+    await expect(page.locator('.slogan-slide')).toBeVisible();
+    await expect(page.locator('.slogan-slide img')).toHaveAttribute('src', '/marquee/kept-test.png');
+    await page.clock.runFor(12_500);
+    await expect(page.locator('.slogan-slide')).toBeHidden();
+  }
+});
+
 test('a night without a lineup lists what’s coming up, and the song playing runs along the bottom', async ({ page }) => {
   await open(page);
   await send(page, {

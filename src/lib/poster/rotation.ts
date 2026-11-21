@@ -1,19 +1,21 @@
 // Rotates slides over a venue board: the lineup for BOARD_SECONDS, then one slide full screen for SLIDE_SECONDS. The
 // slides take turns: an upcoming event's poster (eventPosters.ts), then a slogan (marquee.ts), taking the lines in a
 // shuffled order so a long night doesn't loop the same few; either stands in when the other has none. The web sign and
-// the Velvet cast receiver run it; `set` turns the slogans on (with whether the venue's adult lines may show) or off,
+// the Velvet cast receiver run it; `set` turns the slogans on (with whether the venue's adult lines may show, and the
+// lines it turned off) or off,
 // and `posters` sets the events' posters, which show whether or not the slogans are on. `social` sets the venue's social
 // media profiles (social.ts): a "follow us" slide with a code to each, once after every round of the posters (or in
 // their place when there are none).
 
 import qrcode from 'qrcode-generator';
-import { BOARD_SECONDS, SLIDE_SECONDS, slidesFor, type MarqueeManifest, type MarqueeSlide } from './marquee.ts';
+import { BOARD_SECONDS, SLIDE_SECONDS, hiddenSlides, slidesFor, type MarqueeManifest, type MarqueeSlide } from './marquee.ts';
 import { nextPoster, posterKicker, type EventPoster } from './eventPosters.ts';
 import type { SocialProfile } from './social.ts';
 
 export interface SloganRotation {
-  /** Slides on, with the venue's adult lines or not; null turns them off and takes any slide down. */
-  set(slogans: { adult: boolean } | null): void;
+  /** Slides on, with the venue's adult lines or not and without the ones it turned off (`hidden`, slide ids); null
+   * turns them off and takes any slide down. */
+  set(slogans: { adult: boolean; hidden?: unknown } | null): void;
   /** Upcoming events' posters, already cleaned (eventPosters); [] for none. */
   posters(posters: EventPoster[]): void;
   /** Posters back to back with no board or slogans between (a TV set to show only posters). */
@@ -25,6 +27,7 @@ export interface SloganRotation {
 export function sloganRotation(screen: HTMLElement): SloganRotation {
   let manifest: Promise<MarqueeManifest | null> | null = null;
   let adult: boolean | null = null;
+  let hidden: string[] = [];
   let queue: MarqueeSlide[] = [];
   let posters: EventPoster[] = [];
   let lastPoster: string | null = null;
@@ -62,7 +65,7 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
   async function refill() {
     const all = await load();
     if (!all || adult === null) return;
-    queue = slidesFor(all, adult).map((s) => ({ s, k: Math.random() })).sort((a, b) => a.k - b.k).map(({ s }) => s);
+    queue = slidesFor(all, adult, hidden).map((s) => ({ s, k: Math.random() })).sort((a, b) => a.k - b.k).map(({ s }) => s);
   }
 
   function hide() {
@@ -212,8 +215,10 @@ export function sloganRotation(screen: HTMLElement): SloganRotation {
   return {
     set(slogans) {
       const wanted = slogans ? slogans.adult : null;
-      if (wanted === adult) return;
+      const off = slogans ? hiddenSlides(slogans.hidden) : [];
+      if (wanted === adult && off.join('\n') === hidden.join('\n')) return;
       adult = wanted;
+      hidden = off;
       queue = [];
       if (adult === null && !slide.hidden) { if (timer) clearTimeout(timer); timer = null; hide(); }
       stopOrStart();
