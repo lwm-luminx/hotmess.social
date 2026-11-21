@@ -54,6 +54,19 @@ export function slidesFor(manifest: MarqueeManifest, adult: boolean, hidden: rea
   return manifest.slides.filter((s) => (adult || !s.adult) && !off.has(s.id));
 }
 
+/** The venue's audience's posters from a message or the API (`slogans.slides`): https pictures only, at most 200; null
+ * when the sender gave none (an older one), so the screen falls back to this site's own set. */
+export function audienceSlides(value: unknown): MarqueeSlide[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.flatMap((raw): MarqueeSlide[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const r = raw as Record<string, unknown>;
+    const id = typeof r.id === 'string' ? r.id.slice(0, 80) : '';
+    const image = typeof r.image === 'string' ? r.image.slice(0, 2000) : '';
+    return id && image.startsWith('https://') ? [{ id, adult: r.adult === true, image }] : [];
+  }).slice(0, 200);
+}
+
 /** The slide ids a venue turned off, from a message or the API: strings only, at most 200. */
 export function hiddenSlides(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

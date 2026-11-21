@@ -228,6 +228,25 @@ test('the slogan slides leave out the standard posters the venue turned off', as
   }
 });
 
+test('the slogan slides are the venue’s audience’s posters when Velvet sends them, and none when it has none', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  let manifestAsked = false;
+  await page.route('**/marquee/slogans.json', (route) => { manifestAsked = true; return route.fulfill({ json: { slides: [] } }); });
+  await page.route('https://posters.example/**', (route) => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.clock.install();
+  await open(page);
+  await send(page, { ...board, slogans: { adult: false, slides: [{ id: 'ours', image: 'https://posters.example/ours.png', adult: false }] } });
+  await page.clock.runFor(45_500);
+  await expect(page.locator('.slogan-slide')).toBeVisible();
+  await expect(page.locator('.slogan-slide img')).toHaveAttribute('src', 'https://posters.example/ours.png');
+  await page.clock.runFor(12_500);
+  // An audience with no posters: nothing rotates in, and the site's own set isn't fetched.
+  await send(page, { ...board, slogans: { adult: false, slides: [] } });
+  await page.clock.runFor(45_500);
+  await expect(page.locator('.slogan-slide')).toBeHidden();
+  expect(manifestAsked).toBe(false);
+});
+
 test('a night without a lineup lists what’s coming up, and the song playing runs along the bottom', async ({ page }) => {
   await open(page);
   await send(page, {

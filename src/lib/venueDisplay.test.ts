@@ -46,7 +46,12 @@ test('keeps what is on and next, and finished sets only while there is room', ()
 test('reads whether slogan slides rotate in, with the adult lines or not, and the ones the venue turned off', () => {
   const body = { venue: { id: 'v' }, events: [], lineup: [] };
   assert.equal(venueTonight(body).slogans, null);
-  assert.deepEqual(venueTonight({ ...body, slogans: { adult: false } }).slogans, { adult: false, hidden: [] });
+  assert.deepEqual(venueTonight({ ...body, slogans: { adult: false } }).slogans, { adult: false, hidden: [], slides: null });
   assert.deepEqual(venueTonight({ ...body, slogans: { adult: true, hidden: ['daddy-issues', 7] } }).slogans,
-    { adult: true, hidden: ['daddy-issues'] });
+    { adult: true, hidden: ['daddy-issues'], slides: null });
+  // The venue's audience's posters: https pictures only; an empty list means none (not this site's own).
+  const slides = [{ id: 'ak', image: 'https://audiencekit.com/m/ak.jpg', adult: false }, { id: 'bad', image: 'http://x/y.jpg' }];
+  assert.deepEqual(venueTonight({ ...body, slogans: { adult: false, slides } }).slogans?.slides,
+    [{ id: 'ak', image: 'https://audiencekit.com/m/ak.jpg', adult: false }]);
+  assert.deepEqual(venueTonight({ ...body, slogans: { adult: false, slides: [] } }).slogans?.slides, []);
 });
