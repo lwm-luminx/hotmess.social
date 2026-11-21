@@ -162,6 +162,56 @@ test('a TV set to one thing by Velvet Display shows only that', async ({ page })
   await expect(page.locator('body')).not.toHaveClass(/mode-posters/);
 });
 
+test('the poster loop follows each round of posters with the venue’s social profiles', async ({ page }) => {
+  await page.clock.install();
+  await open(page);
+  const posters = [{ id: 'e1', name: 'Drag Bingo', when: 'Tomorrow · 9 PM', billing: '', cover: 'Free', image: null,
+    link: 'https://hotmess.social/events/e1' }];
+  const social = [
+    { provider: 'tiktok', handle: 'neighbours', url: 'https://tiktok.com/@neighbours' },
+    { provider: 'venmo', handle: 'tips', url: 'https://venmo.com/u/tips' },
+    { provider: 'instagram', handle: 'neighboursnc', url: 'https://instagram.com/neighboursnc' },
+  ];
+  await send(page, { ...board, posters, social, mode: 'posters' });
+  await expect(page.locator('.event-poster .name')).toHaveText('Drag Bingo');
+  // After the round's last poster, the follow-us slide: the venue, then each network with a code, no tip links.
+  await page.clock.runFor(12_500);
+  await expect(page.locator('.social-slide')).toBeVisible();
+  await expect(page.locator('.social-slide .name')).toHaveText('Neighbours');
+  await expect(page.locator('.social-slide .network')).toHaveText(['Instagram', 'TikTok']);
+  await expect(page.locator('.social-slide .handle')).toHaveText(['@neighboursnc', '@neighbours']);
+  await expect(page.locator('.social-slide .qr svg')).toHaveCount(2);
+  await expect(page.locator('.event-poster')).toBeHidden();
+  // Then the posters again.
+  await page.clock.runFor(12_500);
+  await expect(page.locator('.event-poster')).toBeVisible();
+  await expect(page.locator('.social-slide')).toBeHidden();
+  // A posters TV with no posters but profiles keeps to the loop rather than the board.
+  await send(page, { ...board, posters: [], social, mode: 'posters' });
+  await expect(page.locator('body')).toHaveClass(/mode-posters/);
+});
+
+test('the slogan slides leave out the standard posters the venue turned off', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await page.route('**/marquee/slogans.json', (route) => route.fulfill({ json: { slides: [
+    { id: 'kept', adult: false, image: '/marquee/kept-test.png' },
+    { id: 'turned-off', adult: false, image: '/marquee/turned-off-test.png' },
+    { id: 'cheeky', adult: true, image: '/marquee/cheeky-test.png' },
+  ] } }));
+  await page.route('**/marquee/*-test.png', (route) => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.clock.install();
+  await open(page);
+  await send(page, { ...board, slogans: { adult: false, hidden: ['turned-off'] } });
+  // Each break, the one line left: never the one turned off, nor the adult line at a venue not flagged for it.
+  for (let i = 0; i < 3; i++) {
+    await page.clock.runFor(45_500);
+    await expect(page.locator('.slogan-slide')).toBeVisible();
+    await expect(page.locator('.slogan-slide img')).toHaveAttribute('src', '/marquee/kept-test.png');
+    await page.clock.runFor(12_500);
+    await expect(page.locator('.slogan-slide')).toBeHidden();
+  }
+});
+
 test('a night without a lineup lists what’s coming up, and the song playing runs along the bottom', async ({ page }) => {
   await open(page);
   await send(page, {
@@ -240,6 +290,8 @@ test('when the last phone leaves, the TV keeps going on the venue’s public web
   expect((await display).status()).toBe(200);
   await expect(page.locator('#chat')).toBeHidden();
   await expect(page.locator('#board')).toContainText('DJ Fallback');
+  // The web sign's social profiles carry over to the follow-us slide.
+  await expect.poll(() => page.evaluate(() => (window as any).velvetSocialWanted?.[0]?.[0]?.handle)).toBe('fallbackbar');
   // A phone coming back takes the TV over again.
   await send(page, board);
   await expect(page.locator('#board .lineup li')).toHaveCount(3);

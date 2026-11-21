@@ -47,7 +47,15 @@ export function marqueeManifest(): MarqueeManifest {
   };
 }
 
-/** The slides a venue's TV shows: the adult-venue ones only where the venue is flagged for them. */
-export function slidesFor(manifest: MarqueeManifest, adult: boolean): MarqueeSlide[] {
-  return manifest.slides.filter((s) => adult || !s.adult);
+/** The slides a venue's TV shows: the adult-venue ones only where the venue is flagged for them, and none it turned off
+ * (`hidden`, Venue.marqueeHiddenSlogans). */
+export function slidesFor(manifest: MarqueeManifest, adult: boolean, hidden: readonly string[] = []): MarqueeSlide[] {
+  const off = new Set(hidden);
+  return manifest.slides.filter((s) => (adult || !s.adult) && !off.has(s.id));
+}
+
+/** The slide ids a venue turned off, from a message or the API: strings only, at most 200. */
+export function hiddenSlides(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 80).slice(0, 200);
 }

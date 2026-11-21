@@ -48,12 +48,18 @@ test('the PDF wraps the JPEG in one page with a valid cross-reference table', ()
 });
 
 test('the TV slides are every line but the ones awaiting legal review, adult ones only where flagged', async () => {
-  const { marqueeManifest, marqueeSlogans, slidesFor } = await import('./poster/marquee.ts');
+  const { hiddenSlides, marqueeManifest, marqueeSlogans, slidesFor } = await import('./poster/marquee.ts');
   const lines = marqueeSlogans();
   assert.ok(!lines.some((s) => s.id === 'grinding-grindr'));
   const manifest = marqueeManifest();
   assert.ok(slidesFor(manifest, false).every((s) => !s.adult));
   assert.equal(slidesFor(manifest, true).length, lines.length);
+  // A venue turns off the lines it doesn't want; ids the library no longer has change nothing.
+  const off = [manifest.slides[0].id, 'gone'];
+  assert.equal(slidesFor(manifest, true, off).length, lines.length - 1);
+  assert.ok(!slidesFor(manifest, true, off).some((s) => s.id === manifest.slides[0].id));
+  assert.deepEqual(hiddenSlides(['a', 3, '', null, 'b']), ['a', 'b']);
+  assert.deepEqual(hiddenSlides('a'), []);
 });
 
 test('the drawn TV slides match the slogan library (re-run scripts/marquee-slides.mjs after changing it)', async () => {

@@ -66,6 +66,7 @@ createServer((req, res) => {
     lineup: [{ id: 'a1', kind: 'act', role: 'dj', title: null, people: [{ name: 'DJ Fallback' }], more: 0,
       starts_at: null, start_timing: 'none', state: 'on' }],
     slogans: null,
+    social: [{ provider: 'instagram', handle: 'fallbackbar', url: 'https://instagram.com/fallbackbar' }],
   }));
   if (url.pathname === '/v1/public/listings') return res.end(JSON.stringify({ listings: records, next_page: null, page_count: 1 }));
   const record = records.find(item => `/v1/public${item.path}` === url.pathname);
