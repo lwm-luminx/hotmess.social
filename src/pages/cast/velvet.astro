@@ -4,7 +4,15 @@
 // urn:x-cast:com.audiencekit.velvet channel: the lineup, and the room's live chat when the sign-in may moderate it.
 // It lays the board out as the marquee does: the join QR code top left beside the venue, the chat in the right third,
 // drawn as guests see the room. With `slogans: { adult }` in the message (the venue's TV slogans on), Hot Mess slogan
-// slides rotate in between, full screen.
+// slides rotate in between, full screen, taking turns with the upcoming events' posters in `posters`.
+// `mode` picks what this TV shows when one sender drives several (Velvet Display on a Mac): "board" (the default, all
+// of it), "lineup" (no chat), "chat" (the chat wall, the whole screen) or "posters" (the upcoming events' posters back to
+// back), or "lyrics" (the sing-along lyrics in time with the song, full screen). A mode it can't fill (no chat, no
+// posters, no lyrics) shows the board.
+// Velvet Display also sends `nowPlaying` ({ title, artist, artwork }, the song in the room, along the bottom of the
+// board), `comingUp` ([{ name, when }], the next nights' events, shown when tonight has no lineup) and, for "lyrics",
+// `lyrics` ({ title, artist, lines: [{ t, text }], position, playing }): the lines with their times in seconds and where
+// the song was when sent. A `{ type: "clock", position, playing }` message moves the song's clock between boards.
 // Nothing here signs in or reads the API, so the page shows nothing until a phone sends it something. When the last
 // phone leaves, the TV keeps going on the web sign's board (/venues/<id>/display): the public lineup, no chat.
 // Registered as a Custom Receiver in the Google Cast SDK Developer Console; the apps carry its application ID.
@@ -24,6 +32,10 @@ export const prerender = true;
   <body>
     <div class="screen">
       <main id="board"><p class="idle">Pick this TV in Velvet’s Tonight tab.</p></main>
+      <section id="lyrics" hidden>
+        <p class="song"></p>
+        <ol class="lines"></ol>
+      </section>
       <aside id="chat" hidden>
         <p class="kicker">Chat</p>
         <p id="pinned" hidden></p>
@@ -57,8 +69,62 @@ export const prerender = true;
         }
         function tick() { var c = board.querySelector('[data-clock]'); if (c) c.textContent = clock(); }
 
+        // The sing-along lyrics: the lines and the song's clock, which runs on here between messages.
+        var lyricsBox = document.getElementById('lyrics');
+        var song = null;
+        var songClock = { position: 0, playing: false, at: Date.now() };
+        var shownLine = null;
+        function setClock(position, playing) {
+          if (typeof position !== 'number') return;
+          songClock = { position: position, playing: playing === true, at: Date.now() };
+        }
+        function songPosition() {
+          return songClock.playing ? songClock.position + (Date.now() - songClock.at) / 1000 : songClock.position;
+        }
+        function showLyrics(data) {
+          var lines = data && Array.isArray(data.lines) ? data.lines.filter(function (line) {
+            return line && typeof line.t === 'number' && typeof line.text === 'string';
+          }) : [];
+          song = lines.length ? { title: data.title || '', artist: data.artist || '', lines: lines } : null;
+          if (song) setClock(data.position, data.playing);
+          shownLine = null;
+          lyricsBox.querySelector('.song').textContent = song ? [song.title, song.artist].filter(Boolean).join(' · ') : '';
+          drawLyrics();
+        }
+        // The line being sung, big, with the one before and the next two, as Velvet Display's own screens show it.
+        function drawLyrics() {
+          if (lyricsBox.hidden || !song) return;
+          var now = songPosition();
+          var index = -1;
+          for (var i = 0; i < song.lines.length; i++) { if (song.lines[i].t <= now) index = i; else break; }
+          if (index === shownLine) return;
+          shownLine = index;
+          var list = lyricsBox.querySelector('.lines');
+          list.textContent = '';
+          for (var j = index - 1; j <= index + 2; j++) {
+            if (j < 0 || j >= song.lines.length) { list.appendChild(el('li', 'blank', ' ')); continue; }
+            list.appendChild(el('li', j === index ? 'now' : j < index ? 'past' : 'next', song.lines[j].text || '♪'));
+          }
+        }
+        setInterval(drawLyrics, 100);
+
+        // The song in the room, along the bottom of the board.
+        function nowPlaying(song) {
+          if (!song || typeof song.title !== 'string' || !song.title) return null;
+          var strip = el('div', 'now-playing');
+          var art = image(song.artwork);
+          if (art) strip.appendChild(art);
+          var text = el('div', 'song-text');
+          text.appendChild(el('small', null, 'Now playing'));
+          text.appendChild(el('strong', null, song.title));
+          if (song.artist) text.appendChild(el('span', null, song.artist));
+          strip.appendChild(text);
+          return strip;
+        }
+
         // The board, as the web sign lays it out: the venue and the time, tonight's events, then who's on when.
         function show(data) {
+          if (data && data.type === 'clock') { setClock(data.position, data.playing); shownLine = null; drawLyrics(); return; }
           if (!data || data.type !== 'tonight' || !data.venue) return;
           stopFallback();
           venueId = data.venue.id || venueId;
@@ -87,6 +153,20 @@ export const prerender = true;
           board.classList.toggle('photo', photo);
           if (!lineup.length) {
             board.appendChild(el('p', 'idle', events.length ? 'The lineup is coming soon.' : 'Nothing on tonight yet.'));
+            var coming = (Array.isArray(data.comingUp) ? data.comingUp : []).filter(function (event) {
+              return event && typeof event.name === 'string';
+            }).slice(0, 4);
+            if (coming.length) {
+              board.appendChild(el('p', 'kicker coming-kicker', 'Coming up'));
+              var next = el('ol', 'coming');
+              coming.forEach(function (event) {
+                var row = el('li');
+                row.appendChild(el('span', 'when', event.when || ''));
+                row.appendChild(el('strong', null, event.name));
+                next.appendChild(row);
+              });
+              board.appendChild(next);
+            }
           } else {
             var list = el('ol', 'lineup');
             lineup.forEach(function (entry) {
@@ -104,9 +184,46 @@ export const prerender = true;
             });
             board.appendChild(list);
           }
-          showChat(data.chat);
+          var playing = nowPlaying(data.nowPlaying);
+          if (playing) board.appendChild(playing);
+          var list = Array.isArray(data.posters) ? data.posters : [];
+          var mode = data.mode;
+          if (mode === 'chat' && !data.chat) mode = 'board';
+          if (mode === 'posters' && !list.length) mode = 'board';
+          if (mode === 'lyrics' && !(data.lyrics && Array.isArray(data.lyrics.lines) && data.lyrics.lines.length)) mode = 'board';
+          setMode(mode);
+          lyricsBox.hidden = mode !== 'lyrics';
+          if (mode === 'lyrics') {
+            var same = song && data.lyrics.title === song.title && data.lyrics.lines.length === song.lines.length;
+            if (same) setClock(data.lyrics.position, data.lyrics.playing); else showLyrics(data.lyrics);
+            shownLine = null;
+            drawLyrics();
+          }
+          showChat(mode === 'lineup' || mode === 'posters' || mode === 'lyrics' ? null : data.chat);
           fit();
-          slogans(data.slogans && typeof data.slogans === 'object' ? { adult: data.slogans.adult === true } : null);
+          // The chat wall is only the chat; posters only are only the posters, without the slogans between them.
+          var wantsSlogans = mode !== 'chat' && mode !== 'posters' && mode !== 'lyrics' && data.slogans && typeof data.slogans === 'object';
+          slogans(wantsSlogans ? { adult: data.slogans.adult === true } : null);
+          posters(mode === 'chat' || mode === 'lyrics' ? [] : list);
+          postersOnly(mode === 'posters');
+        }
+
+        // What the screen is for: the body's class lays it out (see the styles below).
+        function setMode(mode) {
+          ['lineup', 'chat', 'posters', 'lyrics'].forEach(function (name) {
+            document.body.classList.toggle('mode-' + name, mode === name);
+          });
+        }
+
+        function postersOnly(on) {
+          window.velvetPostersOnlyWanted = on;
+          if (window.velvetPostersOnly) window.velvetPostersOnly(on);
+        }
+
+        // Upcoming events' posters for the rotation, cleaned there; a message before the bundle loads leaves them for it.
+        function posters(list) {
+          window.velvetPostersWanted = list;
+          if (window.velvetPosters) window.velvetPosters(list);
         }
 
         // The slogan rotation (bundled below), on while the phone or the web sign's board asks for it. A message that
@@ -183,6 +300,8 @@ export const prerender = true;
         // No phone left: the web sign's board for this venue, read again each minute.
         function fallback() {
           showChat(null);
+          setMode('board');
+          postersOnly(false);
           if (!venueId || fallbackTimer) return;
           function load() {
             fetch('/venues/' + encodeURIComponent(venueId) + '/display', { cache: 'no-store' })
@@ -196,6 +315,9 @@ export const prerender = true;
                 fit();
                 var mode = next.getAttribute('data-slogans');
                 slogans(mode === 'adult' || mode === 'general' ? { adult: mode === 'adult' } : null);
+                var list = null;
+                try { list = JSON.parse(next.getAttribute('data-posters') || '[]'); } catch (e) { list = []; }
+                posters(list);
               }).catch(function () {});
           }
           fallbackTimer = setInterval(load, 60000);
@@ -225,6 +347,7 @@ export const prerender = true;
       // The join QR code's drawing, bundled for the receiver above: an SVG string at high error correction.
       import qrcode from 'qrcode-generator';
       import { sloganRotation, type SloganRotation } from '../../lib/poster/rotation';
+      import { eventPosters } from '../../lib/poster/eventPosters';
       (window as unknown as { velvetQR: (text: string) => string }).velvetQR = (text: string) => {
         const qr = qrcode(0, 'H');
         qr.addData(text);
@@ -232,14 +355,49 @@ export const prerender = true;
         return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
       };
       // The slogan slides' rotation, for show() above; off until a message turns it on.
-      const receiver = window as unknown as { velvetSlogans: SloganRotation; velvetSlogansWanted?: { adult: boolean } | null };
+      const receiver = window as unknown as {
+        velvetSlogans: SloganRotation; velvetSlogansWanted?: { adult: boolean } | null;
+        velvetPosters: (list: unknown) => void; velvetPostersWanted?: unknown;
+        velvetPostersOnly: (on: boolean) => void; velvetPostersOnlyWanted?: boolean;
+      };
       receiver.velvetSlogans = sloganRotation(document.body);
       receiver.velvetSlogans.set(receiver.velvetSlogansWanted ?? null);
+      receiver.velvetPosters = (list) => receiver.velvetSlogans.posters(eventPosters(list));
+      receiver.velvetPosters(receiver.velvetPostersWanted ?? []);
+      receiver.velvetPostersOnly = (on) => receiver.velvetSlogans.postersOnly(on);
+      receiver.velvetPostersOnly(receiver.velvetPostersOnlyWanted ?? false);
     </script>
   </body>
 </html>
 
 <style is:global>
+  body.mode-lyrics .screen #board { display: none; }
+  #lyrics { flex: 1; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;
+    padding: clamp(24px, 6vmin, 96px) clamp(24px, 8vmin, 140px); background: #0d0a0b; }
+  #lyrics[hidden] { display: none; }
+  #lyrics .song { margin: 0 0 clamp(16px, 4vmin, 48px); color: #ff5a4f; font-size: clamp(16px, 3vmin, 34px); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .12em; }
+  #lyrics .lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: clamp(10px, 2.4vmin, 32px); }
+  #lyrics li { font-size: clamp(22px, 5vmin, 64px); font-weight: 700; color: #6f6366; line-height: 1.15; transition: color .3s; }
+  #lyrics li.now { font-size: clamp(34px, 9vmin, 120px); font-weight: 900; color: #fff; }
+  #lyrics li.past { color: #4a3f42; }
+  .now-playing { display: flex; align-items: center; gap: clamp(10px, 2vmin, 24px); margin-top: auto;
+    padding: clamp(10px, 2vmin, 22px); border-radius: clamp(10px, 2vmin, 22px); background: rgba(0, 0, 0, .55); }
+  .now-playing img { width: clamp(48px, 9vmin, 110px); height: clamp(48px, 9vmin, 110px); border-radius: 10px; object-fit: cover; }
+  .now-playing .song-text { display: flex; flex-direction: column; min-width: 0; }
+  .now-playing small { color: #ff5a4f; font-weight: 800; text-transform: uppercase; letter-spacing: .1em;
+    font-size: clamp(11px, 1.8vmin, 20px); }
+  .now-playing strong { font-size: clamp(18px, 3.6vmin, 44px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now-playing span { color: #b9adaf; font-size: clamp(14px, 2.6vmin, 30px); }
+  .coming-kicker { margin-top: clamp(12px, 3vmin, 36px); }
+  .coming { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: clamp(6px, 1.4vmin, 16px); }
+  .coming li { display: flex; gap: clamp(12px, 3vmin, 36px); align-items: baseline; font-size: clamp(18px, 3.6vmin, 44px); }
+  .coming .when { flex: 0 0 auto; min-width: 7em; color: #b9adaf; font-weight: 600; font-size: .8em; }
+  /* The chat wall: the room, the whole screen. */
+  body.mode-chat .screen #board { display: none; }
+  body.mode-chat #chat { flex: 1 1 auto; border-left: 0; }
+  /* Posters only: black between posters rather than the board. */
+  body.mode-posters .screen #board { visibility: hidden; }
   .screen { display: flex; height: 100%; }
   .screen #board { flex: 1; min-width: 0; background-size: cover; background-position: center; }
   header.with-qr { align-items: center; justify-content: flex-start; gap: clamp(14px, 3vmin, 40px); }

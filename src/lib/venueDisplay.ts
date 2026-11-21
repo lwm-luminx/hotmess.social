@@ -2,6 +2,8 @@
 // (audience_kit_api doc/PUBLIC_LISTINGS.md, "Venue display"), read with the site's service credential, so only
 // what anyone signed out may see. Performers who aren't Public are counted, never named.
 
+import type { UpcomingEvent } from './poster/eventPosters.ts';
+
 export interface DisplayPerson { name: string; image?: string }
 export interface DisplayEntry {
   id: string;
@@ -23,6 +25,8 @@ export interface VenueTonight {
   /** Slogan slides between the lineup (src/lib/poster/marquee.ts), with the venue's adult lines or not; null when the
    * venue turned them off. */
   slogans: { adult: boolean } | null;
+  /** Public events from tonight through two weeks, for the full-screen posters (src/lib/poster/eventPosters.ts). */
+  upcoming: UpcomingEvent[];
 }
 
 const text = (value: unknown) => typeof value === 'string' ? value : null;
@@ -50,6 +54,15 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
     })),
     slogans: body.slogans && typeof body.slogans === 'object'
       ? { adult: (body.slogans as Record<string, unknown>).adult === true } : null,
+    upcoming: list(body.upcoming).map((event) => ({
+      id: String(event.id),
+      name: text(event.name) ?? '',
+      startAt: text(event.start_at),
+      night: text(event.night),
+      image: text(event.image),
+      people: Array.isArray(event.people) ? event.people.filter((name): name is string => typeof name === 'string') : [],
+      coverCents: typeof event.cover_cents === 'number' ? event.cover_cents : null,
+    })).filter((event) => event.name),
   };
 }
 
