@@ -45,7 +45,10 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
   <body>
     <main id="board" data-zone={zone}
       data-slogans={data?.slogans ? (data.slogans.adult ? 'adult' : 'general') : 'off'}
-      data-posters={JSON.stringify(posters)}>
+      data-slogans-hidden={JSON.stringify(data?.slogans?.hidden ?? [])}
+      data-slogans-slides={data?.slogans?.slides ? JSON.stringify(data.slogans.slides) : ''}
+      data-posters={JSON.stringify(posters)}
+      data-social={JSON.stringify(data?.social ?? [])} data-venue-name={data?.venue.title ?? ''}>
       {status !== 200 ? (
         <p class="idle">{status === 404 ? 'This venue has no display.' : 'Reconnecting…'}</p>
       ) : (
@@ -107,7 +110,10 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
                 board.innerHTML = next.innerHTML;
                 board.setAttribute('data-zone', next.getAttribute('data-zone'));
                 board.setAttribute('data-slogans', next.getAttribute('data-slogans'));
+                board.setAttribute('data-slogans-hidden', next.getAttribute('data-slogans-hidden') || '[]');
+                board.setAttribute('data-slogans-slides', next.getAttribute('data-slogans-slides') || '');
                 board.setAttribute('data-posters', next.getAttribute('data-posters') || '[]');
+                board.setAttribute('data-social', next.getAttribute('data-social') || '[]');
                 fit();
                 slogans();
               }
@@ -126,8 +132,13 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
         // Hot Mess slogan slides between looks at the lineup, unless the venue turned them off.
         function slogans() {
           var mode = board.getAttribute('data-slogans');
-          if (window.velvetSlogans) window.velvetSlogans.set(mode === 'off' || !mode ? null : { adult: mode === 'adult' });
+          var hidden = [];
+          try { hidden = JSON.parse(board.getAttribute('data-slogans-hidden') || '[]'); } catch (e) { hidden = []; }
+          var own = null;
+          try { own = JSON.parse(board.getAttribute('data-slogans-slides') || 'null'); } catch (e) { own = null; }
+          if (window.velvetSlogans) window.velvetSlogans.set(mode === 'off' || !mode ? null : { adult: mode === 'adult', hidden: hidden, slides: own });
           if (window.velvetPosters) window.velvetPosters(board.getAttribute('data-posters'));
+          if (window.velvetSocial) window.velvetSocial(board.getAttribute('data-social'), board.getAttribute('data-venue-name'));
         }
         fit();
         slogans();
@@ -160,15 +171,24 @@ const qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
       // the upcoming events' posters from data-posters.
       import { sloganRotation } from '../../../lib/poster/rotation';
       import { eventPosters } from '../../../lib/poster/eventPosters';
+      import { socialProfiles } from '../../../lib/poster/social';
       const rotation = sloganRotation(document.body);
       const posters = (json: string | null | undefined) => {
         try { rotation.posters(eventPosters(JSON.parse(json || '[]'))); } catch { rotation.posters([]); }
       };
-      Object.assign(window, { velvetSlogans: rotation, velvetPosters: posters });
+      const social = (json: string | null | undefined, venueName?: string | null) => {
+        try { rotation.social(socialProfiles(JSON.parse(json || '[]')), venueName); } catch { rotation.social([]); }
+      };
+      Object.assign(window, { velvetSlogans: rotation, velvetPosters: posters, velvetSocial: social });
       const board = document.getElementById('board');
       const mode = board?.getAttribute('data-slogans');
-      rotation.set(mode === 'off' || !mode ? null : { adult: mode === 'adult' });
+      let hidden: unknown = [];
+      try { hidden = JSON.parse(board?.getAttribute('data-slogans-hidden') || '[]'); } catch { hidden = []; }
+      let own: unknown = null;
+      try { own = JSON.parse(board?.getAttribute('data-slogans-slides') || 'null'); } catch { own = null; }
+      rotation.set(mode === 'off' || !mode ? null : { adult: mode === 'adult', hidden, slides: own });
       posters(board?.getAttribute('data-posters'));
+      social(board?.getAttribute('data-social'), board?.getAttribute('data-venue-name'));
     </script>
   </body>
 </html>

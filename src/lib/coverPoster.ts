@@ -8,7 +8,11 @@ export interface CoverJSON {
   currency: string; cover_from: string | null; cover_until: string | null;
   tiers: Array<{ id: string; name: string; description: string | null; amount_cents: number; fee_cents: number; total_cents: number }>;
   payable: boolean; provider: string | null; guest_checkout: boolean; max_quantity: number | null;
+  /** A sliding-scale cover's range; amount_cents is then the suggested amount. Null (or missing) for a fixed cover. */
+  scale?: CoverScaleJSON | null;
 }
+
+export interface CoverScaleJSON { min_cents: number; max_cents: number; suggested_cents: number }
 
 export interface NightJSON {
   night: string; tonight: boolean;
@@ -60,6 +64,34 @@ export function money(cents: number, currency = 'usd', language: Language = 'en'
   return new Intl.NumberFormat(language === 'es' ? 'es-US' : 'en-US', {
     style: 'currency', currency: currency.toUpperCase(), minimumFractionDigits: whole ? 0 : 2,
   }).format(cents / 100);
+}
+
+/** A cover's price: "$10", or a sliding scale's "$5–$30". */
+export function coverPrice(cover: Pick<CoverJSON, 'amount_cents' | 'currency' | 'scale'>, language: Language = 'en'): string {
+  const scale = cover.scale;
+  if (!scale) return money(cover.amount_cents, cover.currency, language);
+  return `${money(scale.min_cents, cover.currency, language)}–${money(scale.max_cents, cover.currency, language)}`;
+}
+
+/** Whole-dollar steps on a sliding scale. */
+export const SCALE_STEP_CENTS = 100;
+
+/** An amount kept within the scale. */
+export function clampToScale(cents: number, scale: CoverScaleJSON): number {
+  return Math.min(scale.max_cents, Math.max(scale.min_cents, Math.round(cents)));
+}
+
+/** One step up (+1) or down (−1) from an amount, landing on whole dollars and staying within the scale. */
+export function stepScale(cents: number, direction: 1 | -1, scale: CoverScaleJSON): number {
+  const next = direction > 0
+    ? Math.floor(cents / SCALE_STEP_CENTS) * SCALE_STEP_CENTS + SCALE_STEP_CENTS
+    : Math.ceil(cents / SCALE_STEP_CENTS) * SCALE_STEP_CENTS - SCALE_STEP_CENTS;
+  return clampToScale(next, scale);
+}
+
+/** About what one cover costs with fees at a chosen amount, from the suggested amount's fees (the payment says exactly). */
+export function estimateTotal(cover: Pick<CoverJSON, 'amount_cents' | 'total_cents'>, cents: number): number {
+  return cents + (cover.total_cents - cover.amount_cents);
 }
 
 /** "Friday, Nov 20" for a night's ISO date, read as that calendar day. */

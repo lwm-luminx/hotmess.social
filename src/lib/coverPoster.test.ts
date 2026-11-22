@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { money, nightLabel, offer, pageLanguage, passCode, timeLabel, type CoverJSON, type NightJSON } from './coverPoster.ts';
+import {
+  clampToScale, coverPrice, estimateTotal, money, nightLabel, offer, pageLanguage, passCode, stepScale, timeLabel,
+  type CoverJSON, type NightJSON,
+} from './coverPoster.ts';
 
 const cover: CoverJSON = {
   night: '2026-11-20', event_id: null, amount_cents: 1000, fee_cents: 50, total_cents: 1112, currency: 'usd',
@@ -38,4 +41,17 @@ test('the pass code matches the API’s CoverPass', async () => {
   const window = Math.floor(now / 1000 / 30);
   const expected = createHmac('sha256', Buffer.from(secret, 'base64')).update(`adm1.${window}`).digest('base64url').slice(0, 16);
   assert.equal(await passCode('adm1', secret, now), `HMC1.adm1.${window}.${expected}`);
+});
+
+test('a sliding scale shows its range and steps in whole dollars within it', () => {
+  const scale = { min_cents: 500, max_cents: 3000, suggested_cents: 1550 };
+  assert.equal(coverPrice({ ...cover, scale }), '$5–$30');
+  assert.equal(coverPrice(cover), '$10');
+  assert.equal(clampToScale(100, scale), 500);
+  assert.equal(clampToScale(9000, scale), 3000);
+  assert.equal(stepScale(1550, 1, scale), 1600);
+  assert.equal(stepScale(1550, -1, scale), 1500);
+  assert.equal(stepScale(500, -1, scale), 500);
+  assert.equal(stepScale(2950, 1, scale), 3000);
+  assert.equal(estimateTotal(cover, 2000), 2112);
 });

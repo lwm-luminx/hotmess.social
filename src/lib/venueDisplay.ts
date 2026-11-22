@@ -3,6 +3,7 @@
 // what anyone signed out may see. Performers who aren't Public are counted, never named.
 
 import type { UpcomingEvent } from './poster/eventPosters.ts';
+import { audienceSlides, hiddenSlides, type MarqueeSlide } from './poster/marquee.ts';
 
 export interface DisplayPerson { name: string; image?: string }
 export interface DisplayEntry {
@@ -24,9 +25,12 @@ export interface VenueTonight {
   lineup: DisplayEntry[];
   /** Slogan slides between the lineup (src/lib/poster/marquee.ts), with the venue's adult lines or not; null when the
    * venue turned them off. */
-  slogans: { adult: boolean } | null;
+  /** Slogan slides on (with the adult lines or not, and the ids the venue turned off), or null for off. */
+  slogans: { adult: boolean; hidden: string[]; slides: MarqueeSlide[] | null } | null;
   /** Public events from tonight through two weeks, for the full-screen posters (src/lib/poster/eventPosters.ts). */
   upcoming: UpcomingEvent[];
+  /** The venue's social profiles for the follow-us slide, as the API gives them (src/lib/poster/social.ts cleans them). */
+  social: unknown[];
 }
 
 const text = (value: unknown) => typeof value === 'string' ? value : null;
@@ -53,7 +57,10 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
       state: (['on', 'done'].includes(String(entry.state)) ? entry.state : 'upcoming') as DisplayEntry['state'],
     })),
     slogans: body.slogans && typeof body.slogans === 'object'
-      ? { adult: (body.slogans as Record<string, unknown>).adult === true } : null,
+      ? { adult: (body.slogans as Record<string, unknown>).adult === true,
+          hidden: hiddenSlides((body.slogans as Record<string, unknown>).hidden),
+          slides: audienceSlides((body.slogans as Record<string, unknown>).slides) } : null,
+    social: list(body.social),
     upcoming: list(body.upcoming).map((event) => ({
       id: String(event.id),
       name: text(event.name) ?? '',
@@ -62,6 +69,8 @@ export function venueTonight(body: Record<string, unknown>): VenueTonight {
       image: text(event.image),
       people: Array.isArray(event.people) ? event.people.filter((name): name is string => typeof name === 'string') : [],
       coverCents: typeof event.cover_cents === 'number' ? event.cover_cents : null,
+      coverMinCents: typeof event.cover_min_cents === 'number' ? event.cover_min_cents : null,
+      coverMaxCents: typeof event.cover_max_cents === 'number' ? event.cover_max_cents : null,
     })).filter((event) => event.name),
   };
 }

@@ -78,3 +78,19 @@ footer b { color: #f6f1f1; }
 .event-poster .qr { width: 28vmin; height: 28vmin; padding: 2.2vmin; background: #fff; border-radius: 2.6vmin; }
 .event-poster .qr svg { width: 100%; height: 100%; display: block; }
 .event-poster .scan { margin: 1.6vmin 0 0; font-size: 3vmin; font-weight: 600; opacity: .85; }
+/* The follow-us slide in the poster loop (rotation.ts): the venue's name, then a code to each social profile. */
+.social-slide { position: fixed; inset: 0; z-index: 10; box-sizing: border-box; display: flex; flex-direction: column;
+  justify-content: center; gap: 6vmin; padding: 9vmin 11vmin; color: #fff; animation: slogan-in .6s ease-out;
+  background: linear-gradient(135deg, rgba(255, 90, 79, .45), #000 70%), #000; }
+.social-slide[hidden] { display: none; }
+.social-slide .kicker { margin: 0 0 2vmin; color: #ff5a4f; font-size: 3.3vmin; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; }
+.social-slide .name { margin: 0; font-size: 11vmin; line-height: .95; font-weight: 900; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.social-slide .cards { display: flex; flex-wrap: wrap; gap: 5vmin; }
+.social-slide .card { flex: 0 0 auto; width: 26vmin; text-align: center; }
+.social-slide .qr { width: 26vmin; height: 26vmin; box-sizing: border-box; padding: 2vmin; background: #fff; border-radius: 2.4vmin; }
+.social-slide .qr svg { width: 100%; height: 100%; display: block; }
+.social-slide .network { margin: 1.8vmin 0 .4vmin; font-size: 3.6vmin; font-weight: 800; }
+.social-slide .handle { margin: 0; font-size: 3vmin; font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }

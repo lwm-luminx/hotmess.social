@@ -92,14 +92,30 @@ test('the join QR code is the venue’s short link, or the link the phone sends'
   await expect(page.locator('header .join')).toHaveCount(0);
 });
 
+/** A picture of the given size for the backdrop's sharpness check (an SVG's width and height are its natural size). */
+async function picture(page: Page, url: string, width: number, height: number) {
+  await page.route(url, (route) => route.fulfill({ contentType: 'image/svg+xml',
+    body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#405"/></svg>` }));
+}
+
 test('a night with nothing on shows the venue’s photo and says so', async ({ page }) => {
   await open(page);
+  await picture(page, 'https://example.com/room.jpg', 1920, 1080);
   await send(page, { ...board, events: [], lineup: [], venue: { ...board.venue, photo: 'https://example.com/room.jpg' } });
   await expect(page.locator('#board .idle')).toHaveText('Nothing on tonight yet.');
   await expect(page.locator('#board')).toHaveClass(/photo/);
   expect(await page.locator('#board').evaluate((el) => el.style.backgroundImage)).toContain('https://example.com/room.jpg');
   await send(page, { ...board, events: ['Mess Hall'], lineup: [], venue: { ...board.venue, photo: 'javascript:alert(1)' } });
   await expect(page.locator('#board .idle')).toHaveText('The lineup is coming soon.');
+  await expect(page.locator('#board')).not.toHaveClass(/photo/);
+});
+
+test('a photo too small to fill the TV without blurring stays off the backdrop', async ({ page }) => {
+  await open(page);
+  await picture(page, 'https://example.com/small.jpg', 640, 360);
+  await send(page, { ...board, events: [], lineup: [], venue: { ...board.venue, photo: 'https://example.com/small.jpg' } });
+  await expect(page.locator('#board .idle')).toHaveText('Nothing on tonight yet.');
+  await page.waitForTimeout(500);
   await expect(page.locator('#board')).not.toHaveClass(/photo/);
 });
 
@@ -162,6 +178,75 @@ test('a TV set to one thing by Velvet Display shows only that', async ({ page })
   await expect(page.locator('body')).not.toHaveClass(/mode-posters/);
 });
 
+test('the poster loop follows each round of posters with the venue’s social profiles', async ({ page }) => {
+  await page.clock.install();
+  await open(page);
+  const posters = [{ id: 'e1', name: 'Drag Bingo', when: 'Tomorrow · 9 PM', billing: '', cover: 'Free', image: null,
+    link: 'https://hotmess.social/events/e1' }];
+  const social = [
+    { provider: 'tiktok', handle: 'neighbours', url: 'https://tiktok.com/@neighbours' },
+    { provider: 'venmo', handle: 'tips', url: 'https://venmo.com/u/tips' },
+    { provider: 'instagram', handle: 'neighboursnc', url: 'https://instagram.com/neighboursnc' },
+  ];
+  await send(page, { ...board, posters, social, mode: 'posters' });
+  await expect(page.locator('.event-poster .name')).toHaveText('Drag Bingo');
+  // After the round's last poster, the follow-us slide: the venue, then each network with a code, no tip links.
+  await page.clock.runFor(12_500);
+  await expect(page.locator('.social-slide')).toBeVisible();
+  await expect(page.locator('.social-slide .name')).toHaveText('Neighbours');
+  await expect(page.locator('.social-slide .network')).toHaveText(['Instagram', 'TikTok']);
+  await expect(page.locator('.social-slide .handle')).toHaveText(['@neighboursnc', '@neighbours']);
+  await expect(page.locator('.social-slide .qr svg')).toHaveCount(2);
+  await expect(page.locator('.event-poster')).toBeHidden();
+  // Then the posters again.
+  await page.clock.runFor(12_500);
+  await expect(page.locator('.event-poster')).toBeVisible();
+  await expect(page.locator('.social-slide')).toBeHidden();
+  // A posters TV with no posters but profiles keeps to the loop rather than the board.
+  await send(page, { ...board, posters: [], social, mode: 'posters' });
+  await expect(page.locator('body')).toHaveClass(/mode-posters/);
+});
+
+test('the slogan slides leave out the standard posters the venue turned off', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await page.route('**/marquee/slogans.json', (route) => route.fulfill({ json: { slides: [
+    { id: 'kept', adult: false, image: '/marquee/kept-test.png' },
+    { id: 'turned-off', adult: false, image: '/marquee/turned-off-test.png' },
+    { id: 'cheeky', adult: true, image: '/marquee/cheeky-test.png' },
+  ] } }));
+  await page.route('**/marquee/*-test.png', (route) => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.clock.install();
+  await open(page);
+  await send(page, { ...board, slogans: { adult: false, hidden: ['turned-off'] } });
+  // Each break, the one line left: never the one turned off, nor the adult line at a venue not flagged for it.
+  for (let i = 0; i < 3; i++) {
+    await page.clock.runFor(45_500);
+    await expect(page.locator('.slogan-slide')).toBeVisible();
+    await expect(page.locator('.slogan-slide img')).toHaveAttribute('src', '/marquee/kept-test.png');
+    await page.clock.runFor(12_500);
+    await expect(page.locator('.slogan-slide')).toBeHidden();
+  }
+});
+
+test('the slogan slides are the venue’s audience’s posters when Velvet sends them, and none when it has none', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  let manifestAsked = false;
+  await page.route('**/marquee/slogans.json', (route) => { manifestAsked = true; return route.fulfill({ json: { slides: [] } }); });
+  await page.route('https://posters.example/**', (route) => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.clock.install();
+  await open(page);
+  await send(page, { ...board, slogans: { adult: false, slides: [{ id: 'ours', image: 'https://posters.example/ours.png', adult: false }] } });
+  await page.clock.runFor(45_500);
+  await expect(page.locator('.slogan-slide')).toBeVisible();
+  await expect(page.locator('.slogan-slide img')).toHaveAttribute('src', 'https://posters.example/ours.png');
+  await page.clock.runFor(12_500);
+  // An audience with no posters: nothing rotates in, and the site's own set isn't fetched.
+  await send(page, { ...board, slogans: { adult: false, slides: [] } });
+  await page.clock.runFor(45_500);
+  await expect(page.locator('.slogan-slide')).toBeHidden();
+  expect(manifestAsked).toBe(false);
+});
+
 test('a night without a lineup lists what’s coming up, and the song playing runs along the bottom', async ({ page }) => {
   await open(page);
   await send(page, {
@@ -197,6 +282,36 @@ test('a TV set to sing-along lyrics follows the song’s clock, line by line', a
   await expect(page.locator('#board .lineup li')).toHaveCount(3);
 });
 
+test('a TV set to the photo wall shows the photographers’ photos, credited, and turns them over', async ({ page }) => {
+  await page.clock.install();
+  await open(page);
+  const photos = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i) => ({
+    id, url: `https://example.com/${id}.jpg`, credit: i < 3 ? 'Ana Lens' : 'Bo Flash',
+    caption: id === 'a' ? 'Encore at Mess Hall' : undefined,
+  }));
+  photos.push({ id: 'x', url: 'http://insecure.example.com/x.jpg', credit: 'Nope', caption: undefined });
+  await send(page, { ...board, mode: 'photos', photos, chat: { messages: [{ sender: 'Sam', text: 'hi', venue: false }] } });
+  await expect(page.locator('#board')).toBeHidden();
+  await expect(page.locator('#chat')).toBeHidden();
+  await expect(page.locator('#photos')).toBeVisible();
+  await expect(page.locator('#photos .tile')).toHaveCount(5);
+  await expect(page.locator('#photos .tile.large img')).toHaveAttribute('src', 'https://example.com/a.jpg');
+  await expect(page.locator('#photos .tile.large figcaption')).toContainText('Encore at Mess Hall');
+  await expect(page.locator('#photos .venue-name')).toHaveText('Neighbours');
+  await expect(page.locator('#photos .credit')).toHaveText('Photos by Ana Lens and Bo Flash');
+  await expect(page.locator('#photos img[src^="http://"]')).toHaveCount(0);
+  // Every 12 seconds the next photo leads.
+  await page.clock.runFor(12_500);
+  await expect(page.locator('#photos .tile.large img')).toHaveAttribute('src', 'https://example.com/b.jpg');
+  // The same list again doesn't start the wall over.
+  await send(page, { ...board, mode: 'photos', photos });
+  await expect(page.locator('#photos .tile.large img')).toHaveAttribute('src', 'https://example.com/b.jpg');
+  // With no photos, the TV shows the board.
+  await send(page, { ...board, mode: 'photos', photos: [] });
+  await expect(page.locator('#photos')).toBeHidden();
+  await expect(page.locator('#board .lineup li')).toHaveCount(3);
+});
+
 test('when the last phone leaves, the TV keeps going on the venue’s public web sign, without chat', async ({ page }) => {
   await open(page);
   await send(page, { ...board, chat: { messages: [{ sender: 'Sam', text: 'hi', venue: false }] } });
@@ -210,6 +325,8 @@ test('when the last phone leaves, the TV keeps going on the venue’s public web
   expect((await display).status()).toBe(200);
   await expect(page.locator('#chat')).toBeHidden();
   await expect(page.locator('#board')).toContainText('DJ Fallback');
+  // The web sign's social profiles carry over to the follow-us slide.
+  await expect.poll(() => page.evaluate(() => (window as any).velvetSocialWanted?.[0]?.[0]?.handle)).toBe('fallbackbar');
   // A phone coming back takes the TV over again.
   await send(page, board);
   await expect(page.locator('#board .lineup li')).toHaveCount(3);
