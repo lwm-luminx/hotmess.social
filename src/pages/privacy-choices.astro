@@ -1,0 +1,10 @@
+---
+import Base from '../layouts/Base.astro';
+import PrivacyChoicesPage from '../app/PrivacyChoicesPage';
+// A shell: the choices load in the browser once someone is signed in to Hot Mess (src/app/PrivacyChoicesPage.tsx).
+---
+<Base title="Your privacy choices">
+  <main class="wrap"><h1>Your privacy choices</h1>
+    <PrivacyChoicesPage client:only="react" />
+  </main>
+</Base>
