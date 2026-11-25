@@ -22,6 +22,8 @@
 // Nothing here signs in or reads the API, so the page shows nothing until a phone sends it something. When the last
 // phone leaves, the TV keeps going on the web sign's board (/venues/<id>/display): the public lineup, no chat.
 // Registered as a Custom Receiver in the Google Cast SDK Developer Console; the apps carry its application ID.
+// Velvet on Samsung TVs frames it as /cast/velvet/?screen=tizen and sends the same messages with postMessage (Cast
+// isn't started there).
 import '../../styles/global.css';
 import '../../styles/venue-board.css';
 export const prerender = true;
@@ -451,6 +453,18 @@ export const prerender = true;
 
         window.addEventListener('resize', fit);
         setInterval(tick, 15000);
+
+        // Velvet on a Samsung TV (Tizen) runs this page in a frame, as /cast/velvet/?screen=tizen, and sends it the same
+        // messages a phone sends over Cast, with postMessage, so the Samsung TV and the cast receiver share one renderer.
+        // Only the page's own parent is heard; it's told when the page is ready, so it can send the board it has.
+        if (window.parent !== window) {
+          window.addEventListener('message', function (event) {
+            var data = event.source === window.parent ? event.data : null;
+            if (data && typeof data === 'object' && typeof data.type === 'string') show(data);
+          });
+          window.parent.postMessage({ type: 'velvet-receiver-ready' }, '*');
+        }
+        if (/[?&]screen=tizen(&|$)/.test(location.search)) return;
 
         if (!window.cast || !cast.framework) return;
         var context = cast.framework.CastReceiverContext.getInstance();
