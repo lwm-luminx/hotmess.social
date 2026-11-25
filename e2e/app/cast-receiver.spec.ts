@@ -332,3 +332,23 @@ test('when the last phone leaves, the TV keeps going on the venue’s public web
   await expect(page.locator('#board .lineup li')).toHaveCount(3);
   await expect(page.locator('#board')).not.toContainText('DJ Fallback');
 });
+
+test('in a Samsung TV’s frame, draws what its parent posts and leaves Cast alone', async ({ page }) => {
+  await page.route('https://www.gstatic.com/cast/**', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: CAF_STUB }));
+  // The Tizen app's page: the receiver in a frame, told the board once it says it's ready.
+  await page.route('http://localhost:4321/tizen-shell', (route) => route.fulfill({
+    contentType: 'text/html',
+    body: `<!doctype html><iframe id="r" src="/cast/velvet/?screen=tizen" style="width:1920px;height:1080px"></iframe>
+      <script>window.ready = 0; addEventListener('message', (e) => { if (e.data && e.data.type === 'velvet-receiver-ready') window.ready++; });</script>`,
+  }));
+  await page.goto('/tizen-shell');
+  await page.waitForFunction(() => (window as any).ready === 1);
+  const frame = page.frameLocator('#r');
+  await page.evaluate((message) => (document.getElementById('r') as HTMLIFrameElement).contentWindow!.postMessage(message, '*'), board);
+  await expect(frame.locator('#board h1')).toHaveText('Neighbours');
+  await expect(frame.locator('#board')).toContainText('Lola Bunny');
+  // Cast never started in the frame.
+  const started = await page.frames().find((f) => f.url().includes('screen=tizen'))!.evaluate(() => (window as any).castStub?.started ?? null);
+  expect(started).toBeNull();
+});
