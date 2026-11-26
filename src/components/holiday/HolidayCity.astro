@@ -6,7 +6,7 @@ import Base from '../../layouts/Base.astro';
 import HolidayHowTo from './HolidayHowTo.astro';
 import { BADGES, checkedText, citySlug, dialHref, emergencyNumber, kinds, phoneText, slotText, urgentFirst,
   type ResourceDirectory, type ResourceLocale } from '../../lib/communityResources';
-import { eventWhen, holidayMeals, otherFood, type Holiday } from '../../lib/holidayGuide';
+import { eventWhen, holidayMeals, priceText, otherFood, type Holiday } from '../../lib/holidayGuide';
 import { listing } from '../../server/publicContent';
 import type { PublicListing } from '../../lib/publicListing';
 import holidayEvents from '../../data/holiday-events.json';
@@ -44,6 +44,31 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
 
     {status === 404 && <p class="wrap note card">We don’t have a food list for that city yet. <a href={`/${holiday.slug}?pick`}>See every city</a>.</p>}
     {status === 503 && <p class="wrap note card">We couldn’t load {name} just now. Try again in a minute.</p>}
+
+    {events.length > 0 && (
+      <section class="wrap events" aria-labelledby="events-title">
+        <h2 id="events-title">{holiday.name} at {name}’s queer bars and venues</h2>
+        <p class="muted">Spend the holiday with your people. Times and prices come from each venue’s own posts, so check with them before you go.</p>
+        {events.map((e) => (
+          <article class="card event">
+            {e.image && <img src={e.image} alt="" loading="lazy" />}
+            <div>
+              {eventWhen(e.start_at, e.end_at, city?.timeZone ?? null) && <p class="time small-time">{eventWhen(e.start_at, e.end_at, city?.timeZone ?? null)}</p>}
+              <h3>{e.title}</h3>
+              <p class="price">{priceText(e.cover_cents)}</p>
+              {e.venue_name && <p class="venue">{e.venue_name}</p>}
+              {e.address && <p class="where">{e.address}</p>}
+              {e.description && <p class="desc">{e.description.length > 280 ? `${e.description.slice(0, 277)}…` : e.description}</p>}
+              <p class="actions">
+                {e.address && <a class="button" href={maps(e.address)} rel="noopener noreferrer" target="_blank">Directions</a>}
+                {e.ticket_url && <a class="button secondary" href={e.ticket_url} rel="noopener noreferrer" target="_blank">Venue’s post</a>}
+                <a class="button secondary" href={e.path}>See it on Hot Mess</a>
+              </p>
+            </div>
+          </article>
+        ))}
+      </section>
+    )}
 
     {directory && (
       <section class="wrap meals" aria-labelledby="meals-title">
@@ -88,27 +113,6 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
       </section>
     )}
 
-    {events.length > 0 && (
-      <section class="wrap events" aria-labelledby="events-title">
-        <h2 id="events-title">{holiday.name} at {name}’s queer bars and venues</h2>
-        <p class="muted">Not free unless it says so. Spend the holiday with your people.</p>
-        {events.map((e) => (
-          <article class="card event">
-            {e.image && <img src={e.image} alt="" loading="lazy" />}
-            <div>
-              {eventWhen(e.start_at, e.end_at, city?.timeZone ?? null) && <p class="time small-time">{eventWhen(e.start_at, e.end_at, city?.timeZone ?? null)}</p>}
-              <h3>{e.title}</h3>
-              {e.venue_name && <p class="where">{e.venue_name}{e.address ? ` · ${e.address}` : ''}</p>}
-              {e.description && <p class="desc">{e.description.length > 220 ? `${e.description.slice(0, 217)}…` : e.description}</p>}
-              <p class="actions">
-                <a class="button" href={e.path}>See it on Hot Mess</a>
-                {e.ticket_url && <a class="button secondary" href={e.ticket_url} rel="noopener noreferrer" target="_blank">Tickets</a>}
-              </p>
-            </div>
-          </article>
-        ))}
-      </section>
-    )}
 
     <HolidayHowTo foodHref={foodHref} cityName={directory ? name : undefined} />
     <p class="wrap muted fine">Gathered from public sources and {holiday.checked}. Hot Mess isn’t part of any of these organizations. Hot Mess is not an emergency service.</p>
@@ -149,7 +153,7 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
   .more:hover strong { text-decoration: underline; }
   .urgent { padding: .75rem 1rem; border-radius: var(--radius); background: var(--surface-raised); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); }
   .urgent a { font-weight: 700; white-space: nowrap; }
-  .events { display: grid; gap: 1rem; padding-top: 2.5rem; max-width: 46rem; }
+  .events { display: grid; gap: 1rem; padding-top: 2rem; max-width: 46rem; }
   .events h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0; }
   .events > p { margin: 0; }
   .event { padding: 1.25rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
@@ -157,6 +161,8 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
   .event div { display: grid; gap: .35rem; min-width: 0; }
   .event h3 { margin: 0; font-size: 1.25rem; }
   .event p { margin: 0; }
+  .price { font-weight: 700; }
+  .venue { font-weight: 600; }
   .small-time { font-size: 1.1rem !important; font-weight: 800; color: var(--accent); margin: 0; }
   .fine { font-size: .9rem; padding-bottom: 3rem; }
 </style>
