@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { AudienceKitClient, AudienceKitError, FetchTransport, Website } from 'audience-kit';
 import { publicListing, type PublicListing } from '../lib/publicListing';
 import { venueTonight, type VenueTonight } from '../lib/venueDisplay';
 import { shareCard, type ShareCard } from '../lib/shareCard';
@@ -9,90 +10,95 @@ interface Settings { PUBLIC_CONTENT_API_BASE?: string; PUBLIC_CONTENT_HOST?: str
 const settings = () => env as unknown as Settings;
 export const siteOrigin = () => settings().PUBLIC_SITE_ORIGIN ?? 'https://hotmess.social';
 const apiBase = () => settings().PUBLIC_CONTENT_API_BASE ?? 'https://api.next.audiencekit.com';
-let credential: { secret: string; token: string; until: number } | undefined;
-let exchanging: Promise<string> | undefined;
-async function token(): Promise<string> {
+const host = () => settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com';
+const TIMEOUT = 8000;
+
+// The site's own AudienceKit client (the audience-kit SDK): it trades the Worker's service token (`public:read`) for an
+// hour-long session and trades again before it runs out. Made again when a setting changes.
+let site: { key: string; client: AudienceKitClient; website: Website.WebsiteClient } | undefined;
+function sdk(): { client: AudienceKitClient; website: Website.WebsiteClient } {
+  const secret = settings().AUDIENCEKIT_SERVICE_TOKEN ?? '';
+  const key = [apiBase(), host(), secret].join('|');
+  if (site?.key !== key) {
+    const client = new AudienceKitClient({
+      configuration: { baseUrl: apiBase(), host: host() },
+      transport: new FetchTransport({ timeoutMillis: TIMEOUT }),
+    });
+    site = { key, client, website: new Website.WebsiteClient(client) };
+  }
+  return site;
+}
+
+/** The SDK client with the service session, or an error when the Worker has no service token. */
+async function credentialed(): Promise<{ client: AudienceKitClient; website: Website.WebsiteClient }> {
   const secret = settings().AUDIENCEKIT_SERVICE_TOKEN;
   if (!secret) throw new Error('Public site credential is not configured');
-  if (credential?.secret === secret && credential.until > Date.now()) return credential.token;
-  if (exchanging) return exchanging;
-  exchanging = (async () => {
-    const response = await fetch(`${apiBase()}/v1/token/service`, { method: 'POST',
-      headers: { 'content-type': 'application/json' }, body: JSON.stringify({ service_token: secret }),
-      signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error('Public site authentication failed');
-    const body = await response.json() as { token: string; expiresAt: string };
-    credential = { secret, token: body.token, until: Date.parse(body.expiresAt) - 60000 };
-    return body.token;
-  })();
-  try { return await exchanging; } finally { exchanging = undefined; }
+  const current = sdk();
+  if (!(await current.client.isSignedIn())) {
+    try {
+      await current.client.useServiceToken(secret);
+    } catch {
+      throw new Error('Public site authentication failed');
+    }
+  }
+  return current;
 }
-async function request(path: string): Promise<Response> {
-  const response = await fetch(`${apiBase()}/v1/public/${path}`, {
-    headers: { authorization: `Bearer ${await token()}`, accept: 'application/json' },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (response.status === 401) credential = undefined;
-  return response;
-}
+
+const unavailable = (what = 'Public content') => (error: unknown): never => {
+  if (error instanceof AudienceKitError) throw new Error(`${what} is unavailable`, { cause: error });
+  throw error;
+};
+
 export async function listing(path: string): Promise<PublicListing | null> {
-  const response = await request(path.replace(/^\//, ''));
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('Public content is unavailable');
-  return publicListing(await response.json());
+  const [kind, id] = path.replace(/^\//, '').split('/');
+  const kinds = { venues: 'venue', events: 'event', posts: 'post' } as const;
+  const one = kinds[kind as keyof typeof kinds];
+  if (!one || !id) return null;
+  const { client } = await credentialed();
+  const found = await client.publicListing(one, id).catch(unavailable());
+  return found && publicListing(found);
 }
 export async function listings(page: number): Promise<{ listings: PublicListing[]; next_page: number | null; page_count: number }> {
-  const response = await request(`listings?page=${page}`);
-  if (!response.ok) throw new Error('Public content is unavailable');
-  const body = await response.json() as { listings: unknown[]; next_page: number | null; page_count: number };
-  return { listings: body.listings.map(publicListing), next_page: body.next_page, page_count: body.page_count };
+  const { client } = await credentialed();
+  const body = await client.publicListingsPage(page).catch(unavailable());
+  return { listings: body.listings.map(publicListing), next_page: body.nextPage, page_count: body.pageCount };
 }
-let hotMessAudience: Promise<string> | undefined;
-// The audience the site serves (PUBLIC_CONTENT_HOST's), whose sign-ins it accepts.
-function audience(): Promise<string> {
-  const query = new URLSearchParams({ host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });
-  hotMessAudience ??= fetch(`${apiBase()}/v1/branding?${query}`, { signal: AbortSignal.timeout(8000) })
-    .then(async (response) => {
-      if (!response.ok) throw new Error('Branding is unavailable');
-      return ((await response.json()) as { audience: { id: string } }).audience.id;
-    })
-    .catch((e) => { hotMessAudience = undefined; throw e; });
-  return hotMessAudience;
-}
-const VIEWER = 'query DiscoverViewer { me { self { id } } }';
 /**
  * Whether a Hot Mess session token (the web app's, from the request's Authorization header) is signed in to this
  * site's audience: the API answers `me` for it. Throws when the API can't say.
  */
 export async function signedIn(authorization: string | null): Promise<boolean> {
   if (!authorization || !/^Bearer [\w.-]+$/.test(authorization)) return false;
-  const response = await fetch(`${apiBase()}/v1/audience/${await audience()}/graphql`, {
-    method: 'POST', signal: AbortSignal.timeout(8000),
-    headers: { authorization, accept: 'application/json', 'content-type': 'application/json' },
-    body: JSON.stringify({ query: VIEWER, operationName: 'DiscoverViewer' }),
+  // A client of its own: the visitor's token, never the site's service session.
+  const client = new AudienceKitClient({
+    configuration: { baseUrl: apiBase(), host: host() },
+    transport: new FetchTransport({ timeoutMillis: TIMEOUT }),
   });
-  if (response.status === 401 || response.status === 403) return false;
-  if (!response.ok) throw new Error('The API could not check the session');
-  const body = await response.json() as { data?: { me?: { self?: { id?: string } } | null } };
-  return !!body.data?.me?.self?.id;
+  await client.useBearerToken(authorization.slice('Bearer '.length));
+  try {
+    return (await new Website.WebsiteClient(client).viewerId()) !== null;
+  } catch (error) {
+    if (error instanceof AudienceKitError && (error.code === 'UNAUTHORIZED' || error.code === 'FORBIDDEN')) return false;
+    throw new Error('The API could not check the session', { cause: error });
+  }
 }
 /**
  * The API's answer for a share link (GET /v1/share): its status (200, 404 nothing to share, 410 expired or forged)
  * and, on 200, the card a link preview shows. `signature` is the link's `e`, or null for an unsigned link.
  */
 export async function shareLink(path: string, signature: string | null): Promise<{ status: number; card: ShareCard | null }> {
-  const query = new URLSearchParams({ path, host: settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com' });
-  if (signature !== null) query.set('e', signature);
-  const response = await fetch(`${apiBase()}/v1/share?${query}`, { signal: AbortSignal.timeout(8000) });
-  if (response.status !== 200) return { status: response.status, card: null };
-  return { status: 200, card: shareCard(await response.json()) };
+  const answer = await sdk().website.shareLink(path, signature);
+  return { status: answer.status, card: answer.status === 200 ? shareCard(answer.card) : null };
 }
 /** Tonight at a venue for its display (/venues/<id>/display), or null when it has none. */
 export async function tonight(id: string): Promise<VenueTonight | null> {
-  const response = await request(`venues/${id}/tonight`);
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('Public content is unavailable');
-  return venueTonight(await response.json() as Record<string, unknown>);
+  const { client } = await credentialed();
+  try {
+    return venueTonight(await client.publicTonight<Record<string, unknown>>(id));
+  } catch (error) {
+    if (error instanceof AudienceKitError && error.code === 'NOT_FOUND') return null;
+    return unavailable()(error);
+  }
 }
 /**
  * The venue a short code names, from the cover poster's public read (`GET /v1/cover/:code`, the same code), which needs
@@ -100,40 +106,26 @@ export async function tonight(id: string): Promise<VenueTonight | null> {
  */
 export async function venueForCode(code: string): Promise<string | null> {
   if (!/^[0-9a-zA-Z]{8}$/.test(code)) return null;
-  const url = new URL(`${apiBase()}/v1/cover/${code}`);
-  url.searchParams.set('host', new URL(siteOrigin()).host);
-  const response = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('Public content is unavailable');
-  const { venue } = await response.json() as { venue?: { id?: unknown } };
-  const id = typeof venue?.id === 'string' ? venue.id.toLowerCase() : '';
+  const answer = await sdk().website.coverPoster<{ venue?: { id?: unknown } }>(code, new URL(siteOrigin()).host).catch(unavailable());
+  const id = typeof answer?.venue?.id === 'string' ? answer.venue.id.toLowerCase() : '';
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id) ? id : null;
 }
 /** Where a venue's short link (/v/<code>) goes, its chat (`/venues/<id>/chat`), or null for no such venue. */
 export async function shortLink(code: string): Promise<string | null> {
   if (!/^[0-9a-zA-Z]{8}$/.test(code)) return null;
-  const response = await request(`v/${code}`);
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('Public content is unavailable');
-  const { path } = await response.json() as { path?: unknown };
-  return typeof path === 'string' && /^\/venues\/[0-9a-f-]{36}\/chat$/.test(path) ? path : null;
+  const { website } = await credentialed();
+  const path = await website.publicShortLink(code).catch(unavailable());
+  return path && /^\/venues\/[0-9a-f-]{36}\/chat$/.test(path) ? path : null;
 }
 /**
  * The cities with community resources (food, shelter, clinics, crisis and DV lines), live from the API's public
  * directory: no site credential, the same answer for everyone (audience_kit_api CommunityResourcesController).
  */
 export async function resourceCities(): Promise<ResourceLocale[]> {
-  const response = await fetch(`${apiBase()}/v1/audience/${await audience()}/community_resources/locales`,
-    { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error('Community resources are unavailable');
-  return resourceLocales(await response.json());
+  return resourceLocales(await sdk().website.communityResourceLocales<unknown>().catch(unavailable('Community resources')));
 }
 /** A city's community resource directory, live from the API, or null for no such city. */
 export async function resourceDirectoryFor(localeId: string): Promise<ResourceDirectory | null> {
-  const query = new URLSearchParams({ locale_id: localeId });
-  const response = await fetch(`${apiBase()}/v1/audience/${await audience()}/community_resources?${query}`,
-    { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('Community resources are unavailable');
-  return resourceDirectory(await response.json());
+  const body = await sdk().website.communityResources<unknown>(localeId).catch(unavailable('Community resources'));
+  return body === null ? null : resourceDirectory(body);
 }

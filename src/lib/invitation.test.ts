@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { endsLabel, invitationQuery, parseInvitation, pingId } from './invitation.ts';
+import { endsLabel, parseInvitation, pingId } from './invitation.ts';
 
 const PING = '55555555-5555-4555-8555-555555555555';
 const VENUE = '11111111-1111-4111-8111-111111111111';
@@ -12,11 +12,6 @@ test('pingId reads /pings/<uuid> and nothing else', () => {
   assert.equal(pingId('/pings/not-a-uuid'), null);
   assert.equal(pingId(`/venues/${VENUE}`), null);
   assert.equal(pingId(`/pings/${PING}/extra`), null);
-});
-
-test('invitationQuery passes the token through untouched', () => {
-  assert.deepEqual(Object.fromEntries(invitationQuery('hotmess.social', PING, 'v3.abc')),
-    { host: 'hotmess.social', path: `/pings/${PING}`, e: 'v3.abc' });
 });
 
 test('parseInvitation reads the API JSON', () => {

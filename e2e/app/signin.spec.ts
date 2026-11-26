@@ -122,7 +122,8 @@ test('shows an error when the API refuses the sign-in without a reason', async (
   api.on('POST /v1/token', { status: 401 });
   await page.goto('/app/');
   await page.getByRole('button', { name: 'Continue with Facebook' }).click();
-  await expect(page.getByRole('alert')).toHaveText('POST /v1/token failed with 401');
+  // The SDK's words for a refusal with no reason (AudienceKitError SIGN_IN_REJECTED).
+  await expect(page.getByRole('alert')).toHaveText("Sign-in was refused. The login isn't valid for this app.");
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('hotmess.token'))).toBeNull();
 });

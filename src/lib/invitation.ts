@@ -30,11 +30,6 @@ export function pingId(pathname: string): string | null {
   return match && UUID.test(match[1]) ? match[1].toLowerCase() : null;
 }
 
-/** The query for GET /v1/share/invitation. */
-export function invitationQuery(host: string, id: string, e: string): URLSearchParams {
-  return new URLSearchParams({ host, path: `/pings/${id}`, e });
-}
-
 const text = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 

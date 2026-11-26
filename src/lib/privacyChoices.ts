@@ -2,35 +2,14 @@
 // (audience-kit-sdk's PrivacyChoicesCopy). The browser's own Global Privacy Control signal (Sec-GPC: 1) reaches the API
 // on every signed-in request and counts as an opt-out there; nothing here has to send it.
 
-export type PrivacyChoiceKey = 'SALE_SHARE_OPT_OUT' | 'AD_MEASUREMENT' | 'PERSONALIZED_ADS' | 'PRIVACY_PASS';
+import type { Website } from 'audience-kit';
 
-export interface PrivacyOffer { choices: PrivacyChoiceKey[]; passCents: number | null; passDays: number }
-
-export interface PrivacyChoices {
-  saleShareOptedOut: boolean;
-  saleShareOptOutSource: 'CHOICE' | 'GLOBAL_PRIVACY_CONTROL' | null;
-  adMeasurement: boolean;
-  countedInAdMeasurement: boolean;
-  personalizedAds: boolean;
-  mayShare: boolean;
-  privacyPassUntil: string | null;
-}
+// The shapes and the documents are the SDK's (audience-kit's Website client); this file keeps the words and the rules.
+export type PrivacyChoiceKey = Website.PrivacyChoiceKey;
+export type PrivacyOffer = Website.PrivacyOffer;
+export type PrivacyChoices = Website.PrivacyChoices;
 
 export const KNOWN: readonly PrivacyChoiceKey[] = ['SALE_SHARE_OPT_OUT', 'AD_MEASUREMENT', 'PERSONALIZED_ADS', 'PRIVACY_PASS'];
-
-const FIELDS = 'saleShareOptedOut saleShareOptOutSource adMeasurement countedInAdMeasurement personalizedAds mayShare privacyPassUntil';
-
-export const PRIVACY_QUERY = `query Privacy { privacyOffer { choices passCents passDays } me { privacy { ${FIELDS} } } }`;
-
-export const UPDATE_PRIVACY = `mutation UpdatePrivacyChoices($saleShareOptOut: Boolean, $adMeasurement: Boolean, $personalizedAds: Boolean) {
-  updatePrivacyChoices(input: { saleShareOptOut: $saleShareOptOut, adMeasurement: $adMeasurement, personalizedAds: $personalizedAds }) {
-    privacy { ${FIELDS} }
-  }
-}`;
-
-export const START_PRIVACY_PASS = `mutation StartPrivacyPass($returnUrl: String) {
-  startPrivacyPass(input: { returnUrl: $returnUrl }) { checkoutUrl passId }
-}`;
 
 export const TITLE = 'Your privacy choices';
 
