@@ -1,0 +1,117 @@
+---
+// A holiday food guide's front page (hotmess.social/<holiday>): pick your city to see its free holiday meals
+// (/<holiday>/<city>). Someone signed in to Hot Mess on this browser goes straight to their own city, from where the
+// API places them (reportLocation, as the web app's Now does), unless they came here to pick (?pick).
+import Base from '../../layouts/Base.astro';
+import HolidayHowTo from './HolidayHowTo.astro';
+import { byCountry, citySlug, type ResourceLocale } from '../../lib/communityResources';
+import type { Holiday } from '../../lib/holidayGuide';
+interface Props { holiday: Holiday; cities: ResourceLocale[]; failed: boolean; description: string; lede: string }
+const { holiday, cities, failed, description, lede } = Astro.props;
+const groups = byCountry(cities);
+---
+<Base title={`Free food this ${holiday.name}`} calm image={new URL(`/og/${holiday.slug}.png`, Astro.site).toString()}
+  description={description}>
+  <main>
+    <section class="poster">
+      <div class="wrap">
+        <p class="date">{holiday.dateLine}</p>
+        <h1>Free food this {holiday.name}</h1>
+        <p class="lede">{lede}</p>
+        <p class="locating" id="locating" role="status" hidden>Finding your city…</p>
+      </div>
+    </section>
+    <section class="wrap cities" data-holiday={holiday.slug} aria-labelledby="pick-title">
+      <h2 id="pick-title">Pick your city</h2>
+      {failed && <p class="card note">We couldn’t load the cities just now. Try again in a minute. For food or other help any time in the US, call <a href="tel:211">211</a>.</p>}
+      {cities.length > 0 && (
+        <label class="search">
+          <span class="visually-hidden">Find your city</span>
+          <input type="search" id="city-search" placeholder="Find your city" autocomplete="off" spellcheck="false" enterkeyhint="search" />
+        </label>
+      )}
+      <p class="card note" id="no-city" hidden>No city by that name yet. In the US, call <a href="tel:211">211</a> to find free food near you.</p>
+      {groups.map((group) => (
+        <section class="country" aria-labelledby={`c-${group.country}`}>
+          <h3 id={`c-${group.country}`}>{group.country}</h3>
+          <ul class="city-list">
+            {group.cities.map((city) => (
+              <li data-city={city.name.toLowerCase()} data-id={city.id} data-label={(city.label ?? '').toLowerCase()} data-slug={citySlug(city)}>
+                <a href={`/${holiday.slug}/${citySlug(city)}`}>{city.name}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </section>
+    <HolidayHowTo foodHref="/resources" />
+    <p class="wrap muted fine">Gathered from public sources and {holiday.checked}. Hours change on holidays, so call ahead. Hot Mess is not an emergency service.</p>
+  </main>
+</Base>
+
+<script>
+  import { api, session } from '../../lib/api';
+  import { cityFor } from '../../lib/holidayGuide';
+  import type { ResourceLocale } from '../../lib/communityResources';
+
+  // Narrows the city list on this device as you type; nothing typed is sent anywhere.
+  const input = document.querySelector<HTMLInputElement>('#city-search');
+  const countries = Array.from(document.querySelectorAll<HTMLElement>('.country'));
+  const none = document.getElementById('no-city');
+  input?.addEventListener('input', () => {
+    const query = input.value.trim().toLowerCase();
+    let shown = 0;
+    for (const country of countries) {
+      let here = 0;
+      for (const item of Array.from(country.querySelectorAll<HTMLElement>('li'))) {
+        item.hidden = !(item.dataset.city ?? '').includes(query);
+        if (!item.hidden) here += 1;
+      }
+      country.hidden = here === 0;
+      shown += here;
+    }
+    if (none) none.hidden = shown > 0;
+  });
+
+  // Signed in: open on their own city. The browser asks before sharing where they are; if they say no, or they're
+  // somewhere without a list, they pick as anyone else does.
+  const items = Array.from(document.querySelectorAll<HTMLElement>('.city-list li'));
+  const cities: ResourceLocale[] = items.map((li) => ({ id: li.dataset.id ?? '', name: li.dataset.city ?? '',
+    label: li.dataset.label || null, country: null, timeZone: null, resourceCount: 0 }));
+  const status = document.getElementById('locating');
+  const picking = new URLSearchParams(window.location.search).has('pick');
+  if (session.token && !picking && cities.length > 0 && 'geolocation' in navigator) {
+    if (status) status.hidden = false;
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        const slug = cityFor(cities, await api.whereAmI(coords.latitude, coords.longitude));
+        const path = document.querySelector<HTMLElement>('[data-holiday]')?.dataset.holiday ?? 'thanksgiving';
+        if (slug) { window.location.replace(`/${path}/${slug}`); return; }
+      } catch { /* signed out or offline: pick instead */ }
+      if (status) status.hidden = true;
+    }, () => { if (status) status.hidden = true; }, { timeout: 10000, maximumAge: 15 * 60 * 1000 });
+  }
+</script>
+
+<style>
+  .poster { color: var(--on-accent); background: var(--accent); padding: clamp(2rem, 7vw, 4.5rem) 0 clamp(1.75rem, 5vw, 3rem);
+    background-image: radial-gradient(110% 80% at 100% 0%, color-mix(in srgb, var(--accent-strong) 70%, transparent), transparent 60%); }
+  .poster .date { margin: 0 0 .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .85rem; opacity: .9; }
+  .poster h1 { font-size: clamp(2.5rem, 9vw, 5rem); font-weight: 900; line-height: 1.02; margin: 0 0 1rem; max-width: 12ch; text-wrap: balance; }
+  .poster .lede { font-size: clamp(1.05rem, 2.4vw, 1.3rem); margin: 0; max-width: 46ch; }
+  .locating { margin: 1rem 0 0; font-weight: 600; }
+  .locating[hidden] { display: none; }
+  .cities { padding-top: 2rem; }
+  .cities h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0; }
+  .search { display: block; margin: 1rem 0 0; max-width: 28rem; }
+  .search input { width: 100%; min-height: 48px; padding: .6rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); color: inherit; font: inherit; }
+  .search input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .country[hidden], .city-list li[hidden], .note[hidden] { display: none; }
+  h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
+  .city-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .1rem 1.25rem; }
+  .city-list li { border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); }
+  .city-list a { display: flex; align-items: center; min-height: 44px; }
+  .note { padding: 1rem 1.25rem; margin-top: 1rem; }
+  .fine { font-size: .9rem; padding-bottom: 3rem; }
+</style>
