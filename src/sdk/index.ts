@@ -1,5 +1,5 @@
 // AudienceKit React components. This folder has no Hot Mess-specific code and imports nothing
-// outside itself (only react), so it can move as-is into an @audiencekit/react package.
+// outside itself (only react, and the audience-kit SDK's types), so it can move as-is into an @audiencekit/react package.
 // Import './styles.css' once alongside it.
 export type * from './types';
 export * from './format';

@@ -86,16 +86,16 @@ npm test        # route parser, formatting and API error tests
 npm run build   # type-check and build to dist/
 ```
 
-The app talks to the API's consumer GraphQL endpoint; its documents live in
-`src/lib/api.ts` and `src/sdk/types.ts` mirrors them. The `GraphQL documents`
-workflow validates them against the published schema
-(https://developer.audiencekit.com/api/validate-documents/). To run the check
-locally against a checkout of audience-kit:
-
-```sh
-node ../audience-kit/scripts/graphql-documents/check.mjs \
-  --schema ../audience-kit/api/schema.graphql --endpoint consumer src e2e
-```
+The site talks to the API through the AudienceKit SDK (`audience-kit`, the npm
+package in [audience-kit-sdk](https://github.com/lwm-luminx/audience-kit-sdk)
+`node/`): sign-in, and the pages', posters', safety alerts' and privacy choices'
+GraphQL and REST calls through its `Website` client. The documents and the shapes
+they select live in the SDK (`node/src/website/`), whose CI validates them
+against the API's schema, so a query the site needs is added there, not here.
+`src/lib/api.ts` only adapts the SDK to the site (the session in this browser's
+storage, failures as `APIError`), and `src/server/publicContent.ts` uses it with
+the Worker's service token. Until the package is on npm it is vendored as
+`vendor/audience-kit-<version>.tgz` (see `vendor/README.md`).
 
 Configuration is public build-time values only (see `.env.example`):
 `PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID`, `PUBLIC_APPLE_SERVICES_ID` and

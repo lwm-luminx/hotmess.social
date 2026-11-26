@@ -5,3 +5,5 @@
 To update it, run `npm pack --pack-destination <this folder>` in an astro-components checkout of the new tag. Then run `npm install --save file:vendor/<new tarball>` here and delete the old tarball.
 
 To install from GitHub Packages instead, give this repository read access under the package's settings (Manage Actions access). Then switch the dependency back to `^0.2.0`.
+
+`audience-kit-0.4.0.tgz` is `npm pack` of the AudienceKit SDK's npm package ([lwm-luminx/audience-kit-sdk](https://github.com/lwm-luminx/audience-kit-sdk) `node/`), version 0.4.0, which isn't on npm yet. To update it, run `npm pack --pack-destination <this folder>` in that `node/` folder, then `npm install --save file:vendor/<new tarball>` here and delete the old tarball. Once the version is on npm, switch the dependency to `^<version>` and delete the tarball.

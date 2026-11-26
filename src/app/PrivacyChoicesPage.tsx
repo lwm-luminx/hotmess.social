@@ -2,10 +2,10 @@
 // signed in to Hot Mess. The API enforces every choice; this page only shows them. The browser's Global Privacy Control
 // signal reaches the API by itself and counts as an opt-out.
 import { useEffect, useState } from 'react';
-import { graphql } from '../lib/api';
+import { call, website } from '../lib/api';
 import {
   browserSendsGPC, detail, FROM_GPC, intro, isOn, known, LABELS, passButton, passExplanation, passOffered,
-  PRIVACY_QUERY, START_PRIVACY_PASS, UPDATE_PRIVACY, variablesFor,
+  variablesFor,
   type PrivacyChoiceKey, type PrivacyChoices, type PrivacyOffer,
 } from '../lib/privacyChoices';
 import SignedIn from './SignedIn';
@@ -20,7 +20,7 @@ function Choices() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    graphql<{ privacyOffer: PrivacyOffer; me: { privacy: PrivacyChoices } | null }>(PRIVACY_QUERY, {})
+    call('Privacy', () => website.privacy())
       .then((data) => data.me && setLoaded({ offer: data.privacyOffer, choices: data.me.privacy }))
       .catch(() => setError('Your privacy choices couldn’t load. Try again in a moment.'));
   }, []);
@@ -29,8 +29,8 @@ function Choices() {
     if (!loaded) return;
     setSaving(key);
     try {
-      const data = await graphql<{ updatePrivacyChoices: { privacy: PrivacyChoices } }>(UPDATE_PRIVACY, variablesFor(key, on));
-      setLoaded({ ...loaded, choices: data.updatePrivacyChoices.privacy });
+      const privacy = await call('UpdatePrivacyChoices', () => website.updatePrivacyChoices(variablesFor(key, on)));
+      setLoaded({ ...loaded, choices: privacy });
       setError(null);
     } catch {
       setError('That didn’t save. Try again.');
@@ -39,8 +39,8 @@ function Choices() {
 
   const startPass = async () => {
     try {
-      const data = await graphql<{ startPrivacyPass: { checkoutUrl: string } }>(START_PRIVACY_PASS, { returnUrl: location.href });
-      location.assign(data.startPrivacyPass.checkoutUrl);
+      const pass = await call('StartPrivacyPass', () => website.startPrivacyPass(location.href));
+      location.assign(pass.checkoutUrl);
     } catch {
       setError('The privacy pass isn’t available right now.');
     }
