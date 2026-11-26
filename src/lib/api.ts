@@ -153,6 +153,11 @@ const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
   }
 }`;
 
+// Which Hot Mess cities someone is in (innermost first), for pages that open on their own city (/thanksgiving).
+const WHERE = `mutation WhereAmI($position: CoordinatesInput!) {
+  reportLocation(input: { position: $position }) { locale { id label } locales { id label } }
+}`;
+
 const VENUE_PAGE = `query Venue($id: ID!) {
   venues { venue(id: $id) { ${VENUE} events { upcoming { nodes { ${EVENT} } } } ordering { url } } }
 }`;
@@ -325,6 +330,12 @@ export const api = {
   // Records where you are, which is how the API knows the venue you're at.
   now: async (latitude: number, longitude: number): Promise<Now> =>
     (await graphql<{ reportLocation: Now }>(NOW, { position: { latitude, longitude } })).reportLocation,
+  whereAmI: async (latitude: number, longitude: number): Promise<{ id: string; label: string | null }[]> => {
+    type Placed = { id: string; label: string | null };
+    const { reportLocation: r } = await graphql<{ reportLocation: { locale: Placed | null; locales: Placed[] } }>(
+      WHERE, { position: { latitude, longitude } });
+    return [...r.locales, ...(r.locale ? [r.locale] : [])];
+  },
   // A venue and its upcoming events, in one request.
   venue: async (id: string): Promise<{ venue: Venue; events: Event[] }> => {
     const { events, ...venue } = found((await graphql<{ venues: { venue: Venue | null } }>(VENUE_PAGE, { id })).venues.venue);
