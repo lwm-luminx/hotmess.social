@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatNumber, isUnanswered, lineNumbers, pickupAt, rideLink, type SafetyAlert } from './safety.ts';
+import {
+  formatNumber, isUnanswered, lineNumbers, pickMeUp, pickupAt, rideLink, rideSummary, sendMeARide, transitLink, type SafetyAlert,
+} from './safety.ts';
 
 const alert = {
   id: 'a', state: 'OPEN', createdAt: '2026-10-23T03:15:00Z', escalatedAt: null,
@@ -30,4 +32,20 @@ test("sets a ride's pickup at the venue, or opens the app plain without one", ()
     'https://m.uber.com/ul/?action=setPickup&pickup%5Blatitude%5D=47.613700&pickup%5Blongitude%5D=-122.319700&pickup%5Bnickname%5D=The%20Wildrose%20%26%20Co');
   assert.equal(rideLink(ride, null), 'https://m.uber.com/ul/');
   assert.equal(pickupAt(null, 'x'), null);
+});
+
+test('"Get a ride" is one row naming the region\'s apps, then transit and a friend', () => {
+  const uber = { id: 'uber', name: 'Uber', url: 'https://m.uber.com/ul/', pickupUrl: null };
+  const lyft = { id: 'lyft', name: 'Lyft', url: 'https://lyft.com/ride', pickupUrl: null };
+  assert.equal(rideSummary([]), 'Transit, or share where to pick you up.');
+  assert.equal(rideSummary([uber, lyft]), 'Uber, Lyft, transit, or a friend.');
+});
+
+test('transit directions start at the pickup, and the messages say where it is', () => {
+  assert.equal(transitLink({ latitude: 40.7608, longitude: -111.891, name: 'Club Try-Angles' }),
+    'https://www.google.com/maps/dir/?api=1&origin=40.760800,-111.891000&travelmode=transit');
+  assert.equal(transitLink(null), 'https://www.google.com/maps/dir/?api=1&travelmode=transit');
+  assert.equal(pickMeUp('Club Try-Angles, 251 W 900 S'), "Can you pick me up? I'm here: Club Try-Angles, 251 W 900 S");
+  assert.equal(pickMeUp(null), 'Can you pick me up?');
+  assert.match(sendMeARide(null), /^Can you send me a ride home\? In Uber or Lyft/);
 });
