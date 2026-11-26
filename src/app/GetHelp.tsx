@@ -230,9 +230,10 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline, api = 
   } else {
     body = <>
       <ul className="help-rows">
-        {venue && (staffOnShift || restore) ? <li><HelpRow title="Tell staff I feel unsafe"
-          subtitle={staffOnShift ? 'The staff on shift hear it quietly and can come find you.'
-            : 'Nobody has the alerts on right now, so it goes to the managers if nobody picks it up. Finding staff in person may be faster.'}
+        {/* Always offered at a venue: with nobody on shift the alert goes to the managers. */}
+        {venue ? <li><HelpRow title="Contact staff"
+          subtitle={staffOnShift ? 'Tell them quietly you feel unsafe. The staff on shift can come find you.'
+            : 'Nobody has alerts on right now, so it goes to the managers. Finding staff in person may be faster.'}
           onClick={() => setView('tell')} /></li> : null}
         <EscapeRows venue={venue} rides={rides} onRide={() => setView('ride')} onSupport={() => setView('support')} />
       </ul>
