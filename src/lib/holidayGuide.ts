@@ -119,3 +119,10 @@ export function eventWhen(startAt: string | undefined, endAt: string | undefined
   const end = endAt ? new Date(endAt) : null;
   return `${day} · ${time(start)}${end && !Number.isNaN(end.getTime()) ? `–${time(end)}` : ''}`;
 }
+
+// A venue event's price line: free, a cover, or a nudge to check (no price on file).
+export function priceText(coverCents: number | undefined): string {
+  if (coverCents === 0) return 'Free';
+  if (typeof coverCents === 'number') return `$${(coverCents / 100).toFixed(coverCents % 100 ? 2 : 0)} cover`;
+  return 'Price not listed. Check with the venue.';
+}
