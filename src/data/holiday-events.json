@@ -1,3 +1,31 @@
 {
-  "thanksgiving": {}
+  "thanksgiving": {
+    "asbury-park": [
+      "6001ad23-480b-4ea3-989c-ba93602b3beb"
+    ],
+    "charleston": [
+      "f4973086-340f-42b4-a36b-06523e138ac9",
+      "b9f03616-3461-42df-8f05-9bd35d34fd6e"
+    ],
+    "chicago": [
+      "40696a30-b4fd-4220-ad6e-efc944597147"
+    ],
+    "la": [
+      "eed54513-ea27-41ab-8059-5cbfc1b34067"
+    ],
+    "new-york": [
+      "f943718e-fa93-44bb-ba50-6f32a9951775"
+    ],
+    "rehoboth-beach": [
+      "1991df54-67c0-4bdd-aa9f-ed6370590564"
+    ],
+    "sf": [
+      "78f69feb-685a-4b7d-b1f6-1f48b3551b0e",
+      "c80e1214-b1c5-4cc3-9021-ebb5699be033"
+    ],
+    "slc": [
+      "7de1fb22-9de3-458d-b763-62589c5001eb",
+      "49652424-426c-451e-a46a-9f77ff04b1a3"
+    ]
+  }
 }
