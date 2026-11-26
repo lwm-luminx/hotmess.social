@@ -54,7 +54,7 @@ test('the city list narrows as you type', async ({ page }) => {
 test('?need=food opens the directory on food, through the city redirect', async ({ page }) => {
   await page.goto('/resources/Seattle?need=food');
   await expect(page).toHaveURL(/\/resources\/seattle\?need=food$/);
-  await expect(page.getByRole('button', { name: 'I need food' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('group', { name: 'I need…' }).getByRole('button', { name: 'Food' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('heading', { name: 'Support line' })).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Cathedral Kitchen' })).toBeVisible();
 });
