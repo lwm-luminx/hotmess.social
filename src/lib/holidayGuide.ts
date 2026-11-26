@@ -103,3 +103,19 @@ export function cityFor(cities: ResourceLocale[], placed: { id: string; label?: 
   }
   return null;
 }
+
+/**
+ * When a venue's holiday event is, in the city's time zone: "Wed, Nov 25 · 9pm–2am", or "Thu, Nov 26 · 4pm" with no
+ * end. Null without a start.
+ */
+export function eventWhen(startAt: string | undefined, endAt: string | undefined, timeZone: string | null): string | null {
+  if (!startAt) return null;
+  const start = new Date(startAt);
+  if (Number.isNaN(start.getTime())) return null;
+  const zone = timeZone ?? 'America/New_York';
+  const day = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: zone });
+  const time = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zone })
+    .replace(':00', '').replace(' ', '').toLowerCase();
+  const end = endAt ? new Date(endAt) : null;
+  return `${day} · ${time(start)}${end && !Number.isNaN(end.getTime()) ? `–${time(end)}` : ''}`;
+}
