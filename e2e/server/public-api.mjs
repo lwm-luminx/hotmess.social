@@ -46,8 +46,9 @@ createServer((req, res) => {
     return res.end(JSON.stringify({
       locale: { id: 'l0000000-0000-4000-8000-000000000001', name: 'Seattle' }, quick_exit: 'Leave now',
       advocacy: ['You deserve better.'],
-      needs: [{ key: 'food', label: 'I need food', facets: ['food'] },
-        { key: 'safe', label: "I don't feel safe at home", facets: ['dv-stalking'] }],
+      needs: [{ key: 'food', label: 'Food', facets: ['food'] },
+        { key: 'shelter', label: 'Shelter', facets: ['shelter'] },
+        { key: 'safe', label: 'Safety at home', facets: ['dv-stalking'] }],
       resources: [
         { id: 'r1', title: 'Cathedral Kitchen', name: 'Cathedral Kitchen', sensitive: false, facets: ['food', 'no-id-required'],
           description: 'Free dinner, no questions asked.', address: '804 9th Ave, Seattle, WA 98104', phone: '+12063825555',
