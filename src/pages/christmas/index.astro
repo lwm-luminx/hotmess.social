@@ -1,0 +1,16 @@
+---
+// hotmess.social/christmas: the christmas food guide to share (src/components/holiday/HolidayIndex.astro).
+import HolidayIndex from '../../components/holiday/HolidayIndex.astro';
+import { resourceCities } from '../../server/publicContent';
+import { HOLIDAYS } from '../../lib/holidayGuide';
+import type { ResourceLocale } from '../../lib/communityResources';
+export const prerender = false;
+let cities: ResourceLocale[] = [];
+let failed = false;
+try { cities = await resourceCities(); } catch (e) { failed = true; console.error('christmas: cities unavailable', e); }
+Astro.response.headers.set('cache-control', failed ? 'no-store' : 'public, max-age=300, s-maxage=600');
+if (failed) Astro.response.status = 503;
+---
+<HolidayIndex holiday={HOLIDAYS.christmas} cities={cities} failed={failed}
+  description="Free Christmas Eve and Christmas Day meals, food pantries and meal programs near you. Pick your city. No sign-in needed."
+  lede="Free Christmas Eve and Christmas Day meals, food pantries and meal programs in every Hot Mess city. Pick yours. No sign-in needed." />
