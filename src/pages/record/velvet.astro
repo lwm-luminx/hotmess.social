@@ -1,0 +1,50 @@
+---
+import Base from '../../layouts/Base.astro';
+// Public account of Velvet's App Store review (Rick, 2026-11-19: "verified facts + your observation").
+// Keep to what App Store Connect records; Apple's messages are summarised, never quoted. Name no individuals at Apple.
+---
+<Base title="Velvet and App Review: the record" description="Apple rejected Velvet, the app LGBTQ+ venue staff use to answer “I feel unsafe” alerts, as spam 12 seconds into review. Here is the dated record.">
+  <main>
+    <section class="wrap record-article">
+      <p class="eyebrow">On the record · November 19, 2026</p>
+      <h1>Apple ruled our venue safety app “spam” 12 seconds into review</h1>
+      <p class="lede">Velvet is the app staff at LGBTQ+ bars and clubs use to answer “I feel unsafe” alerts from guests in Hot Mess. A guest taps once, and the staff on shift claim the alert and respond. Velvet is also where venue staff moderate their chat and run the door. On November 13, App Review rejected it as spam.</p>
+
+      <h2>What App Store Connect records</h2>
+      <p>All times are Mountain Time, from Velvet’s App Store Connect history. The seconds come from Apple’s notification emails.</p>
+      <ul>
+        <li><strong>Oct 21 to Nov 5:</strong> Velvet had three reviews. They covered our App Review sign-in code, which we fixed; questions about our business model (Velvet sells nothing); and questions about comment moderation and AirPlay background audio, which we answered with a demo video. We replied the same day each time. None of them questioned what Velvet is.</li>
+        <li><strong>Nov 5, 6:07 PM:</strong> resubmitted.</li>
+        <li><strong>Nov 13, 12:53:35 PM:</strong> In Review. <strong>12:53:47 PM:</strong> rejected under Guidelines 4.3 (spam) and 4.2.6 (app generation services), after 7 days 19 hours in the queue. Every earlier notice on Velvet named the device it was tested on and the version reviewed. This one names neither.</li>
+        <li><strong>Nov 13, 4:23 PM:</strong> we answered all nine of Apple’s follow-up questions in full, with a walkthrough of one night across Hot Mess and Velvet (<a href="/record/velvet-app-review.pdf">PDF</a>).</li>
+        <li><strong>Nov 14, about 1:15 PM:</strong> we appealed to the App Review Board.</li>
+        <li><strong>Nov 14, 2:01 PM:</strong> Velvet 1.10 was submitted with an expedited review request. The same day, Apple approved the same 1.10 builds for external TestFlight testing.</li>
+        <li><strong>Nov 17:</strong> we asked again for an expedited review.</li>
+        <li><strong>Nov 19:</strong> Velvet 1.10 is still waiting for review, with no response.</li>
+      </ul>
+
+      <h2>Something I saw that is no longer there</h2>
+      <p>Around November 14, I saw an entry in Velvet’s App Review submission history that listed Apple, not us, as the submitter. It no longer appears. We have asked Apple to explain what that entry was. <em>— Rick Mark, Love Wins Media</em></p>
+
+      <h2>Why this matters</h2>
+      <p>A review process that can label a safety tool spam 12 seconds after review starts is hard for any developer to trust. Small developers can’t plan around it, and the people a tool is meant to protect pay the price. Until Velvet is approved, our venues run their safety response on a TestFlight beta.</p>
+      <p>Velvet is not a copy of anything. It is the staff side of Hot Mess, which has been on the App Store since 2017. Door scanning, the iPad door station, the response side of “I feel unsafe” alerts, venue chat moderation, the TV lineup board and the venue’s own payment account exist in no other app of ours.</p>
+
+      <h2>What we’ve asked Apple</h2>
+      <ol>
+        <li>Withdraw the November 13 ruling, or name the app Velvet is supposed to duplicate.</li>
+        <li>Review Velvet 1.10 promptly.</li>
+        <li>Have the re-review handled by reviewers with no prior involvement in Velvet’s earlier decisions, so the outcome is clearly impartial.</li>
+      </ol>
+      <p>If you run a venue, or you’ve had a similar experience with App Review, we’d like to hear from you.</p>
+      <p class="muted">Our dated record of Hot Mess’s development: <a href="/record/hot-mess-dated-record.pdf">hot-mess-dated-record.pdf</a>.</p>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .record-article { max-width: 46rem; padding-block: 2.5rem 4rem; }
+  .record-article h1 { margin-top: .25rem; }
+  .record-article h2 { margin-top: 2rem; }
+  .record-article li { margin-bottom: .6rem; line-height: 1.5; }
+</style>
