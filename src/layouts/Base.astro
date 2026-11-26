@@ -23,6 +23,11 @@ interface Props {
   image?: string;
   /** Offer the Hot Mess App Clip's card on load (a safety poster's /help/<code>), on an iPhone without the app. */
   appClip?: boolean;
+  /**
+   * A help page (/resources): no promotional bands above the header, so someone looking for help gets to it sooner
+   * and nothing on screen is selling anything.
+   */
+  calm?: boolean;
 }
 
 const {
@@ -33,6 +38,7 @@ const {
   appArgument,
   image: pageImage,
   appClip = false,
+  calm = false,
 } = Astro.props;
 const canonical = hasCanonical ? new URL(Astro.url.pathname, Astro.site) : undefined;
 const image = pageImage ?? new URL('/og/hot-mess.png', Astro.site);
@@ -76,8 +82,8 @@ const path = Astro.url.pathname;
     <VisitCount />
   </head>
   <body>
-    <BrandBand href={LOVE_WINS_URL} />
-    <RecordBanner />
+    {!calm && <BrandBand href={LOVE_WINS_URL} />}
+    {!calm && <RecordBanner />}
     <header class="site-header">
       <nav class="wrap" aria-label="Main">
         <a class="brand" href="/">Hot Mess</a>

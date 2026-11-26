@@ -14,7 +14,7 @@ const total = cities.reduce((sum, c) => sum + c.resourceCount, 0);
 Astro.response.headers.set('cache-control', failed ? 'no-store' : 'public, max-age=300, s-maxage=600');
 if (failed) Astro.response.status = 503;
 ---
-<Base title="Find help nearby" description="Food, shelter, clinics and testing, crisis lines and support if you don't feel safe at home, in every Hot Mess city.">
+<Base title="Find help nearby" calm description="Food, shelter, clinics and testing, crisis lines and support if you don't feel safe at home, in every Hot Mess city.">
   <main>
     <section class="hero">
       <div class="wrap">
@@ -26,12 +26,19 @@ if (failed) Astro.response.status = 503;
     </section>
     <section class="wrap cities" aria-label="Cities">
       {failed && <p class="card note">We couldn’t load the cities just now. Try again in a minute, or open Hot Mess and tap Get help.</p>}
+      {cities.length > 0 && (
+        <label class="search">
+          <span class="visually-hidden">Find your city</span>
+          <input type="search" id="city-search" placeholder="Find your city" autocomplete="off" spellcheck="false" enterkeyhint="search" />
+        </label>
+      )}
+      <p class="card note" id="no-city" hidden>No city by that name yet. In a crisis in the US, call or text <a href="tel:988">988</a>.</p>
       {groups.map((group) => (
-        <section aria-labelledby={`c-${group.country}`}>
+        <section class="country" aria-labelledby={`c-${group.country}`}>
           <h2 id={`c-${group.country}`}>{group.country}</h2>
           <ul class="city-list">
             {group.cities.map((city) => (
-              <li><a href={`/resources/${citySlug(city)}`}>{city.name}</a> <span class="muted">{city.resourceCount}</span></li>
+              <li data-city={city.name.toLowerCase()}><a href={`/resources/${citySlug(city)}`}>{city.name}</a> <span class="muted" aria-label={`${city.resourceCount} places`}>{city.resourceCount}</span></li>
             ))}
           </ul>
         </section>
@@ -41,15 +48,43 @@ if (failed) Astro.response.status = 503;
   </main>
 </Base>
 
+<script>
+  // Narrows the city list on this device as you type; nothing typed is sent anywhere.
+  const input = document.querySelector<HTMLInputElement>('#city-search');
+  const countries = Array.from(document.querySelectorAll<HTMLElement>('.country'));
+  const none = document.getElementById('no-city');
+  input?.addEventListener('input', () => {
+    const query = input.value.trim().toLowerCase();
+    let shown = 0;
+    for (const country of countries) {
+      let here = 0;
+      for (const item of Array.from(country.querySelectorAll<HTMLElement>('li'))) {
+        item.hidden = !(item.dataset.city ?? '').includes(query);
+        if (!item.hidden) here += 1;
+      }
+      country.hidden = here === 0;
+      shown += here;
+    }
+    if (none) none.hidden = shown > 0;
+  });
+</script>
+
 <style>
-  .hero { padding: clamp(3rem, 9vw, 6rem) 0 clamp(1.5rem, 4vw, 2.5rem); background: radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%); }
+  .hero { padding: clamp(2rem, 6vw, 4rem) 0 clamp(1.5rem, 4vw, 2.5rem); background: radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%); }
   .eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin: 0 0 .75rem; }
   h1 { font-size: clamp(2.2rem, 6.5vw, 4rem); font-weight: 800; margin: 0 0 1rem; max-width: 16ch; }
   .lede { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--ink-muted); max-width: 56ch; margin: 0 0 1rem; }
-  .urgent { margin: 0; }
+  .urgent { margin: 0; max-width: 46rem; padding: .75rem 1rem; border-radius: var(--radius); background: var(--surface-raised); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); }
+  .urgent a { font-weight: 700; }
+  .search { display: block; margin: 1.5rem 0 0; max-width: 28rem; }
+  .search input { width: 100%; min-height: 48px; padding: .6rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); color: inherit; font: inherit; }
+  .search input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .country[hidden], .city-list li[hidden], .note[hidden] { display: none; }
+  .city-list a { display: inline-flex; align-items: center; min-height: 44px; }
   h2 { font-size: 1.4rem; margin: 2.5rem 0 .75rem; }
   .city-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .25rem 1.5rem; }
-  .city-list li { padding: .35rem 0; border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); display: flex; justify-content: space-between; gap: .5rem; }
-  .note { padding: 1rem 1.25rem; }
+  .city-list li { align-items: center; padding: 0; border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); display: flex; justify-content: space-between; gap: .5rem; }
+  .note { padding: 1rem 1.25rem; margin-top: 1rem; }
   .fine { margin: 2.5rem 0 3rem; font-size: .9rem; }
 </style>
