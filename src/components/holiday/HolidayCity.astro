@@ -20,8 +20,8 @@ const emergency = city ? emergencyNumber(city) : null;
 const maps = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 // Holiday events at the city's Hot Mess venues (imported and tagged for the holiday; their ids are in
 // src/data/holiday-events.json), read live from the public listing so a cancellation shows. One that fails is skipped.
-const eventIds: string[] = city?.label
-  ? ((holidayEvents as Record<string, Record<string, string[]>>)[holiday.slug]?.[city.label] ?? []) : [];
+const eventIds: string[] = city
+  ? ((holidayEvents as Record<string, Record<string, string[]>>)[holiday.slug]?.[citySlug(city)] ?? []) : [];
 const events = (await Promise.all(eventIds.map((id) => listing(`events/${id}`).catch(() => null))))
   .filter((e): e is PublicListing => !!e && e.kind === 'event' && !e.is_canceled)
   .sort((a, b) => (a.start_at ?? '').localeCompare(b.start_at ?? ''));
