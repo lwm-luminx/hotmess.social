@@ -4,17 +4,27 @@
 // Mess. Meals are hidden in the API after the holiday, so afterwards this shows the year-round food only.
 import Base from '../../layouts/Base.astro';
 import HolidayHowTo from './HolidayHowTo.astro';
-import { citySlug, dialHref, emergencyNumber, phoneText, type ResourceDirectory, type ResourceLocale }
-  from '../../lib/communityResources';
-import { holidayMeals, otherFood, type Holiday } from '../../lib/holidayGuide';
+import { BADGES, checkedText, citySlug, dialHref, emergencyNumber, kinds, phoneText, slotText, urgentFirst,
+  type ResourceDirectory, type ResourceLocale } from '../../lib/communityResources';
+import { eventWhen, holidayMeals, otherFood, type Holiday } from '../../lib/holidayGuide';
+import { listing } from '../../server/publicContent';
+import type { PublicListing } from '../../lib/publicListing';
+import holidayEvents from '../../data/holiday-events.json';
 interface Props { holiday: Holiday; directory: ResourceDirectory | null; city: ResourceLocale | undefined; status: number }
 const { holiday, directory, city, status } = Astro.props;
 const name = directory?.locale.name ?? city?.name ?? 'your city';
 const meals = directory ? holidayMeals(directory.resources, holiday) : [];
-const food = directory ? otherFood(directory.resources) : [];
+const food = directory ? urgentFirst(otherFood(directory.resources)) : [];
 const foodHref = city ? `/resources/${citySlug(city)}?need=food` : '/resources';
 const emergency = city ? emergencyNumber(city) : null;
 const maps = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+// Holiday events at the city's Hot Mess venues (imported and tagged for the holiday; their ids are in
+// src/data/holiday-events.json), read live from the public listing so a cancellation shows. One that fails is skipped.
+const eventIds: string[] = city
+  ? ((holidayEvents as Record<string, Record<string, string[]>>)[holiday.slug]?.[citySlug(city)] ?? []) : [];
+const events = (await Promise.all(eventIds.map((id) => listing(`events/${id}`).catch(() => null))))
+  .filter((e): e is PublicListing => !!e && e.kind === 'event' && !e.is_canceled)
+  .sort((a, b) => (a.start_at ?? '').localeCompare(b.start_at ?? ''));
 const multiDay = Object.keys(holiday.days).length > 0;
 const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals[i - 1]?.day ? meals[i].day : null);
 ---
@@ -53,12 +63,50 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
             </p>
           </article>
         </>))}
-        <a class="card more" href={foodHref}>
-          <span><strong>{meals.length > 0 ? 'More free food in ' + name : 'See every place in ' + name}</strong>
-            <span class="muted">{food.length} food {food.length === 1 ? 'place' : 'places'}: pantries, meal programs and more</span></span>
-          <span aria-hidden="true">→</span>
-        </a>
+        {food.length > 0 && <h2 class="sub">{meals.length > 0 ? `More free food in ${name}` : `Free food in ${name}`}</h2>}
+        {food.map((r) => (
+          <article class="card place">
+            {kinds(r).length > 0 && <p class="kind">{kinds(r).join(' · ')}</p>}
+            <h3>{r.title}</h3>
+            {r.description && <p>{r.description}</p>}
+            {r.facets.some((f) => BADGES[f]) && (
+              <p class="badges">{r.facets.filter((f) => BADGES[f]).map((f) => <span class="badge">{BADGES[f]}</span>)}</p>
+            )}
+            <p class="actions">
+              {r.phone && <a class="button" href={dialHref(r.phone)}>Call {phoneText(r.phone)}</a>}
+              {r.address && !r.sensitive && <a class="button secondary" href={maps(r.address)} rel="noopener noreferrer" target="_blank">Directions</a>}
+              {r.url && <a class="button secondary" href={r.url} rel="noopener noreferrer" target="_blank">Website</a>}
+            </p>
+            {r.intakeNote && <p class="who">{r.intakeNote}</p>}
+            {r.hours.length + r.sessions.length > 0 && <ul class="slots">{[...r.hours, ...r.sessions].map((x) => <li>{slotText(x)}</li>)}</ul>}
+            {r.address && <p class="where small">{r.address}</p>}
+            <p class="where small">{checkedText(r.checkedAt) ? `${checkedText(r.checkedAt)}.` : 'Not checked by us yet.'} Holiday hours may differ, so call ahead.</p>
+          </article>
+        ))}
+        <p class="muted small">Shelter, health and other help in {name}: <a href={city ? `/resources/${citySlug(city)}` : '/resources'}>see everything</a>.</p>
         <p class="urgent">In danger right now? {emergency ? <a href={`tel:${emergency}`}>Call {emergency}</a> : <>Call your local emergency number</>}. For food, housing or other help any time in the US, call <a href="tel:211">211</a>.</p>
+      </section>
+    )}
+
+    {events.length > 0 && (
+      <section class="wrap events" aria-labelledby="events-title">
+        <h2 id="events-title">{holiday.name} at {name}’s queer bars and venues</h2>
+        <p class="muted">Not free unless it says so. Spend the holiday with your people.</p>
+        {events.map((e) => (
+          <article class="card event">
+            {e.image && <img src={e.image} alt="" loading="lazy" />}
+            <div>
+              {eventWhen(e.start_at, e.end_at, city?.timeZone ?? null) && <p class="time small-time">{eventWhen(e.start_at, e.end_at, city?.timeZone ?? null)}</p>}
+              <h3>{e.title}</h3>
+              {e.venue_name && <p class="where">{e.venue_name}{e.address ? ` · ${e.address}` : ''}</p>}
+              {e.description && <p class="desc">{e.description.length > 220 ? `${e.description.slice(0, 217)}…` : e.description}</p>}
+              <p class="actions">
+                <a class="button" href={e.path}>See it on Hot Mess</a>
+                {e.ticket_url && <a class="button secondary" href={e.ticket_url} rel="noopener noreferrer" target="_blank">Tickets</a>}
+              </p>
+            </div>
+          </article>
+        ))}
       </section>
     )}
 
@@ -87,10 +135,28 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
   .where { color: var(--ink-muted); }
   .who { font-style: italic; }
   .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem !important; }
+  .sub { font-size: 1.35rem; margin: 1rem 0 0; }
+  .place { padding: 1.25rem; display: grid; gap: .4rem; }
+  .place h3 { margin: 0; font-size: 1.2rem; }
+  .place p { margin: 0; }
+  .kind { font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+  .badges { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .badge { font-size: .8rem; padding: .15rem .55rem; border-radius: 999px; background: var(--accent-soft); }
+  .slots { margin: .2rem 0; padding-left: 1.1rem; }
+  .small { font-size: .9rem; }
   .more { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; text-decoration: none; color: inherit; }
   .more > span:first-child { display: grid; gap: .15rem; }
   .more:hover strong { text-decoration: underline; }
   .urgent { padding: .75rem 1rem; border-radius: var(--radius); background: var(--surface-raised); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); }
   .urgent a { font-weight: 700; white-space: nowrap; }
+  .events { display: grid; gap: 1rem; padding-top: 2.5rem; max-width: 46rem; }
+  .events h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0; }
+  .events > p { margin: 0; }
+  .event { padding: 1.25rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .event img { width: 100%; max-height: 220px; object-fit: cover; border-radius: calc(var(--radius) - 4px); }
+  .event div { display: grid; gap: .35rem; min-width: 0; }
+  .event h3 { margin: 0; font-size: 1.25rem; }
+  .event p { margin: 0; }
+  .small-time { font-size: 1.1rem !important; font-weight: 800; color: var(--accent); margin: 0; }
   .fine { font-size: .9rem; padding-bottom: 3rem; }
 </style>

@@ -55,3 +55,10 @@ test('cityFor takes the first placed locale with a directory, by id then label',
   assert.equal(cityFor(cities, [{ id: '7', label: 'miami' }]), 'miami');
   assert.equal(cityFor(cities, [{ id: '8', label: 'nowhere' }]), null);
 });
+
+test('eventWhen reads in the city time zone', async () => {
+  const { eventWhen } = await import('./holidayGuide.ts');
+  assert.equal(eventWhen('2026-11-26T04:00:00Z', '2026-11-26T09:00:00Z', 'America/Denver'), 'Wed, Nov 25 · 9pm–2am');
+  assert.equal(eventWhen('2026-11-26T21:30:00Z', undefined, 'America/New_York'), 'Thu, Nov 26 · 4:30pm');
+  assert.equal(eventWhen(undefined, undefined, null), null);
+});
