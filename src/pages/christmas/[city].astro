@@ -1,0 +1,22 @@
+---
+// hotmess.social/christmas/<city>: one city's christmas food page (src/components/holiday/HolidayCity.astro).
+import HolidayCity from '../../components/holiday/HolidayCity.astro';
+import { resourceCities, resourceDirectoryFor } from '../../server/publicContent';
+import { citySlug, findCity, type ResourceDirectory, type ResourceLocale } from '../../lib/communityResources';
+import { HOLIDAYS } from '../../lib/holidayGuide';
+export const prerender = false;
+const slug = Astro.params.city ?? '';
+let directory: ResourceDirectory | null = null;
+let city: ResourceLocale | undefined;
+let status = 200;
+try {
+  city = findCity(await resourceCities(), slug);
+  if (!city) status = 404;
+  else if (citySlug(city) !== slug) return Astro.redirect(`/christmas/${citySlug(city)}`, 301);
+  else directory = await resourceDirectoryFor(city.id);
+  if (city && !directory) status = 404;
+} catch (e) { status = 503; console.error('christmas: directory unavailable', e); }
+Astro.response.status = status;
+Astro.response.headers.set('cache-control', status === 200 ? 'public, max-age=300, s-maxage=600' : 'no-store');
+---
+<HolidayCity holiday={HOLIDAYS.christmas} directory={directory} city={city} status={status} />

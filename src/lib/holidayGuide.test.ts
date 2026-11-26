@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cityFor, mealOrg, mealTime, otherFood, thanksgivingMeals } from './thanksgiving.ts';
+import { HOLIDAYS, cityFor, holidayMeals, mealOrg, mealTime, otherFood, thanksgivingMeals } from './holidayGuide.ts';
 import type { CommunityResource, ResourceLocale } from './communityResources.ts';
 
 const resource = (over: Partial<CommunityResource>): CommunityResource => ({
@@ -29,8 +29,19 @@ test('thanksgivingMeals keeps only the day’s meals, earliest first', () => {
   assert.deepEqual(meals.map((m) => [m.id, m.org, m.time]), [['a', 'Early', '7am–3pm'], ['b', 'Late', '2pm–4pm']]);
 });
 
-test('otherFood leaves the meals out', () => {
-  const rows = otherFood([resource({ id: 'm', name: 'Thanksgiving meal: A (X)' }), resource({ id: 'p', name: 'Pantry' }),
+test('christmas meals carry their day and sort Eve before Day', () => {
+  const meals = holidayMeals([
+    resource({ id: 'd', name: 'Christmas meal: Day Dinner (X)', sessions: [{ days: [5], from: '11:00', until: '14:00' }] }),
+    resource({ id: 't', name: 'Thanksgiving meal: Old (X)', sessions: [{ days: [4], from: '07:00', until: '15:00' }] }),
+    resource({ id: 'e', name: 'Christmas meal: Eve Supper (X)', sessions: [{ days: [4], from: '17:00', until: '19:00' }] }),
+  ], HOLIDAYS.christmas);
+  assert.deepEqual(meals.map((m) => [m.id, m.org, m.day, m.time]), [
+    ['e', 'Eve Supper', 'Christmas Eve, Thu Dec 24', '5pm–7pm'], ['d', 'Day Dinner', 'Christmas Day, Fri Dec 25', '11am–2pm']]);
+  assert.equal(mealOrg('Christmas meal: GLIDE (San Francisco)', HOLIDAYS.christmas.mealPrefix), 'GLIDE');
+});
+
+test('otherFood leaves every holiday’s meals out', () => {
+  const rows = otherFood([resource({ id: 'm', name: 'Thanksgiving meal: A (X)' }), resource({ id: 'c', name: 'Christmas meal: B (X)' }), resource({ id: 'p', name: 'Pantry' }),
     resource({ id: 's', name: 'Shelter', facets: ['shelter'] })]);
   assert.deepEqual(rows.map((r) => r.id), ['p']);
 });

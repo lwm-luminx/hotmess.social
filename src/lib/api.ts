@@ -153,7 +153,7 @@ const NOW = `mutation ReportLocation($position: CoordinatesInput!) {
   }
 }`;
 
-// Which Hot Mess cities someone is in (innermost first), for pages that open on their own city (/thanksgiving).
+// Which Hot Mess cities someone is in (innermost first), for pages that open on their own city (/thanksgiving, /christmas).
 const WHERE = `mutation WhereAmI($position: CoordinatesInput!) {
   reportLocation(input: { position: $position }) { locale { id label } locales { id label } }
 }`;
