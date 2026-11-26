@@ -1,0 +1,105 @@
+---
+// One city's Thanksgiving food page, made to be shared: the free Thanksgiving Day meals listed for the city (community
+// resources named "Thanksgiving meal: …", read live like /resources/<city>), then the rest of its free food and how to
+// find it on Hot Mess. Meals are hidden in the API after the day, so afterwards this shows the year-round food only.
+import Base from '../../layouts/Base.astro';
+import ThanksgivingHowTo from '../../components/ThanksgivingHowTo.astro';
+import { resourceCities, resourceDirectoryFor } from '../../server/publicContent';
+import { citySlug, dialHref, emergencyNumber, findCity, phoneText, type ResourceDirectory, type ResourceLocale }
+  from '../../lib/communityResources';
+import { otherFood, thanksgivingMeals } from '../../lib/thanksgiving';
+export const prerender = false;
+const slug = Astro.params.city ?? '';
+let directory: ResourceDirectory | null = null;
+let city: ResourceLocale | undefined;
+let status = 200;
+try {
+  city = findCity(await resourceCities(), slug);
+  if (!city) status = 404;
+  else if (citySlug(city) !== slug) return Astro.redirect(`/thanksgiving/${citySlug(city)}`, 301);
+  else directory = await resourceDirectoryFor(city.id);
+  if (city && !directory) status = 404;
+} catch (e) { status = 503; console.error('thanksgiving: directory unavailable', e); }
+Astro.response.status = status;
+Astro.response.headers.set('cache-control', status === 200 ? 'public, max-age=300, s-maxage=600' : 'no-store');
+const name = directory?.locale.name ?? city?.name ?? 'your city';
+const meals = directory ? thanksgivingMeals(directory.resources) : [];
+const food = directory ? otherFood(directory.resources) : [];
+const foodHref = city ? `/resources/${citySlug(city)}?need=food` : '/resources';
+const emergency = city ? emergencyNumber(city) : null;
+const maps = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+---
+<Base title={`Free food in ${name} this Thanksgiving`} calm noindex={status !== 200} image={new URL('/og/thanksgiving.png', Astro.site).toString()}
+  description={meals.length > 0
+    ? `${meals.length} free Thanksgiving Day ${meals.length === 1 ? 'meal' : 'meals'} in ${name}, plus food pantries and meal programs near you.`
+    : `Free food in ${name}: pantries, meal programs and what's open on the holiday.`}>
+  <main>
+    <section class="poster">
+      <div class="wrap">
+        <p class="date">Thanksgiving · Thursday, Nov 26</p>
+        <h1>Free food in {name} this Thanksgiving</h1>
+        <p class="lede">Nobody should go hungry today. These are free and open to the public. Hours change on holidays, so call ahead if you can.</p>
+        <p class="other"><a href="/thanksgiving?pick">Not in {name}? Pick your city</a></p>
+      </div>
+    </section>
+
+    {status === 404 && <p class="wrap note card">We don’t have a food list for that city yet. <a href="/thanksgiving?pick">See every city</a>.</p>}
+    {status === 503 && <p class="wrap note card">We couldn’t load {name} just now. Try again in a minute.</p>}
+
+    {directory && (
+      <section class="wrap meals" aria-labelledby="meals-title">
+        <h2 id="meals-title">{meals.length > 0 ? 'Free Thanksgiving meals today' : 'Free food near you'}</h2>
+        {meals.length === 0 && <p>We haven’t found a free Thanksgiving Day meal in {name} we could confirm. These places give out free food, and <strong>211</strong> knows what’s open today.</p>}
+        {meals.map((m) => (
+          <article class="card meal">
+            {m.time && <p class="time">{m.time}</p>}
+            <h3>{m.org}</h3>
+            {m.address && <p class="where">{m.address}</p>}
+            {m.intakeNote && <p class="who">{m.intakeNote}</p>}
+            <p class="actions">
+              {m.phone && <a class="button" href={dialHref(m.phone)}>Call {phoneText(m.phone)}</a>}
+              {m.address && <a class="button secondary" href={maps(m.address)} rel="noopener noreferrer" target="_blank">Directions</a>}
+              {m.url && <a class="button secondary" href={m.url} rel="noopener noreferrer" target="_blank">Details</a>}
+            </p>
+          </article>
+        ))}
+        <a class="card more" href={foodHref}>
+          <span><strong>{meals.length > 0 ? 'More free food in ' + name : 'See every place in ' + name}</strong>
+            <span class="muted">{food.length} food {food.length === 1 ? 'place' : 'places'}: pantries, meal programs and more</span></span>
+          <span aria-hidden="true">→</span>
+        </a>
+        <p class="urgent">In danger right now? {emergency ? <a href={`tel:${emergency}`}>Call {emergency}</a> : <>Call your local emergency number</>}. For food, housing or other help any time in the US, call <a href="tel:211">211</a>.</p>
+      </section>
+    )}
+
+    <ThanksgivingHowTo foodHref={foodHref} cityName={directory ? name : undefined} />
+    <p class="wrap muted fine">Gathered from public sources and checked Nov 25, 2026. Hot Mess isn’t part of any of these organizations. Hot Mess is not an emergency service.</p>
+  </main>
+</Base>
+
+<style>
+  .poster { color: var(--on-accent); background: var(--accent); padding: clamp(2rem, 7vw, 4.5rem) 0 clamp(1.75rem, 5vw, 3rem);
+    background-image: radial-gradient(110% 80% at 100% 0%, color-mix(in srgb, var(--accent-strong) 70%, transparent), transparent 60%); }
+  .poster .date { margin: 0 0 .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .85rem; opacity: .9; }
+  .poster h1 { font-size: clamp(2.3rem, 8vw, 4.6rem); font-weight: 900; line-height: 1.02; margin: 0 0 1rem; max-width: 14ch; text-wrap: balance; }
+  .poster .lede { font-size: clamp(1.05rem, 2.4vw, 1.3rem); margin: 0 0 1rem; max-width: 46ch; }
+  .poster .other { margin: 0; }
+  .poster a { color: inherit; font-weight: 600; }
+  .note { margin-top: 1.5rem; padding: 1rem 1.25rem; }
+  .meals { display: grid; gap: 1rem; padding-top: 2rem; max-width: 46rem; }
+  .meals h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0; }
+  .meals > p { margin: 0; }
+  .meal { padding: 1.25rem; display: grid; gap: .35rem; }
+  .meal .time { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .meal h3 { margin: 0; font-size: 1.3rem; }
+  .meal p { margin: 0; }
+  .where { color: var(--ink-muted); }
+  .who { font-style: italic; }
+  .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem !important; }
+  .more { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; text-decoration: none; color: inherit; }
+  .more > span:first-child { display: grid; gap: .15rem; }
+  .more:hover strong { text-decoration: underline; }
+  .urgent { padding: .75rem 1rem; border-radius: var(--radius); background: var(--surface-raised); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); }
+  .urgent a { font-weight: 700; white-space: nowrap; }
+  .fine { font-size: .9rem; padding-bottom: 3rem; }
+</style>
