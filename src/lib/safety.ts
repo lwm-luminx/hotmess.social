@@ -66,6 +66,32 @@ export function rideLink(ride: SupportRide, pickup: RidePickup | null): string {
     .replaceAll('{name}', encodeURIComponent(pickup.name ?? ''));
 }
 
+/**
+ * "Get a ride" is one row; what it says names the region's apps ("Uber, Lyft, transit, or a friend."), and the user
+ * picks how after: a ride app, transit, a friend sending one, or sharing where to be picked up.
+ */
+export function rideSummary(rides: SupportRide[]): string {
+  return rides.length ? `${rides.map((ride) => ride.name).join(', ')}, transit, or a friend.` : 'Transit, or share where to pick you up.';
+}
+
+/** Google Maps directions by transit, from the pickup when there is one; the user picks where they're going. */
+export function transitLink(pickup: RidePickup | null): string {
+  const origin = pickup ? `&origin=${pickup.latitude.toFixed(6)},${pickup.longitude.toFixed(6)}` : '';
+  return `https://www.google.com/maps/dir/?api=1${origin}&travelmode=transit`;
+}
+
+/** For a friend who'll book the ride in their own app: Uber and Lyft both let the payer set someone else as the rider. */
+export function sendMeARide(place: string | null): string {
+  return place
+    ? `Can you send me a ride home? I'm here: ${place}. In Uber or Lyft you can book it with me as the rider.`
+    : 'Can you send me a ride home? In Uber or Lyft you can book it with me as the rider.';
+}
+
+/** "Pick me up here", for another app or a friend who can drive. */
+export function pickMeUp(place: string | null): string {
+  return place ? `Can you pick me up? I'm here: ${place}` : 'Can you pick me up?';
+}
+
 /** A venue's point, `POINT (<longitude> <latitude>)` with or without an SRID, as a pickup. */
 export function pickupAt(point: string | null | undefined, name: string | null): RidePickup | null {
   const match = point?.match(/POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)/i);

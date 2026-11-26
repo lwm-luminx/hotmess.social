@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Venue } from '../sdk';
 import {
-  CONCERNS, PLACES, isActive, isUnanswered, lineNumbers, pickupAt, rideLink,
+  CONCERNS, PLACES, isActive, isUnanswered, lineNumbers, pickMeUp, pickupAt, rideLink, rideSummary, sendMeARide, transitLink,
   type RidePickup, type SafetyAlert, type SafetyConcern, type SafetyDraft, type SupportResources, type SupportRide,
 } from '../lib/safety';
 import { safety } from '../lib/safetyApi';
@@ -124,7 +124,7 @@ export function SupportEntry() {
   </>;
 }
 
-type View = 'options' | 'tell' | 'add' | 'support';
+type View = 'options' | 'tell' | 'add' | 'support' | 'ride';
 
 interface FlowProps {
   venue?: HelpVenue; alertId?: string; staffOnShift: boolean; onClose: () => void; inline?: boolean;
@@ -205,10 +205,12 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline, api = 
   };
 
   const title = view === 'tell' ? 'Tell staff quietly' : view === 'add' ? 'Add more' : view === 'support' ? 'Need support?'
-    : venue ? `Get help at ${venue.name}` : 'Get help';
+    : view === 'ride' ? 'Get a ride' : venue ? `Get help at ${venue.name}` : 'Get help';
 
   let body: ReactNode;
-  if (view === 'support') {
+  if (view === 'ride') {
+    body = <><BackButton onClick={() => setView('options')} /><RideOptions rides={rides} venue={venue} /></>;
+  } else if (view === 'support') {
     body = <><BackButton onClick={() => setView('options')} /><Support sharedNote={alert?.supportSharedAt ? alert.supportNote : null} /></>;
   } else if (view === 'tell' || view === 'add') {
     body = <><BackButton onClick={() => setView('options')} />
@@ -220,7 +222,7 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline, api = 
       onRemind={() => { setKeepsWaiting(true); run(() => api.remind(alert.id)); }}
       onCancel={() => run(() => api.cancel(alert.id))}
       onMessage={(text) => run(() => api.message(alert.id, text))}
-      onAddMore={() => setView('add')} onSupport={() => setView('support')} />;
+      onAddMore={() => setView('add')} onRide={() => setView('ride')} onSupport={() => setView('support')} />;
   } else if (missing) {
     body = <p className="muted">We couldn’t find that alert. It may belong to another account.</p>;
   } else if (alertId) {
@@ -232,7 +234,7 @@ function HelpFlow({ venue: given, alertId, staffOnShift, onClose, inline, api = 
           subtitle={staffOnShift ? 'The staff on shift hear it quietly and can come find you.'
             : 'Nobody has the alerts on right now, so it goes to the managers if nobody picks it up. Finding staff in person may be faster.'}
           onClick={() => setView('tell')} /></li> : null}
-        <EscapeRows venue={venue} rides={rides} onSupport={() => setView('support')} />
+        <EscapeRows venue={venue} rides={rides} onRide={() => setView('ride')} onSupport={() => setView('support')} />
       </ul>
       <p className="muted small">Nothing here shows in chat or on your profile.</p>
       <Emergency />
@@ -277,37 +279,61 @@ function useRides(): SupportRide[] {
   return rides;
 }
 
-/**
- * "Get a ride": a row for each ride app, with the pickup at the venue when the API knows where it is (otherwise the
- * app asks), then sharing the pickup for any other app or a friend who can drive. Plain links: the app opens if
- * it's installed, its site if not.
- */
-function RideRows({ rides, pickup, copied, onShare }: {
-  rides: SupportRide[]; pickup: RidePickup | null; copied: boolean; onShare: () => void;
-}) {
-  const where = pickup?.name ? `Pickup at ${pickup.name}.` : 'Opens the app to set your pickup.';
-  return <>
-    {rides.map((ride) => <li key={ride.id}><HelpRow title={`Get a ride with ${ride.name}`} subtitle={where} href={rideLink(ride, pickup)} /></li>)}
-    <li><HelpRow title={rides.length ? 'Share where to pick me up' : 'Get a ride'}
-      subtitle={copied ? 'Copied. Paste it in your ride app.'
-        : rides.length ? 'For another ride app, or a friend who can drive.' : 'Share where to pick you up with a ride app.'}
-      onClick={onShare} /></li>
-  </>;
-}
+/** The venue's name and address, for the ride messages. */
+const placeOf = (venue: HelpVenue | null) => (venue ? (venue.address ? `${venue.name}, ${venue.address}` : venue.name) : null);
 
-/** "Message a friend", "Get a ride" and "Need support?": the options when nobody on shift can help, too. */
-function EscapeRows({ venue, rides, onSupport }: { venue: HelpVenue | null; rides: SupportRide[]; onSupport: () => void }) {
+/**
+ * The ways home, picked after "Get a ride": each ride app with the pickup at the venue when the API knows where it is
+ * (otherwise the app asks), transit directions, asking a friend to send a ride (they book it with the user as the
+ * rider), and sharing where to be picked up. Plain links: an app opens if it's installed, its site if not.
+ */
+function RideOptions({ rides, venue }: { rides: SupportRide[]; venue: HelpVenue | null }) {
   const [copied, setCopied] = useState<string | null>(null);
-  const here = venue ? (venue.address ? `I'm at ${venue.name}, ${venue.address}.` : `I'm at ${venue.name}.`) : '';
-  const pickupText = venue ? (venue.address ? `${venue.name}, ${venue.address}` : venue.name) : 'Pick me up here.';
+  const pickup = venue?.pickup ?? null;
+  const place = placeOf(venue);
+  const where = pickup?.name ? `Pickup at ${pickup.name}.` : 'Opens the app to set your pickup.';
   const shareRow = async (key: string, text: string) => {
     if (await share(text) === 'copied') setCopied(key);
   };
   return <>
-    <li><HelpRow title="Message a friend" subtitle={copied === 'friend' ? 'Copied. Paste it in a message.' : 'Send them where you are.'}
-      onClick={() => shareRow('friend', `${here} Can you come find me?`.trim())} /></li>
-    <RideRows rides={rides} pickup={venue?.pickup ?? null} copied={copied === 'ride'} onShare={() => shareRow('ride', pickupText)} />
-    <li><HelpRow title="Need support?" subtitle="Free, confidential lines, any time." onClick={onSupport} /></li>
+    {rides.length ? <section className="help-section">
+      <h3>Ride apps</h3>
+      <ul className="help-rows">
+        {rides.map((ride) => <li key={ride.id}><HelpRow title={ride.name} subtitle={where} href={rideLink(ride, pickup)} /></li>)}
+      </ul>
+    </section> : null}
+    <section className="help-section">
+      <h3>Other ways home</h3>
+      <ul className="help-rows">
+        <li><HelpRow title="Take transit" subtitle="Directions by bus or train in Google Maps." href={transitLink(pickup)} /></li>
+        <li><HelpRow title="Ask a friend to send a ride"
+          subtitle={copied === 'send' ? 'Copied. Paste it in a message.' : 'They book it in their Uber or Lyft, with you as the rider.'}
+          onClick={() => shareRow('send', sendMeARide(place))} /></li>
+        <li><HelpRow title="Share where to pick me up"
+          subtitle={copied === 'pickup' ? 'Copied. Paste it in a message or ride app.' : 'For another ride app, or a friend who can drive.'}
+          onClick={() => shareRow('pickup', pickMeUp(place))} /></li>
+      </ul>
+      <p className="muted small">Nothing here is sent to Hot Mess.</p>
+    </section>
+    <Emergency />
+  </>;
+}
+
+/**
+ * "Message a friend", "Get a ride" and "Need support?": the options when nobody on shift can help, too. "Get a ride"
+ * is one row that opens the ride apps, transit and sharing; "Need support?" has the support lines and the city's
+ * resources.
+ */
+function EscapeRows({ venue, rides, onRide, onSupport }: {
+  venue: HelpVenue | null; rides: SupportRide[]; onRide: () => void; onSupport: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const here = venue ? (venue.address ? `I'm at ${venue.name}, ${venue.address}.` : `I'm at ${venue.name}.`) : '';
+  return <>
+    <li><HelpRow title="Message a friend" subtitle={copied ? 'Copied. Paste it in a message.' : 'Send them where you are.'}
+      onClick={async () => { if (await share(`${here} Can you come find me?`.trim()) === 'copied') setCopied(true); }} /></li>
+    <li><HelpRow title="Get a ride" subtitle={rideSummary(rides)} onClick={onRide} /></li>
+    <li><HelpRow title="Need support?" subtitle="Someone to talk to, and food, shelter and health nearby." onClick={onSupport} /></li>
   </>;
 }
 
@@ -373,14 +399,16 @@ const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([],
 interface StatusProps {
   alert: SafetyAlert; venue: HelpVenue | null; rides: SupportRide[]; now: number; busy: boolean; keepsWaiting: boolean;
   onKeepWaiting: () => void; onRemind: () => void; onCancel: () => void; onMessage: (text: string) => Promise<boolean>;
-  onAddMore: () => void; onSupport: () => void;
+  onAddMore: () => void; onRide: () => void; onSupport: () => void;
 }
 
 /**
  * The alert once it's sent: the steps, what was sent with "Add more", the private thread and "I'm OK now". After the
  * escalation window with nobody on it, the other ways to get help come first.
  */
-function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiting, onRemind, onCancel, onMessage, onAddMore, onSupport }: StatusProps) {
+function AlertStatus({
+  alert, venue, rides, now, busy, keepsWaiting, onKeepWaiting, onRemind, onCancel, onMessage, onAddMore, onRide, onSupport,
+}: StatusProps) {
   const [reply, setReply] = useState('');
   const [confirming, setConfirming] = useState(false);
   const live = isActive(alert);
@@ -400,7 +428,7 @@ function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiti
       <p className="muted small">Stay where you feel safest. These can help while you wait.</p>
       <ul className="help-rows">
         <li><HelpRow title="Tell staff again" subtitle="It goes to the managers too." onClick={onRemind} /></li>
-        <EscapeRows venue={venue} rides={rides} onSupport={onSupport} />
+        <EscapeRows venue={venue} rides={rides} onRide={onRide} onSupport={onSupport} />
       </ul>
       <button className="button secondary" type="button" onClick={onKeepWaiting}>Keep waiting for staff</button>
     </section> : null}
@@ -463,17 +491,23 @@ function AlertStatus({ alert, venue, rides, now, busy, keepsWaiting, onKeepWaiti
   </div>;
 }
 
-/** "Need support?": free, confidential lines, with the numbers written out so they can be dialled from another phone. */
+/**
+ * "Need support?": free, confidential lines, with the numbers written out so they can be dialled from another phone,
+ * then food, shelter and health in the user's city (the Find help nearby pages), and one "Get a ride" row. One entry
+ * for both, as in the apps.
+ */
 function Support({ sharedNote }: { sharedNote?: string | null }) {
   const [resources, setResources] = useState<SupportResources | null>(null);
   const rides = useRides();
   const [failed, setFailed] = useState(false);
+  const [riding, setRiding] = useState(false);
   useEffect(() => {
     let current = true;
     // The website doesn't ask where the user is for this; the API answers with the country's lines.
     safety.support(null).then((answer) => { if (current) setResources(answer); }, () => { if (current) setFailed(true); });
     return () => { current = false; };
   }, []);
+  if (riding) return <div className="help-support"><BackButton onClick={() => setRiding(false)} /><RideOptions rides={rides} venue={null} /></div>;
   return <div className="help-support">
     {sharedNote ? <p className="help-note">{sharedNote}</p> : null}
     {failed ? <p className="muted">These lines couldn’t load. In an emergency, call {emergencyNumber()}.</p>
@@ -490,15 +524,17 @@ function Support({ sharedNote }: { sharedNote?: string | null }) {
           </span>
         </li>)}
       </ul>}
-    {resources && rides.length ? <section className="help-section">
-      <h3>Get home safe</h3>
-      <ul className="help-rows">
-        {rides.map((ride) => <li key={ride.id}>
-          <HelpRow title={`Get a ride with ${ride.name}`} subtitle="Opens the app to set your pickup." href={ride.url} />
-        </li>)}
-      </ul>
-    </section> : null}
     {resources?.checkedAt ? <p className="muted small">Checked {new Date(`${resources.checkedAt}T12:00:00`).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}.</p> : null}
+    <section className="help-section">
+      <h3>Near you</h3>
+      <ul className="help-rows">
+        <li><HelpRow title="Food, shelter and health" subtitle="Free and low-cost help in every Hot Mess city." href="/resources/" /></li>
+      </ul>
+    </section>
+    <section className="help-section">
+      <h3>Get home safe</h3>
+      <ul className="help-rows"><li><HelpRow title="Get a ride" subtitle={rideSummary(rides)} onClick={() => setRiding(true)} /></li></ul>
+    </section>
     <Emergency number={resources?.emergency ?? emergencyNumber()} />
   </div>;
 }

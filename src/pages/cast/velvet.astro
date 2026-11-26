@@ -49,7 +49,7 @@ export const prerender = true;
         <footer><strong class="venue-name"></strong><span class="credit"></span></footer>
       </section>
       <aside id="chat" hidden>
-        <p class="kicker">Chat</p>
+        <p class="chat-head"><span class="kicker">Chat</span><span class="room"></span></p>
         <p id="pinned" hidden></p>
         <ol id="messages"></ol>
       </aside>
@@ -66,10 +66,11 @@ export const prerender = true;
         // A picture too small to fill the TV without being blown up more than half again (a venue's old profile
       // photo) looks soft behind the board: it's skipped, as on the Apple TV and Mac (Rick, 2026-11-21).
       var backdropChecks = {};
-      function sharpBackdrop(target, url) {
+      function sharpBackdrop(target, url, dim) {
         var apply = function (sharp) {
           if (!sharp) return;
-          target.style.backgroundImage = 'linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.85)), url("' +
+          var shade = 'rgba(0,0,0,' + (dim || .45) + ')';
+          target.style.backgroundImage = 'linear-gradient(' + shade + ', ' + shade + '), url("' +
             url.replace(/["\\]/g, '') + '")';
           target.classList.add('photo');
         };
@@ -95,6 +96,24 @@ export const prerender = true;
           var img = el('img');
           img.src = url; img.alt = ''; img.loading = 'lazy';
           return img;
+        }
+        // The lineup's symbols, drawn as Velvet's apps draw them (SF Symbols on Apple TV): outline strokes in the
+        // text's colour.
+        var SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+        var GLYPHS = {
+          headphones: SVG + '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/></svg>',
+          sparkles: SVG + '<path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></svg>',
+          masks: SVG + '<path d="M3 5c3 1 6 1 9 0v6a4.5 4.5 0 0 1-9 0z"/><path d="M12 8c3 1 6 1 9 0v6a4.5 4.5 0 0 1-9 0"/><path d="M5.5 8.5h1M8.5 8.5h1M5.8 12.5c.8.7 2 .7 2.9 0M14.5 11.5h1M17.5 11.5h1M15 16c.9-.7 2.1-.7 3 0"/></svg>',
+          mic: SVG + '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+          waveform: SVG + '<path d="M3 12h1M7 8v8M11 5v14M15 9v6M19 11v2M21 12h0"/></svg>',
+          pin: SVG + '<path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14v7"/></svg>',
+        };
+        function roleGlyph(role) {
+          if (role === 'DJ') return GLYPHS.headphones;
+          if (role === 'Host') return GLYPHS.sparkles;
+          if (role === 'Performer') return GLYPHS.masks;
+          if (role === 'MC' || role === 'Singer' || role.indexOf('Singing') === 0) return GLYPHS.mic;
+          return null;
         }
         function clock() {
           try { return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zone }).format(new Date()); }
@@ -252,11 +271,12 @@ export const prerender = true;
           var events = data.events || [];
           if (events.length) board.appendChild(el('p', 'events', events.join(' · ')));
           var lineup = data.lineup || [];
-          // With nothing on, the venue's own photo fills the room instead of a dark panel.
-          var photo = !lineup.length && typeof data.venue.photo === 'string' && data.venue.photo.indexOf('https://') === 0;
+          // The venue's picture behind the board, as on Apple TV and Google TV: bright with nothing on, dimmed under a
+          // lineup so the names stay readable.
+          var photo = typeof data.venue.photo === 'string' && data.venue.photo.indexOf('https://') === 0;
           board.style.backgroundImage = '';
           board.classList.remove('photo');
-          if (photo) sharpBackdrop(board, data.venue.photo);
+          if (photo) sharpBackdrop(board, data.venue.photo, lineup.length ? .78 : .45);
           if (!lineup.length) {
             board.appendChild(el('p', 'idle', events.length ? 'The lineup is coming soon.' : 'Nothing on tonight yet.'));
             var coming = (Array.isArray(data.comingUp) ? data.comingUp : []).filter(function (event) {
@@ -278,14 +298,28 @@ export const prerender = true;
             lineup.forEach(function (entry) {
               var row = el('li', entry.state === 'on' || entry.state === 'done' ? entry.state : 'upcoming');
               row.appendChild(el('span', 'time', entry.time || ''));
+              // Their pictures, or their initial on a raised circle, as Velvet on Apple TV and Google TV draw them.
               var faces = el('span', 'faces');
               (entry.images || []).slice(0, 2).forEach(function (url) { var img = image(url); if (img) faces.appendChild(img); });
+              if (!faces.childNodes.length) faces.appendChild(el('span', 'initial', (entry.name || '?').charAt(0).toUpperCase()));
               row.appendChild(faces);
+              // The name, and under it what they do with its symbol (a DJ's headphones, a host's sparkle).
               var who = el('span', 'who');
               who.appendChild(el('strong', null, entry.name || ''));
-              if (entry.role && entry.role !== entry.name) who.appendChild(el('small', null, entry.role));
+              if (entry.role && entry.role !== entry.name) {
+                var role = el('small', 'role');
+                var glyph = roleGlyph(entry.role);
+                if (glyph) role.innerHTML = glyph;
+                role.appendChild(el('span', null, entry.role));
+                who.appendChild(role);
+              }
               row.appendChild(who);
-              if (entry.state === 'on') row.appendChild(el('span', 'badge', 'On now'));
+              if (entry.state === 'on') {
+                var badge = el('span', 'badge');
+                badge.innerHTML = GLYPHS.waveform;
+                badge.appendChild(el('span', null, 'On now'));
+                row.appendChild(badge);
+              }
               list.appendChild(row);
             });
             board.appendChild(list);
@@ -308,6 +342,7 @@ export const prerender = true;
             shownLine = null;
             drawLyrics();
           }
+          chat.querySelector('.room').textContent = data.venue.name || '';
           showChat(mode === 'lineup' || mode === 'posters' || mode === 'lyrics' || mode === 'photos' ? null : data.chat);
           fit();
           // The chat wall is only the chat; posters only are only the posters, without the slogans between them.
@@ -381,7 +416,8 @@ export const prerender = true;
           if (!room) return;
           var pinned = document.getElementById('pinned');
           pinned.hidden = !room.pinned;
-          pinned.textContent = room.pinned ? '📌 ' + room.pinned : '';
+          pinned.textContent = '';
+          if (room.pinned) { pinned.innerHTML = GLYPHS.pin; pinned.appendChild(el('span', null, room.pinned)); }
           var messages = document.getElementById('messages');
           messages.textContent = '';
           var list = room.messages || [];
@@ -390,8 +426,9 @@ export const prerender = true;
             var row = el('li', message.venue ? 'venue' : null);
             var face = image(message.avatar);
             row.appendChild(face || el('span', 'initial', (message.sender || '?').charAt(0).toUpperCase()));
+            // The sender above the bubble, as the room shows it on a phone.
             var bubble = el('div', 'bubble');
-            bubble.appendChild(el('b', null, message.sender || 'Guest'));
+            row.appendChild(el('b', null, message.sender || 'Guest'));
             var picture = image(message.photo);
             if (picture) { picture.className = 'photo'; bubble.appendChild(picture); }
             var text = message.text || '';
@@ -599,4 +636,94 @@ export const prerender = true;
   #messages .venue b { color: #ff5a4f; }
   #messages p { margin: 0; font-size: clamp(15px, 2.8vmin, 30px); font-weight: 600; display: -webkit-box;
     -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  /* Velvet's look on every screen (Rick, 2026-11-25: "the screen type shouldn't change the aesthetic"): the sizes,
+     weights and colours of the Apple TV and Google TV boards (VenueMarqueeBoard.swift, VelvetTvBoard.kt), drawn on a
+     1920×1080 grid that --pt scales to the TV, in Velvet's palette (design tokens) and a face close to SF Pro and
+     Roboto. Later rules than venue-board.css, so they win here; the web sign keeps its own. */
+  @font-face { font-family: "Inter"; src: url("/fonts/Inter-Latin-Variable.woff2") format("woff2"); font-weight: 100 900;
+    font-display: swap; unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+  @font-face { font-family: "Inter"; src: url("/fonts/Inter-LatinExt-Variable.woff2") format("woff2"); font-weight: 100 900;
+    font-display: swap; unicode-range: U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+  :root { --pt: calc(100vmin / 1080); --ink: #f2edf4; --muted: #b8b0be; --accent: #ff6fc8; --accent-ink: #ff8fd3;
+    --accent-soft: #3b1230; --surface: #121014; --raised: #1e1a20; --separator: #2c2630; --success: #5fd394;
+    --success-soft: #12301f; }
+  html, body { background: #000; color: var(--ink); }
+  body { font-family: -apple-system, "SF Pro Display", "Inter", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .role svg, .badge svg, #pinned svg { width: 1em; height: 1em; flex: 0 0 auto; }
+  .screen #board { gap: calc(40 * var(--pt)); padding: calc(48 * var(--pt)); background-color: #000; }
+  .kicker { font-size: calc(28 * var(--pt)); font-weight: 700; letter-spacing: .1em; color: var(--accent-ink); }
+  header.with-qr { gap: calc(36 * var(--pt)); }
+  header.with-qr .title { display: flex; flex-direction: column; gap: calc(8 * var(--pt)); }
+  h1 { font-size: calc(72 * var(--pt)); font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .clock { font-size: calc(44 * var(--pt)); font-weight: 600; color: var(--muted); }
+  .join { width: calc(148 * var(--pt)); height: calc(148 * var(--pt)); padding: calc(12 * var(--pt));
+    border-radius: calc(16 * var(--pt)); }
+  .events { font-size: calc(40 * var(--pt)); font-weight: 600; color: var(--ink); }
+  .lineup { gap: calc(20 * var(--pt)); padding-right: 0; }
+  .lineup li { gap: calc(28 * var(--pt)); padding: calc(12 * var(--pt)) calc(20 * var(--pt)); border-radius: calc(20 * var(--pt)); }
+  .lineup li.on { background: var(--accent-soft); box-shadow: none; }
+  .time { width: calc(200 * var(--pt)); font-size: calc(36 * var(--pt)); font-weight: 600; color: var(--muted); }
+  .on .time { color: var(--accent-ink); }
+  .faces img, .faces .initial { width: calc(72 * var(--pt)); height: calc(72 * var(--pt)); border: 0; }
+  .faces img + img { margin-left: calc(-18 * var(--pt)); box-shadow: 0 0 0 calc(3 * var(--pt)) #000; }
+  .faces .initial { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--raised);
+    font-size: calc(32 * var(--pt)); font-weight: 700; color: var(--ink); }
+  .lineup .who { flex-direction: column; align-items: flex-start; gap: calc(4 * var(--pt)); }
+  .who strong { font-size: calc(44 * var(--pt)); font-weight: 700; color: var(--ink); }
+  .who .role { display: flex; align-items: center; gap: calc(10 * var(--pt)); font-size: calc(26 * var(--pt)); font-weight: 500;
+    color: var(--muted); }
+  .badge { display: flex; align-items: center; gap: .4em; margin-right: calc(24 * var(--pt)); background: var(--success-soft);
+    color: var(--success); font-size: calc(26 * var(--pt)); font-weight: 600; text-transform: none; letter-spacing: 0;
+    padding: .35em .9em; }
+  .idle { font-size: calc(52 * var(--pt)); font-weight: 800; color: var(--ink); }
+  .coming-kicker { margin-top: 0; }
+  .coming { gap: calc(28 * var(--pt)); }
+  .coming li { gap: calc(28 * var(--pt)); font-size: calc(42 * var(--pt)); }
+  .coming li strong { font-weight: 700; }
+  .coming .when { width: calc(460 * var(--pt)); min-width: 0; font-size: calc(34 * var(--pt)); color: var(--muted); }
+  .now-playing { gap: calc(24 * var(--pt)); padding: calc(20 * var(--pt)); border-radius: calc(20 * var(--pt));
+    background: rgba(18, 16, 20, .85); }
+  .now-playing small { color: var(--accent-ink); font-size: calc(20 * var(--pt)); font-weight: 700; }
+  .now-playing strong { font-size: calc(34 * var(--pt)); }
+  .now-playing span { color: var(--muted); font-size: calc(26 * var(--pt)); }
+  /* The chat: the room's surface, a hairline from the board, CHAT and the room's name, then the room as on a phone. */
+  #chat { gap: calc(16 * var(--pt)); padding: calc(48 * var(--pt)); background: var(--surface);
+    border-left: calc(2 * var(--pt)) solid var(--separator); }
+  .chat-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1em; margin: 0; }
+  .chat-head .kicker { font-size: calc(22 * var(--pt)); }
+  .chat-head .room { min-width: 0; font-size: calc(22 * var(--pt)); font-weight: 600; color: var(--muted); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  #pinned { display: flex; gap: .5em; align-items: flex-start; padding: calc(16 * var(--pt)); border-radius: calc(20 * var(--pt));
+    background: var(--accent-soft); color: var(--ink); font-size: calc(26 * var(--pt)); font-weight: 600; }
+  #pinned svg { color: var(--accent-ink); margin-top: .15em; }
+  #pinned span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #pinned[hidden] { display: none; }
+  #messages { gap: calc(12 * var(--pt)); }
+  #messages li { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: calc(14 * var(--pt));
+    row-gap: calc(4 * var(--pt)); align-items: end; }
+  #messages li.empty { display: flex; font-size: calc(30 * var(--pt)); font-weight: 600; color: var(--muted); }
+  #messages > li > img, #messages .initial { grid-column: 1; grid-row: 2; width: calc(44 * var(--pt)); height: calc(44 * var(--pt)); }
+  #messages .initial { background: var(--raised); color: var(--ink); font-size: calc(22 * var(--pt)); font-weight: 700; }
+  #messages .venue .initial { background: var(--accent); color: #3a0a26; }
+  #messages li > b { grid-column: 2; grid-row: 1; font-size: calc(20 * var(--pt)); font-weight: 600; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #messages .venue > b { color: var(--accent-ink); }
+  #messages .bubble { grid-column: 2; grid-row: 2; justify-self: start; max-width: 100%; background: var(--raised);
+    border-radius: calc(18 * var(--pt)); padding: calc(10 * var(--pt)) calc(18 * var(--pt)); }
+  #messages .venue .bubble { background: var(--accent-soft); }
+  #messages p { font-size: calc(28 * var(--pt)); font-weight: 400; line-height: 1.3; -webkit-line-clamp: 4; }
+  body.mode-chat #chat { padding: calc(48 * var(--pt)); }
+  body.mode-chat .chat-head .kicker, body.mode-chat .chat-head .room { font-size: calc(33 * var(--pt)); }
+  body.mode-chat #pinned { font-size: calc(39 * var(--pt)); }
+  body.mode-chat #messages { gap: calc(18 * var(--pt)); }
+  body.mode-chat #messages > li > img, body.mode-chat #messages .initial { width: calc(66 * var(--pt)); height: calc(66 * var(--pt));
+    font-size: calc(33 * var(--pt)); }
+  body.mode-chat #messages li > b { font-size: calc(30 * var(--pt)); }
+  body.mode-chat #messages p { font-size: calc(42 * var(--pt)); }
+  body.mode-chat #messages .bubble { padding: calc(15 * var(--pt)) calc(27 * var(--pt)); border-radius: calc(27 * var(--pt)); }
+  /* The slides' and the sing-along's accent, Velvet's pink. */
+  #lyrics { background: var(--surface); }
+  #lyrics .song, .event-poster .kicker, .social-slide .kicker { color: var(--accent-ink); }
+  .event-poster, .social-slide { background: linear-gradient(135deg, rgba(255, 111, 200, .45), #000 70%), #000; }
 </style>
