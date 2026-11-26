@@ -1,0 +1,60 @@
+---
+// "How to find free food on Hot Mess", with phone screenshots, and a Share button: the shared half of /thanksgiving and
+// /thanksgiving/<city>. The screenshots are of hotmess.social/resources in Salt Lake (public/thanksgiving/).
+interface Props { foodHref: string; cityName?: string }
+const { foodHref, cityName } = Astro.props;
+const steps = [
+  { img: 'step1-pick-city', title: 'Pick your city', body: 'In the app, tap Me, then Find help nearby (on iPhone it’s under Help and Safety). On the web, go to hotmess.social/resources.' },
+  { img: 'step2-city-page', title: 'Tap Food', body: 'In the app it may still say “I need food”. You’ll see free meals, food pantries and meal programs near you.' },
+  { img: 'step3-food', title: 'Look through the list', body: 'Crisis lines like 211 come first. Each place shows its hours and when we last checked it.' },
+  { img: 'step4-listing', title: 'Call or get directions', body: 'Tap Call, Directions or Website. Hours change on holidays, so call before you go.' },
+];
+---
+<section class="how wrap" aria-labelledby="how-title">
+  <h2 id="how-title">Find free food on Hot Mess, any day</h2>
+  <p class="muted">No account needed on the web. <a href={foodHref}>{cityName ? `Open ${cityName}’s food list` : 'Open the help directory'}</a>.</p>
+  <ol class="steps">
+    {steps.map((s, i) => (
+      <li>
+        <img src={`/thanksgiving/${s.img}.webp`} width="390" height="664" loading="lazy" alt={`Step ${i + 1}: ${s.title}`} />
+        <h3><span class="n">{i + 1}</span>{s.title}</h3>
+        <p>{s.body}</p>
+      </li>
+    ))}
+  </ol>
+</section>
+<section class="share wrap" aria-label="Share">
+  <p>Know someone who could use a meal? Send them this page.</p>
+  <button type="button" class="button" id="share-page">Share this page</button>
+  <span class="muted" id="share-done" role="status" hidden>Link copied</span>
+</section>
+
+<script>
+  // Share sheet where the browser has one, else copy the link.
+  const button = document.getElementById('share-page');
+  const done = document.getElementById('share-done');
+  button?.addEventListener('click', async () => {
+    const url = window.location.origin + window.location.pathname;
+    try {
+      if (navigator.share) { await navigator.share({ title: document.title, url }); return; }
+      await navigator.clipboard.writeText(url);
+      if (done) done.hidden = false;
+    } catch { /* the person closed the share sheet */ }
+  });
+</script>
+
+<style>
+  .how { padding-top: 2.5rem; padding-bottom: 1rem; }
+  .how h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0 0 .4rem; }
+  .how > p { margin: 0 0 1.5rem; }
+  .steps { list-style: none; margin: 0; padding: 0 0 .5rem; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr);
+    gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .steps li { scroll-snap-align: start; min-width: 0; }
+  .steps img { display: block; width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--border); background: var(--surface-raised); }
+  .steps h3 { display: flex; align-items: center; gap: .5rem; font-size: 1.1rem; margin: .9rem 0 .3rem; }
+  .n { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: .95rem; flex: none; }
+  .steps p { margin: 0; color: var(--ink-muted); font-size: .95rem; }
+  .share { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; padding-top: 2rem; padding-bottom: 1rem; }
+  .share p { margin: 0; font-weight: 600; }
+  .share [hidden] { display: none; }
+</style>
