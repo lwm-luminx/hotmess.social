@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HOLIDAYS, cityFor, holidayMeals, mealOrg, mealTime, otherFood, thanksgivingMeals } from './holidayGuide.ts';
+import { HOLIDAYS, cityFor, holidayMeals, mealOrg, mealTime, otherFood, priceText, thanksgivingMeals } from './holidayGuide.ts';
 import type { CommunityResource, ResourceLocale } from './communityResources.ts';
 
 const resource = (over: Partial<CommunityResource>): CommunityResource => ({
@@ -61,4 +61,11 @@ test('eventWhen reads in the city time zone', async () => {
   assert.equal(eventWhen('2026-11-26T04:00:00Z', '2026-11-26T09:00:00Z', 'America/Denver'), 'Wed, Nov 25 · 9pm–2am');
   assert.equal(eventWhen('2026-11-26T21:30:00Z', undefined, 'America/New_York'), 'Thu, Nov 26 · 4:30pm');
   assert.equal(eventWhen(undefined, undefined, null), null);
+});
+
+test('priceText', () => {
+  assert.equal(priceText(0), 'Free');
+  assert.equal(priceText(1000), '$10 cover');
+  assert.equal(priceText(1250), '$12.50 cover');
+  assert.equal(priceText(undefined), 'Price not listed. Check with the venue.');
 });
