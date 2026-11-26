@@ -5,14 +5,16 @@
 import Base from '../../layouts/Base.astro';
 import { resourceCities, resourceDirectoryFor } from '../../server/publicContent';
 import {
-  BADGES, citySlug, dialHref, findCity, phoneText, slotText, type ResourceDirectory,
+  BADGES, checkedText, citySlug, dialHref, emergencyNumber, findCity, kinds, offeredNeeds, phoneText, searchText,
+  slotText, urgentFirst, type ResourceDirectory, type ResourceLocale,
 } from '../../lib/communityResources';
 export const prerender = false;
 const slug = Astro.params.city ?? '';
 let directory: ResourceDirectory | null = null;
+let city: ResourceLocale | undefined;
 let status = 200;
 try {
-  const city = findCity(await resourceCities(), slug);
+  city = findCity(await resourceCities(), slug);
   if (!city) status = 404;
   else if (citySlug(city) !== slug) return Astro.redirect(`/resources/${citySlug(city)}${Astro.url.search}`, 301);
   else directory = await resourceDirectoryFor(city.id);
@@ -21,10 +23,14 @@ try {
 Astro.response.status = status;
 Astro.response.headers.set('cache-control', status === 200 ? 'public, max-age=300, s-maxage=600' : 'no-store');
 const name = directory?.locale.name ?? 'your city';
-const needs = (directory?.needs ?? []).filter((n) => directory!.resources.some((r) => r.facets.some((f) => n.facets.includes(f))));
+// Only the needs with something listed here, so no choice leads to an empty list; crisis lines lead.
+const needs = directory ? offeredNeeds(directory) : [];
+const resources = directory ? urgentFirst(directory.resources) : [];
 const needKeys = (facets: string[]) => needs.filter((n) => n.facets.some((f) => facets.includes(f))).map((n) => n.key).join(' ');
+const emergency = city ? emergencyNumber(city) : null;
+const places = (count: number) => `${count} ${count === 1 ? 'place' : 'places'}`;
 ---
-<Base title={`Find help in ${name}`} noindex={status !== 200}
+<Base title={`Find help in ${name}`} noindex={status !== 200} calm
   description={`Food, shelter, clinics and testing, crisis lines and support if you don't feel safe at home in ${name}.`}>
   <main>
     <div class="exit-bar">
@@ -37,41 +43,66 @@ const needKeys = (facets: string[]) => needs.filter((n) => n.facets.some((f) => 
       <h1>Find help in {name}</h1>
       {status === 404 && <p>We don’t have a help directory for that city yet. <a href="/resources">See every city</a>.</p>}
       {status === 503 && <p>We couldn’t load this city’s help just now. Try again in a minute, or open Hot Mess and tap Get help.</p>}
-      {directory && <p class="muted">In an emergency, call your local emergency number. Call ahead before you travel: hours change.</p>}
-      {needs.length > 0 && (
-        <div class="needs" role="group" aria-label="What do you need?">
-          <button type="button" class="chip" data-need="" aria-pressed="true">Everything</button>
-          {needs.map((need) => <button type="button" class="chip" data-need={need.key} aria-pressed="false">{need.label}</button>)}
+      {status !== 200 && <p class="urgent">In danger right now? Call your local emergency number.</p>}
+      {directory && (
+        <p class="urgent">In danger right now? {emergency
+          ? <a href={`tel:${emergency}`}>Call {emergency}</a>
+          : <>Call your local emergency number</>}.</p>
+      )}
+      {directory && (
+        <div class="finder">
+          {needs.length > 0 && (
+            <>
+              <p class="finder-label" id="needs-label">I need…</p>
+              <div class="needs" role="group" aria-labelledby="needs-label">
+                <button type="button" class="chip" data-need="" aria-pressed="true">Everything</button>
+                {needs.map((need) => <button type="button" class="chip" data-need={need.key} aria-pressed="false">{need.label}</button>)}
+              </div>
+            </>
+          )}
+          <label class="search">
+            <span class="visually-hidden">Search this list</span>
+            <input type="search" id="resource-search" placeholder="Search by name or what you need" autocomplete="off"
+              autocapitalize="off" spellcheck="false" enterkeyhint="search" />
+          </label>
+          <p class="muted private">Filtered on this device. What you choose or type here isn’t sent anywhere.</p>
         </div>
       )}
     </section>
     {directory && (
       <section class="wrap list" aria-label={`Help in ${name}`}>
-        {directory.resources.map((r) => (
-          <article class="card resource" data-needs={needKeys(r.facets)}>
+        <p class="muted count" id="result-count" role="status" data-total={resources.length}>{places(resources.length)}</p>
+        {resources.map((r) => (
+          <article class="card resource" data-needs={needKeys(r.facets)} data-search={searchText(r)}>
+            {kinds(r).length > 0 && <p class="kind">{kinds(r).join(' · ')}</p>}
             <h2>{r.title}</h2>
             {r.sensitive && r.name !== r.title && <details class="real-name"><summary>Show name</summary>{r.name}</details>}
             {r.description && <p>{r.description}</p>}
             {r.facets.some((f) => BADGES[f]) && (
               <p class="badges">{r.facets.filter((f) => BADGES[f]).map((f) => <span class="badge">{BADGES[f]}</span>)}</p>
             )}
-            {r.intakeNote && <p class="intake">{r.intakeNote}</p>}
-            {r.hours.length > 0 && <ul class="slots">{r.hours.map((s) => <li>{slotText(s)}</li>)}</ul>}
-            {r.sessions.length > 0 && <><p class="slot-head">Sessions</p><ul class="slots">{r.sessions.map((s) => <li>{slotText(s)}</li>)}</ul></>}
             <p class="actions">
               {r.phone && <a class="button" href={dialHref(r.phone)}>Call {phoneText(r.phone)}</a>}
               {r.textNumber && <a class="button secondary" href={dialHref(r.textNumber, 'sms')}>Text {phoneText(r.textNumber)}</a>}
-              {r.url && <a class="button secondary" href={r.url} rel="noopener noreferrer" target="_blank">Website</a>}
               {r.address && !r.sensitive && <a class="button secondary" rel="noopener noreferrer" target="_blank"
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}`}>Directions</a>}
+              {r.url && <a class="button secondary" href={r.url} rel="noopener noreferrer" target="_blank">Website</a>}
             </p>
+            {r.intakeNote && <p class="intake">{r.intakeNote}</p>}
+            {r.hours.length > 0 && <><p class="slot-head">Hours</p><ul class="slots">{r.hours.map((s) => <li>{slotText(s)}</li>)}</ul></>}
+            {r.sessions.length > 0 && <><p class="slot-head">Sessions</p><ul class="slots">{r.sessions.map((s) => <li>{slotText(s)}</li>)}</ul></>}
             {r.address && <p class="muted address">{r.address}</p>}
+            <p class="muted checked">{checkedText(r.checkedAt) ?? 'Not checked by us yet. Call ahead before you go.'}</p>
           </article>
         ))}
+        <div class="card empty" id="no-results" hidden>
+          <p>Nothing listed here matches that.</p>
+          <button type="button" class="button secondary" id="show-all">Show everything</button>
+        </div>
         {directory.resources.some((r) => r.sensitive) && directory.advocacy.length > 0 && (
           <aside class="card advocacy">{directory.advocacy.map((line) => <p>{line}</p>)}</aside>
         )}
-        <p class="muted fine">Gathered from public sources and checked as we go. Something wrong or missing? Tell us in the Hot Mess app. Hot Mess is not an emergency service.</p>
+        <p class="muted fine">Gathered from public sources and checked as we go. Hours change, so call ahead before you travel. Something wrong or missing? Tell us in the Hot Mess app. Hot Mess is not an emergency service.</p>
       </section>
     )}
   </main>
@@ -82,16 +113,35 @@ const needKeys = (facets: string[]) => needs.filter((n) => n.facets.some((f) => 
   document.getElementById('leave-now')?.addEventListener('click', () => {
     window.location.replace('https://www.google.com/search?q=weather');
   });
-  // "What do you need?" filters on this device only; nothing is sent anywhere.
+  // "I need…" and the search filter the list already on this page, on this device only: nothing is sent anywhere,
+  // and nothing is kept (no storage), so a reload or Back shows everything again, apart from a ?need= link.
   const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.chip'));
   const cards = Array.from(document.querySelectorAll<HTMLElement>('.resource'));
-  for (const chip of chips) {
-    chip.addEventListener('click', () => {
-      const need = chip.dataset.need ?? '';
-      for (const other of chips) other.setAttribute('aria-pressed', String(other === chip));
-      for (const card of cards) card.hidden = !!need && !(card.dataset.needs ?? '').split(' ').includes(need);
-    });
+  const search = document.querySelector<HTMLInputElement>('#resource-search');
+  const count = document.getElementById('result-count');
+  const empty = document.getElementById('no-results');
+  let need = '';
+  function apply() {
+    const words = (search?.value ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const card of cards) {
+      const text = card.dataset.search ?? '';
+      const fits = (!need || (card.dataset.needs ?? '').split(' ').includes(need)) && words.every((w) => text.includes(w));
+      card.hidden = !fits;
+      if (fits) shown += 1;
+    }
+    for (const chip of chips) chip.setAttribute('aria-pressed', String((chip.dataset.need ?? '') === need));
+    if (count) count.textContent = `${shown} ${shown === 1 ? 'place' : 'places'}`;
+    if (empty) empty.hidden = shown > 0;
   }
+  for (const chip of chips) chip.addEventListener('click', () => { need = chip.dataset.need ?? ''; apply(); });
+  search?.addEventListener('input', apply);
+  document.getElementById('show-all')?.addEventListener('click', () => {
+    need = '';
+    if (search) search.value = '';
+    apply();
+    chips[0]?.focus();
+  });
   // ?need=food (from an in-app flyer) opens on that need; an unknown need leaves Everything selected.
   const wanted = new URLSearchParams(window.location.search).get('need');
   chips.find((chip) => wanted && chip.dataset.need === wanted)?.click();
@@ -100,24 +150,40 @@ const needKeys = (facets: string[]) => needs.filter((n) => n.facets.some((f) => 
 <style>
   .exit-bar { position: sticky; top: 0; z-index: 5; background: var(--surface, Canvas); border-bottom: 1px solid var(--line, rgba(127,127,127,.2)); }
   .exit-row { display: flex; justify-content: space-between; align-items: center; padding-top: .5rem; padding-bottom: .5rem; gap: 1rem; }
-  .head { padding-top: 2rem; }
-  h1 { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 800; margin: 0 0 .75rem; }
-  .needs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.25rem 0 0; }
-  .chip { border: 1px solid var(--line, rgba(127,127,127,.35)); background: transparent; color: inherit; border-radius: 999px; padding: .45rem .9rem; font: inherit; cursor: pointer; }
-  .chip[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); }
-  .list { display: grid; gap: 1rem; padding-top: 1.5rem; padding-bottom: 3rem; }
+  .back { display: inline-flex; align-items: center; min-height: 44px; }
+  .head { padding-top: 1.5rem; }
+  .head > *, .list > * { max-width: 46rem; }
+  h1 { font-size: clamp(1.8rem, 6vw, 2.8rem); font-weight: 800; margin: 0 0 .75rem; }
+  .urgent { margin: 0 0 1.25rem; padding: .75rem 1rem; border-radius: var(--radius); background: var(--surface-raised); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); }
+  .urgent a { font-weight: 700; white-space: nowrap; }
+  .finder-label { margin: 0 0 .5rem; font-weight: 700; }
+  .needs { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chip { min-height: 44px; border: 1.5px solid var(--border); background: var(--surface-raised); color: inherit; border-radius: 999px; padding: .4rem 1rem; font: inherit; cursor: pointer; }
+  .chip[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); font-weight: 700; }
+  .search { display: block; margin: .9rem 0 0; }
+  .search input { width: 100%; min-height: 48px; padding: .6rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); color: inherit; font: inherit; }
+  .search input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .private { margin: .6rem 0 0; font-size: .9rem; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .list { display: grid; gap: 1rem; padding-top: 1.25rem; padding-bottom: 3rem; }
+  .count { margin: 0; font-size: .9rem; }
   .resource { padding: 1.25rem; }
-  .resource[hidden] { display: none; }
-  .resource h2 { margin: 0 0 .5rem; font-size: 1.2rem; }
+  .resource[hidden], .empty[hidden] { display: none; }
+  .kind { margin: 0 0 .25rem; font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+  .resource h2 { margin: 0 0 .5rem; font-size: 1.25rem; }
   .resource p { margin: 0 0 .6rem; max-width: 68ch; }
   .real-name { margin: 0 0 .6rem; color: var(--ink-muted); }
   .badges { display: flex; flex-wrap: wrap; gap: .4rem; }
   .badge { font-size: .8rem; padding: .15rem .55rem; border-radius: 999px; background: var(--accent-soft); }
+  .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+  .resource p.actions { margin-bottom: .9rem; }
   .intake { font-style: italic; }
-  .slot-head { font-weight: 600; margin-bottom: .25rem; }
+  .resource p.slot-head { font-weight: 600; margin-bottom: .25rem; }
   .slots { margin: 0 0 .75rem; padding-left: 1.1rem; }
-  .actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-  .address { font-size: .9rem; }
+  .address, .checked { font-size: .9rem; }
+  .resource p.checked { margin-bottom: 0; }
+  .empty { padding: 1.25rem; }
+  .empty p { margin: 0 0 .75rem; }
   .advocacy { padding: 1.25rem; background: linear-gradient(135deg, var(--accent-soft), var(--surface-raised) 70%); }
   .advocacy p { margin: 0 0 .4rem; }
   .fine { font-size: .9rem; }

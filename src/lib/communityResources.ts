@@ -123,6 +123,55 @@ export function phoneText(number: string): string {
 export const forNeed = (resources: CommunityResource[], need: ResourceNeed): CommunityResource[] =>
   resources.filter((r) => r.facets.some((f) => need.facets.includes(f)));
 
+/** The facet a crisis or any-time line carries; those resources lead the list. */
+export const URGENT_FACET = 'crisis';
+
+/**
+ * What a resource offers, in a word or two, for the line above its name. A DV or stalking resource says nothing
+ * here: its neutral title is all a glance at the screen should give away.
+ */
+const KINDS: [string, string][] = [['crisis', 'Crisis support'], ['food', 'Food'], ['shelter', 'Shelter'],
+  ['health-coverage', 'Health coverage'], ['sti-testing', 'Testing'], ['mental-health', 'Mental health']];
+export const kinds = (resource: Pick<CommunityResource, 'facets' | 'sensitive'>): string[] =>
+  resource.sensitive ? ['Support'] : KINDS.filter(([facet]) => resource.facets.includes(facet)).map(([, word]) => word);
+
+/** Crisis and any-time lines first, each group in the order the API gave (by name). */
+export const urgentFirst = (resources: CommunityResource[]): CommunityResource[] => [
+  ...resources.filter((r) => r.facets.includes(URGENT_FACET)),
+  ...resources.filter((r) => !r.facets.includes(URGENT_FACET)),
+];
+
+/** The needs that have at least one resource in this city, so no choice leads to an empty list. */
+export const offeredNeeds = (directory: ResourceDirectory): ResourceNeed[] =>
+  directory.needs.filter((need) => forNeed(directory.resources, need).length > 0);
+
+/**
+ * What a search on the device looks through: lowercased title, name, description, kinds, badges and address. The
+ * search runs in the browser over the list already on the page; nothing typed is sent anywhere.
+ */
+export const searchText = (resource: CommunityResource): string =>
+  [resource.title, resource.name, resource.description, ...kinds(resource),
+    ...resource.facets.map((f) => BADGES[f]), resource.address]
+    .filter(Boolean).join(' ').toLowerCase();
+
+/** Whether every word of `query` is somewhere in `text` (from ``searchText``). An empty query matches. */
+export const matchesSearch = (text: string, query: string): boolean =>
+  query.toLowerCase().split(/\s+/).filter(Boolean).every((word) => text.includes(word));
+
+/** The emergency number to offer for a city: 999 in the UK, 000 in Australia, 911 in the US, Canada and Mexico. */
+export function emergencyNumber(locale: ResourceLocale): string | null {
+  return { 'United Kingdom': '999', Australia: '000', 'United States': '911', Canada: '911', Mexico: '911' }[
+    countryName(locale)] ?? null;
+}
+
+/** "Checked Nov 25, 2026" for a yyyy-mm-dd date, or null when nobody has checked it yet. */
+export function checkedText(checkedAt: string | null): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(checkedAt ?? '');
+  if (!match) return null;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `Checked ${months[Number(match[2]) - 1]} ${Number(match[3])}, ${match[1]}`;
+}
+
 /** Short words for the badges a resource shows. */
 export const BADGES: Record<string, string> = { 'lgbtq-affirming': 'LGBTQ+ affirming', 'youth-safe': 'Youth safe',
   'no-id-required': 'No ID needed', 'faith-based': 'Faith-based' };

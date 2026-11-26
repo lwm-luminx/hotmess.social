@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { byCountry, citySlug, findCity, forNeed, phoneText, resourceDirectory, resourceLocales, slotText, dialHref }
+import { byCountry, checkedText, citySlug, emergencyNumber, findCity, forNeed, kinds, matchesSearch, offeredNeeds,
+  phoneText, resourceDirectory, resourceLocales, searchText, slotText, dialHref, urgentFirst }
   from './communityResources.ts';
 
 const locales = resourceLocales({ locales: [
@@ -52,4 +53,46 @@ test('a directory keeps the neutral title and filters by need', () => {
   assert.equal(directory.resources[0].sensitive, true);
   assert.deepEqual(directory.resources[1].hours, []);
   assert.deepEqual(forNeed(directory.resources, directory.needs[0]).map((r) => r.id), ['1']);
+});
+
+const browsed = resourceDirectory({ locale: { id: 'a', name: 'Salt Lake' }, needs: [
+  { key: 'food', label: 'Food', facets: ['food'] }, { key: 'shelter', label: 'Shelter', facets: ['shelter'] },
+  { key: 'safe', label: 'Safety at home', facets: ['dv-stalking'] }],
+resources: [
+  { id: '1', title: 'Calvary pantry', name: 'Calvary pantry', sensitive: false, facets: ['food', 'no-id-required'],
+    description: 'Thursday groceries.', address: '460 W Century Dr', checked_at: '2026-11-15' },
+  { id: '2', title: 'Crisis Care Center', name: 'Crisis Care Center', sensitive: false, facets: ['crisis', 'mental-health'] },
+  { id: '3', title: 'Support line', name: 'YWCA Utah', sensitive: true, facets: ['dv-stalking', 'crisis'] },
+] });
+
+test('crisis lines lead the list, and only needs with something listed are offered', () => {
+  assert.deepEqual(urgentFirst(browsed.resources).map((r) => r.id), ['2', '3', '1']);
+  assert.deepEqual(offeredNeeds(browsed).map((n) => n.key), ['food', 'safe']);
+});
+
+test('a resource says what it offers in a word or two, and a DV resource stays neutral', () => {
+  assert.deepEqual(kinds(browsed.resources[0]), ['Food']);
+  assert.deepEqual(kinds(browsed.resources[1]), ['Crisis support', 'Mental health']);
+  assert.deepEqual(kinds(browsed.resources[2]), ['Support']);
+});
+
+test('search looks through names, descriptions, kinds, badges and addresses, every word', () => {
+  const pantry = searchText(browsed.resources[0]);
+  assert.ok(matchesSearch(pantry, ''));
+  assert.ok(matchesSearch(pantry, '  Thursday FOOD '));
+  assert.ok(matchesSearch(pantry, 'no id'));
+  assert.ok(matchesSearch(pantry, 'century'));
+  assert.ok(!matchesSearch(pantry, 'food shelter'));
+  assert.ok(matchesSearch(searchText(browsed.resources[2]), 'ywca'));
+});
+
+test('the emergency number follows the country, and is left out where we do not know it', () => {
+  assert.equal(emergencyNumber(locales[0]), '911');
+  assert.equal(emergencyNumber(locales[2]), '999');
+  assert.equal(emergencyNumber({ ...locales[2], country: 'FR', timeZone: 'Europe/Paris' }), null);
+});
+
+test('a checked date reads as a date, and an unchecked one says nothing', () => {
+  assert.equal(checkedText('2026-11-15'), 'Checked Nov 15, 2026');
+  assert.equal(checkedText(null), null);
 });
