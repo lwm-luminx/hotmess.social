@@ -129,7 +129,10 @@ test('shows the room’s chat in the right third when the phone sends it, as tex
   const chat = page.locator('#chat');
   await expect(chat).toBeVisible();
   await expect(page.locator('body')).toHaveClass(/with-chat/);
-  await expect(page.locator('#pinned')).toHaveText('📌 Drag brunch Sunday');
+  // The pin is drawn (an outline, as Velvet's apps draw it), not an emoji, with the room's name beside CHAT.
+  await expect(page.locator('#pinned')).toHaveText('Drag brunch Sunday');
+  await expect(page.locator('#pinned svg')).toHaveCount(1);
+  await expect(page.locator('#chat .room')).not.toBeEmpty();
   const rows = page.locator('#messages li');
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(0).locator('p')).toHaveText('<b>hi</b> everyone');
