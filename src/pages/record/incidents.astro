@@ -40,6 +40,7 @@ import { OPERATOR } from '../../lib/config';
         <li><strong>Probable:</strong> the volume was far beyond anything the flaw produced anywhere else.</li>
         <li><strong>Our belief, not proven:</strong> that the flooding was deliberate. We believe it was because it kept going after the fix shipped. An install that was never updated would also keep looping, so our records can’t settle it.</li>
         <li><strong>Possible, not shown:</strong> that the sign-in was copied to another machine. A copied sign-in would look the same in our records, because we don’t log a device on every request.</li>
+        <li><strong>Known limit:</strong> the app version and device details in a request are reported by whoever sends it, and they can be forged. They show what a request claims to be, not which device sent it.</li>
         <li><strong>Unknown:</strong> who was holding the device.</li>
       </ul>
       <p><strong>What was exposed.</strong> The requests we could identify were the app’s ordinary screen-layout request, which returns the venue and event cards the app shows. We have found no sign of access beyond what the app itself shows a member.</p>
