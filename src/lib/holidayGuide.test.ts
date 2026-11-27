@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HOLIDAYS, cityFor, holidayMeals, mealOrg, mealTime, otherFood, priceText, thanksgivingMeals } from './holidayGuide.ts';
+import { HOLIDAYS, cityFor, eventStillOn, holidayMeals, holidayNow, mealOrg, mealTime, otherFood, priceText, thanksgivingMeals } from './holidayGuide.ts';
 import type { CommunityResource, ResourceLocale } from './communityResources.ts';
 
 const resource = (over: Partial<CommunityResource>): CommunityResource => ({
@@ -68,4 +68,23 @@ test('priceText', () => {
   assert.equal(priceText(1000), '$10 cover');
   assert.equal(priceText(1250), '$12.50 cover');
   assert.equal(priceText(undefined), 'Price not listed. Check with the venue.');
+});
+
+test('holidayNow keeps the holiday’s own words until it ends, then stops saying today', () => {
+  const during = holidayNow(HOLIDAYS.thanksgiving, new Date('2026-11-26T20:00:00Z'));
+  assert.equal(during.over, false);
+  assert.match(during.mealsTitle, /today/);
+  const after = holidayNow(HOLIDAYS.thanksgiving, new Date('2026-11-27T12:00:00Z'));
+  assert.equal(after.over, true);
+  assert.doesNotMatch(`${after.lede} ${after.mealsTitle} ${after.noMeals('Salt Lake')}`, /today/);
+  assert.equal(after.next, 'christmas');
+});
+
+test('eventStillOn drops an event once it has ended, or six hours in when it lists no end', () => {
+  const now = new Date('2026-11-27T08:00:00Z');
+  assert.equal(eventStillOn('2026-11-26T23:00:00Z', '2026-11-27T03:00:00Z', now), false);
+  assert.equal(eventStillOn('2026-11-27T00:00:00Z', null, now), false);
+  assert.equal(eventStillOn('2026-11-27T05:00:00Z', null, now), true);
+  assert.equal(eventStillOn('2026-12-24T23:00:00Z', '2026-12-25T04:00:00Z', now), true);
+  assert.equal(eventStillOn(null, null, now), true);
 });

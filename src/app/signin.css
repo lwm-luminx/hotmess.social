@@ -5,7 +5,10 @@
 .signin-methods { display: grid; gap: 0.75rem; }
 /* The 18+ and terms confirmation that unlocks the buttons. */
 .signin-adult { display: flex; gap: 0.6rem; align-items: flex-start; margin: 0 0 1rem; }
-.signin-adult input { margin-top: 0.25rem; flex: none; }
+.signin-adult input { width: 1.25rem; height: 1.25rem; margin-top: 0.15rem; flex: none; accent-color: var(--accent); }
+.signin-hint { margin: -0.4rem 0 0.75rem; font-size: 0.9rem; }
+/* Off until the 18+ box is ticked (and the provider is ready): look off, too. */
+.signin-methods .button:disabled { opacity: 0.5; cursor: not-allowed; }
 .signin-methods .button { justify-content: center; }
 /* Apple's button style: black on light pages, white on dark. */
 .button.apple { background: #000; color: #fff; }

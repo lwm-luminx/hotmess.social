@@ -24,6 +24,12 @@ export interface Holiday {
   noMeals: (city: string) => string;
   /** The fine print's "checked" phrase. */
   checked: string;
+  /** When the holiday is over everywhere Hot Mess is (ISO instant): from then the pages stop saying "today". */
+  ends: string;
+  /** What the pages say once it's over: the year-round food stays, the holiday's own promises don't. */
+  after: { lede: string; indexLede: string; mealsTitle: string; noMeals: (city: string) => string };
+  /** The next holiday's guide to point to once this one is over. */
+  next?: string;
 }
 
 export const HOLIDAYS: Record<string, Holiday> = {
@@ -34,6 +40,14 @@ export const HOLIDAYS: Record<string, Holiday> = {
     mealsTitle: 'Free Thanksgiving meals today',
     noMeals: (city) => `We haven’t found a free Thanksgiving Day meal in ${city} we could confirm. These places give out free food, and 211 knows what’s open today.`,
     checked: 'checked Nov 25, 2026',
+    ends: '2026-11-27T12:00:00Z',
+    after: {
+      lede: 'Thanksgiving Day has passed. These places give out free food all year. Hours change, so call ahead if you can.',
+      indexLede: 'Thanksgiving Day has passed, and these places give out free food all year. Pick your city for its pantries and meal programs. No sign-in needed.',
+      mealsTitle: 'Free Thanksgiving meals',
+      noMeals: (city) => `Thanksgiving’s free meals in ${city} are over. These places give out free food all year.`,
+    },
+    next: 'christmas',
   },
   christmas: {
     slug: 'christmas', name: 'Christmas', mealPrefix: 'Christmas meal: ',
@@ -42,8 +56,30 @@ export const HOLIDAYS: Record<string, Holiday> = {
     mealsTitle: 'Free Christmas meals',
     noMeals: (city) => `We haven’t confirmed a free Christmas Eve or Christmas Day meal in ${city} yet. We add them as they’re announced, so check back. Meanwhile these places give out free food, and 211 knows what’s open on the holiday.`,
     checked: 'checked as they’re announced in December 2026',
+    ends: '2026-12-26T12:00:00Z',
+    after: {
+      lede: 'Christmas has passed. These places give out free food all year. Hours change, so call ahead if you can.',
+      indexLede: 'Christmas has passed, and these places give out free food all year. Pick your city for its pantries and meal programs. No sign-in needed.',
+      mealsTitle: 'Free Christmas meals',
+      noMeals: (city) => `Christmas’s free meals in ${city} are over. These places give out free food all year.`,
+    },
   },
 };
+
+/** Whether a holiday is over (its guide stays up for the year-round food). */
+export const holidayOver = (holiday: Holiday, now: Date = new Date()): boolean => now.getTime() >= Date.parse(holiday.ends);
+
+/** The holiday as its pages should word it now: its own copy until it ends, the "after" copy from then. */
+export function holidayNow(holiday: Holiday, now: Date = new Date()): Holiday & { over: boolean } {
+  if (!holidayOver(holiday, now)) return { ...holiday, over: false };
+  return { ...holiday, lede: holiday.after.lede, mealsTitle: holiday.after.mealsTitle, noMeals: holiday.after.noMeals, over: true };
+}
+
+/** A venue's holiday event that hasn't finished: its end, or six hours from its start when it lists none. */
+export function eventStillOn(startAt: string | null | undefined, endAt: string | null | undefined, now: Date = new Date()): boolean {
+  const end = endAt ? Date.parse(endAt) : startAt ? Date.parse(startAt) + 6 * 3600_000 : NaN;
+  return Number.isNaN(end) || end > now.getTime();
+}
 
 export const MEAL_PREFIXES = Object.values(HOLIDAYS).map((h) => h.mealPrefix);
 

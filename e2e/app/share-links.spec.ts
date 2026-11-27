@@ -25,7 +25,7 @@ test.describe('signed in', () => {
 
   test('a malformed link says the page doesn\'t exist', async ({ page, api }) => {
     await page.goto('/venues/not-a-uuid');
-    await expect(page.getByText('Not found', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'We can’t find that page' })).toBeVisible();
     expect(api.requests).toEqual([]);
   });
 });

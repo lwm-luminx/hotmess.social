@@ -6,12 +6,15 @@ import Base from '../../layouts/Base.astro';
 import HolidayHowTo from './HolidayHowTo.astro';
 import { BADGES, checkedText, citySlug, dialHref, emergencyNumber, kinds, phoneText, slotText, urgentFirst,
   type ResourceDirectory, type ResourceLocale } from '../../lib/communityResources';
-import { eventWhen, holidayMeals, priceText, otherFood, type Holiday } from '../../lib/holidayGuide';
+import { eventStillOn, eventWhen, HOLIDAYS, holidayMeals, holidayNow, priceText, otherFood, type Holiday } from '../../lib/holidayGuide';
 import { listing } from '../../server/publicContent';
 import type { PublicListing } from '../../lib/publicListing';
 import holidayEvents from '../../data/holiday-events.json';
 interface Props { holiday: Holiday; directory: ResourceDirectory | null; city: ResourceLocale | undefined; status: number }
-const { holiday, directory, city, status } = Astro.props;
+const { directory, city, status } = Astro.props;
+// Once the holiday is over the page stops saying "today" and drops the events that have finished.
+const holiday = holidayNow(Astro.props.holiday);
+const next = holiday.over && holiday.next ? HOLIDAYS[holiday.next] : undefined;
 const name = directory?.locale.name ?? city?.name ?? 'your city';
 const meals = directory ? holidayMeals(directory.resources, holiday) : [];
 const food = directory ? urgentFirst(otherFood(directory.resources)) : [];
@@ -23,7 +26,7 @@ const maps = (address: string) => `https://www.google.com/maps/search/?api=1&que
 const eventIds: string[] = city
   ? ((holidayEvents as Record<string, Record<string, string[]>>)[holiday.slug]?.[citySlug(city)] ?? []) : [];
 const events = (await Promise.all(eventIds.map((id) => listing(`events/${id}`).catch(() => null))))
-  .filter((e): e is PublicListing => !!e && e.kind === 'event' && !e.is_canceled)
+  .filter((e): e is PublicListing => !!e && e.kind === 'event' && !e.is_canceled && eventStillOn(e.start_at, e.end_at))
   .sort((a, b) => (a.start_at ?? '').localeCompare(b.start_at ?? ''));
 const multiDay = Object.keys(holiday.days).length > 0;
 const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals[i - 1]?.day ? meals[i].day : null);
@@ -38,6 +41,7 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
         <p class="date">{holiday.dateLine}</p>
         <h1>Free food in {name} this {holiday.name}</h1>
         <p class="lede">{holiday.lede}</p>
+        {next && <p class="other"><a href={city ? `/${next.slug}/${citySlug(city)}` : `/${next.slug}`}>Free food this {next.name}</a></p>}
         <p class="other"><a href={`/${holiday.slug}?pick`}>Not in {name}? Pick your city</a></p>
       </div>
     </section>
@@ -126,6 +130,7 @@ const dayOf = (i: number) => (multiDay && meals[i].day && meals[i].day !== meals
   .poster h1 { font-size: clamp(2.3rem, 8vw, 4.6rem); font-weight: 900; line-height: 1.02; margin: 0 0 1rem; max-width: 14ch; text-wrap: balance; }
   .poster .lede { font-size: clamp(1.05rem, 2.4vw, 1.3rem); margin: 0 0 1rem; max-width: 46ch; }
   .poster .other { margin: 0; }
+  .poster .other + .other { margin-top: .4rem; }
   .poster a { color: inherit; font-weight: 600; }
   .note { margin-top: 1.5rem; padding: 1rem 1.25rem; }
   .meals { display: grid; gap: 1rem; padding-top: 2rem; max-width: 46rem; }

@@ -82,6 +82,7 @@ const path = Astro.url.pathname;
     <VisitCount />
   </head>
   <body>
+    <a class="skip" href="#content">Skip to content</a>
     {!calm && <BrandBand href={LOVE_WINS_URL} />}
     {!calm && <RecordBanner />}
     <header class="site-header">
@@ -100,6 +101,7 @@ const path = Astro.url.pathname;
         </a>
       </nav>
     </header>
+    <div id="content" tabindex="-1"></div>
     <slot />
     <footer class="site-footer">
       <Container>
@@ -107,6 +109,7 @@ const path = Astro.url.pathname;
         <p>Hot Mess runs on <a href="https://audiencekit.com">AudienceKit</a>. Operated by {OPERATOR.name}, {OPERATOR.address} · <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a></p>
         <p>
           <a href="/safety">Safety</a>{' · '}
+          <a href="/resources">Find help nearby</a>{' · '}
           <a href="/money">No targeted ads</a>{' · '}
           <a href="/record/hot-mess-dated-record.pdf">Our dated record (PDF)</a>{' · '}
           <a href="/record/velvet-app-review.pdf">Velvet for venues, step by step (PDF)</a>{' · '}
@@ -141,6 +144,10 @@ const path = Astro.url.pathname;
 </html>
 
 <style>
+  /* Keyboard and screen reader users jump past the bands and the nav; shown only when focused. */
+  .skip { position: absolute; left: .5rem; top: -4rem; z-index: 10; padding: .6rem 1rem; border-radius: 8px; background: var(--surface-raised); color: var(--ink); font-weight: 700; }
+  .skip:focus { top: .5rem; }
+  #content:focus { outline: none; }
   .site-header { border-bottom: 1px solid var(--border); background: var(--surface-raised); }
   .site-header nav { display: flex; flex-wrap: wrap; align-items: center; min-height: 64px; gap: .25rem 1.5rem; }
   .links { display: flex; gap: 1.25rem; margin: 0 auto 0 0; padding: 0; list-style: none; }

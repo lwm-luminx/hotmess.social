@@ -8,7 +8,7 @@ import { CoverPage } from '../../app/CoverPage';
 import '../../app/cover.css';
 export const prerender = false;
 const code = Astro.params.code ?? '';
-if (!/^[0-9A-Za-z]{8}$/.test(code)) return new Response('Not found', { status: 404 });
+if (!/^[0-9A-Za-z]{8}$/.test(code)) return new Response(null, { status: 404 });
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', 'noindex');
 ---

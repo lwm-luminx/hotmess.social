@@ -26,6 +26,7 @@ type Screen =
   | { state: 'loading' }
   | { state: 'signed-out' }
   | { state: 'message'; text: string }
+  | { state: 'missing' }
   | { state: 'expired' }
   | { state: 'now'; now: Now }
   | { state: 'venue'; venue: Venue; events: Event[] }
@@ -85,6 +86,18 @@ function Expired({ onFindVenues }: { onFindVenues: () => void }) {
   );
 }
 
+/** A link that leads nowhere: say so, and offer the ways on. */
+function Missing() {
+  return (
+    <section className="card signin">
+      <h1>We can’t find that page</h1>
+      <p className="muted">The link may be mistyped, or what it pointed to is gone.</p>
+      <p><a className="button" href="/">Go to Hot Mess</a></p>
+      <p className="muted">Looking for something else? <a href="/download">Get the app</a>, or <a href="/resources">find help nearby</a>.</p>
+    </section>
+  );
+}
+
 interface AppProps { initialPath?: string; publicListing?: PublicListing; expired?: boolean }
 export default function App(props: AppProps) {
   return <ErrorBoundary><HotMess {...props} /></ErrorBoundary>;
@@ -108,7 +121,7 @@ function HotMess({ initialPath, publicListing, expired }: AppProps) {
   useEffect(() => {
     const url = new URL(path, location.origin);
     const route = routeFor(url.pathname);
-    if (!route) return setScreen({ state: 'message', text: "That page doesn't exist." });
+    if (!route) return setScreen({ state: 'missing' });
     // An expired link never opens its record, signed in or not.
     const check = route.kind === 'now' ? 'open' : linkCheck(url.search);
     if (check === 'expired') return setScreen({ state: 'expired' });
@@ -165,6 +178,7 @@ function HotMess({ initialPath, publicListing, expired }: AppProps) {
     case 'loading': content = <p className="muted">Loading…</p>; break;
     case 'signed-out': content = <>{basics && <PublicBasics listing={basics} />}<SignIn onSignedIn={() => setAttempt((n) => n + 1)} /></>; break;
     case 'message': content = <p className="muted">{screen.text}</p>; break;
+    case 'missing': content = <Missing />; break;
     case 'expired': content = <Expired onFindVenues={() => go({ kind: 'now' })} />; break;
     // "Get help" shows only where the API places the user at the venue (GetHelp.tsx).
     case 'now': content = <>{screen.now.venue ? <GetHelpEntry venue={screen.now.venue} /> : null}<NowView now={screen.now} /></>; break;

@@ -9,7 +9,8 @@ import '../../app/signin.css';
 import '../../app/help.css';
 export const prerender = false;
 const code = Astro.params.code ?? '';
-if (!/^[0-9A-Za-z]{10}$/.test(code)) return new Response('Not found', { status: 404 });
+// A code that doesn't read (a torn poster, a mistyped link) still gets someone to help: the directory and its emergency numbers.
+if (!/^[0-9A-Za-z]{10}$/.test(code)) return Astro.redirect('/resources', 302);
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', 'noindex');
 ---

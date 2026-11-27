@@ -4,8 +4,8 @@
 interface Props { foodHref: string; cityName?: string }
 const { foodHref, cityName } = Astro.props;
 const steps = [
-  { img: 'step1-pick-city', title: 'Pick your city', body: 'In the app, tap Me, then Find help nearby (on iPhone it’s under Help and Safety). On the web, go to hotmess.social/resources.' },
-  { img: 'step2-city-page', title: 'Tap Food', body: 'In the app it may still say “I need food”. You’ll see free meals, food pantries and meal programs near you.' },
+  { img: 'step1-pick-city', title: 'Pick your city', body: 'In the app, tap Me, then Need support? under Help and safety. On the web, go to hotmess.social/resources.' },
+  { img: 'step2-city-page', title: 'Tap Food', body: 'You’ll see free meals, food pantries and meal programs near you.' },
   { img: 'step3-food', title: 'Look through the list', body: 'Crisis lines like 211 come first. Each place shows its hours and when we last checked it.' },
   { img: 'step4-listing', title: 'Call or get directions', body: 'Tap Call, Directions or Website. Hours change on holidays, so call before you go.' },
 ];
@@ -13,7 +13,7 @@ const steps = [
 <section class="how wrap" aria-labelledby="how-title">
   <h2 id="how-title">Find free food on Hot Mess, any day</h2>
   <p class="muted">No account needed on the web. <a href={foodHref}>{cityName ? `Open ${cityName}’s food list` : 'Open the help directory'}</a>.</p>
-  <ol class="steps">
+  <ol class="steps" tabindex="0" aria-label="How to find free food, in four steps">
     {steps.map((s, i) => (
       <li>
         <img src={`/thanksgiving/${s.img}.webp`} width="390" height="664" loading="lazy" alt={`Step ${i + 1}: ${s.title}`} />
@@ -49,6 +49,7 @@ const steps = [
   .how > p { margin: 0 0 1.5rem; }
   .steps { list-style: none; margin: 0; padding: 0 0 .5rem; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr);
     gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .steps:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; border-radius: 8px; }
   .steps li { scroll-snap-align: start; min-width: 0; }
   .steps img { display: block; width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--border); background: var(--surface-raised); }
   .steps h3 { display: flex; align-items: center; gap: .5rem; font-size: 1.1rem; margin: .9rem 0 .3rem; }

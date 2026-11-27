@@ -143,10 +143,14 @@ export default function SignIn({ onSignedIn, lede }: { onSignedIn: () => void; l
           <a href="https://audiencekit.com/privacy/">Privacy Policy</a>.
         </span>
       </label>
+      {/* The buttons stay off until the box is ticked; say so, since a button that does nothing reads as broken.
+          Only once the methods are known (after mount), so the server's HTML and the first render agree. */}
+      {!asked || adult ? null : <p className="muted signin-hint" id="signin-hint">Tick the box above to continue.</p>}
       <div className="signin-methods">
         {offered.map((method) => (
           <button
             key={method}
+            aria-describedby={!asked || adult ? undefined : 'signin-hint'}
             className={METHODS[method].className}
             type="button"
             disabled={busy || !asked || !adult || (method === 'apple' && !appleReady) || (method === 'google' && !googleReady)}

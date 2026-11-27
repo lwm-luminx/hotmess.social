@@ -7,7 +7,7 @@ import StoreButtons from '../../components/StoreButtons.astro';
 import { pingId } from '../../lib/invitation';
 export const prerender = false;
 const id = pingId(Astro.url.pathname);
-if (!id) return new Response('Not found', { status: 404 });
+if (!id) return new Response(null, { status: 404 });
 const path = `/pings/${id}`;
 if (Astro.url.pathname !== path) return Astro.redirect(`${path}${Astro.url.search}`, 301);
 const link = `${path}${Astro.url.search}`;
