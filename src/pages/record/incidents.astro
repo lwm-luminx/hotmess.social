@@ -37,7 +37,7 @@ import { OPERATOR } from '../../lib/config';
       <p><strong>How sure we are.</strong> We publish what our records make probable and label the rest.</p>
       <ul>
         <li><strong>Probable:</strong> every request used one member’s single sign-in, through the 2.8 flaw, from one network. That sign-in was made over a mobile network, on one phone that no other account has used.</li>
-        <li><strong>Probable:</strong> the volume was far beyond anything the flaw produced anywhere else, close to three times the worst on our own test phone (about 55,000 requests an hour), and it kept coming back after the fix.</li>
+        <li><strong>Probable:</strong> the volume was far beyond anything the flaw produced anywhere else.</li>
         <li><strong>Our belief, not proven:</strong> that the flooding was deliberate. We believe it was because it kept going after the fix shipped. An install that was never updated would also keep looping, so our records can’t settle it.</li>
         <li><strong>Possible, not shown:</strong> that the sign-in was copied to another machine. A copied sign-in would look the same in our records, because we don’t log a device on every request.</li>
         <li><strong>Unknown:</strong> who was holding the device.</li>
@@ -53,7 +53,7 @@ import { OPERATOR } from '../../lib/config';
         <li>App Review’s demo accounts are never limited, so a flood can’t interfere with Apple’s review.</li>
         <li>Hot Mess 2.9 and 2.10 for iPhone, which close the flaw, are on the App Store.</li>
       </ul>
-      <p><strong>How we found the flaw.</strong> Our own test builds looped the same way on our own phones during development: on Nov 18, from the evening of Nov 22 to the morning of Nov 23 (about 650,000 requests from our own network over 15 hours), and again on Nov 24. That is how we found the flaw and built the fix, and we list it here because those builds were ours.</p>
+      <p><strong>How we found the flaw.</strong> Our own test builds looped the same way on our own phones on Nov 18 and again on Nov 24, during development. That is how we found the flaw and built the fix, and we list it here because those builds were ours.</p>
 
       <h2>This has happened before: June 2017</h2>
       <p>In June 2017, Facebook rate-limited Hot Mess’s Facebook app, which disrupted signing in with Facebook. Our records from that month show the response:</p>
