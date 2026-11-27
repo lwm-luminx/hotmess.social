@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import Discover from '../app/Discover';
 // A shell: the listings load in the browser once someone is signed in to Hot Mess (src/app/Discover.tsx).
 ---
-<Base title="Discover Hot Mess">
+<Base title="Discover Hot Mess" description="Browse every venue, event and post on Hot Mess. Sign in to see what's on in your city.">
   <main class="wrap"><h1>Discover Hot Mess</h1>
     <Discover client:only="react" />
   </main>

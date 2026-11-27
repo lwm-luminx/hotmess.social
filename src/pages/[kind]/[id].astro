@@ -8,7 +8,7 @@ import type { PublicListing } from '../../lib/publicListing';
 import type { ShareCard } from '../../lib/shareCard';
 export const prerender = false;
 const route = routeFor(Astro.url.pathname);
-if (!route || route.kind === 'now') return new Response('Not found', { status: 404 });
+if (!route || route.kind === 'now') return new Response(null, { status: 404 });
 const path = pathFor(route);
 if (Astro.url.pathname !== path) return Astro.redirect(`${path}${Astro.url.search}`, 301);
 const signature = Astro.url.searchParams.get('e');

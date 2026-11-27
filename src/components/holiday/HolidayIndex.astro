@@ -5,9 +5,13 @@
 import Base from '../../layouts/Base.astro';
 import HolidayHowTo from './HolidayHowTo.astro';
 import { byCountry, citySlug, type ResourceLocale } from '../../lib/communityResources';
-import type { Holiday } from '../../lib/holidayGuide';
+import { HOLIDAYS, holidayNow, type Holiday } from '../../lib/holidayGuide';
 interface Props { holiday: Holiday; cities: ResourceLocale[]; failed: boolean; description: string; lede: string }
-const { holiday, cities, failed, description, lede } = Astro.props;
+const { cities, failed, description } = Astro.props;
+// Once the holiday is over the page says so, and points to the next one.
+const holiday = holidayNow(Astro.props.holiday);
+const lede = holiday.over ? holiday.after.indexLede : Astro.props.lede;
+const next = holiday.over && holiday.next ? HOLIDAYS[holiday.next] : undefined;
 const groups = byCountry(cities);
 ---
 <Base title={`Free food this ${holiday.name}`} calm image={new URL(`/og/${holiday.slug}.png`, Astro.site).toString()}
@@ -17,7 +21,7 @@ const groups = byCountry(cities);
       <div class="wrap">
         <p class="date">{holiday.dateLine}</p>
         <h1>Free food this {holiday.name}</h1>
-        <p class="lede">{lede}</p>
+        <p class="lede">{lede}{next && <> <a href={`/${next.slug}`}>Free food this {next.name}</a>.</>}</p>
         <p class="locating" id="locating" role="status" hidden>Finding your city…</p>
       </div>
     </section>
@@ -99,6 +103,7 @@ const groups = byCountry(cities);
   .poster .date { margin: 0 0 .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .85rem; opacity: .9; }
   .poster h1 { font-size: clamp(2.5rem, 9vw, 5rem); font-weight: 900; line-height: 1.02; margin: 0 0 1rem; max-width: 12ch; text-wrap: balance; }
   .poster .lede { font-size: clamp(1.05rem, 2.4vw, 1.3rem); margin: 0; max-width: 46ch; }
+  .poster a { color: inherit; font-weight: 600; }
   .locating { margin: 1rem 0 0; font-weight: 600; }
   .locating[hidden] { display: none; }
   .cities { padding-top: 2rem; }

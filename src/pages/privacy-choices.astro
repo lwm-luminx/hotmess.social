@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import PrivacyChoicesPage from '../app/PrivacyChoicesPage';
 // A shell: the choices load in the browser once someone is signed in to Hot Mess (src/app/PrivacyChoicesPage.tsx).
 ---
-<Base title="Your privacy choices">
+<Base title="Your privacy choices" description="Choose how Hot Mess uses your data: do not sell or share, ad measurement and your privacy pass. Sign in to see and change your choices.">
   <main class="wrap"><h1>Your privacy choices</h1>
     <PrivacyChoicesPage client:only="react" />
   </main>

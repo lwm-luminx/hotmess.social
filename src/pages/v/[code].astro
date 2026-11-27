@@ -18,7 +18,7 @@ try { path = await shortLink(code); } catch (error) {
     return new Response('Try again in a moment', { status: 503, headers: { 'Retry-After': '30' } });
   }
 }
-if (!path) return new Response('Not found', { status: 404 });
+if (!path) return new Response(null, { status: 404 });
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 Astro.response.headers.set('X-Robots-Tag', 'noindex');
 return Astro.redirect(path, 302);
