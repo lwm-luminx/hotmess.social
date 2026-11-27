@@ -122,6 +122,7 @@ export function PersonView({ person }: { person: Person }) {
       </Hero>
       <div className="ak-columns">
         <div>
+          {person.description?.trim() ? <p className="ak-lede">{person.description.trim()}</p> : null}
           <Section title="Upcoming" count={events.length || undefined} empty="No upcoming events.">
             {events.map((event) => (
               <EventCard key={event.id} event={event} photo={eventPhoto(event, 'venue-first', undefined, person)} />
