@@ -10,7 +10,17 @@ import { OPERATOR } from '../../lib/config';
     <section class="wrap record-article">
       <p class="eyebrow">On the record · Updated November 27, 2026</p>
       <h1>Incidents and App Review: the record</h1>
+      <div class="tldr">
+        <p><strong>TL;DR.</strong> Hot Mess is years of work and countless hours and dollars of my own. It provides its services without ads and without selling data, and it is built to make our community better. Attacking it, or listings like free food on Thanksgiving, has real-world impact on access to food, shelter and community, and a lack of connection can be part of why some people end their lives. Because of that, I have a zero-tolerance policy for this behavior, and anyone who does it should expect to be publicly shamed for it. <em>— Rick Mark</em></p>
+        <p class="crisis">If you are struggling or thinking about ending your life, you are not alone. In the US, call or text 988 to reach the Suicide &amp; Crisis Lifeline, any time.</p>
+      </div>
       <p class="lede">When something goes wrong with the service, we write down what happened, when, and what we changed. All times are Mountain Time.</p>
+
+      <h2>A statement from Rick Mark</h2>
+      <p>Hot Mess is free. This week that included a free directory of holiday meals for anyone in our community who needed one. Flooding a free community service with hundreds of thousands of requests isn’t a prank or a test. It puts at risk the people who depend on that service, on the week many of them need it most.</p>
+      <p>The bug behind this traffic was known, and the fix was on the App Store by the evening of November 25. The same sign-in kept flooding us from the same network for another full day after that. A bug explains a loop. In my view, it doesn’t explain choosing to keep one running after the fix is out. I believe this flood was deliberate, and that it is part of a campaign against my work that has gone on for a long time. Whoever chose to do this: it didn’t work. The service stayed up, the limits held, and every change listed on this page makes the next attempt harder. Attacks like this don’t make our community smaller. They make it easier to see who is working to keep people fed and safe, and who is working against them.</p>
+      <p>If you know anything about this traffic, write to me. If you need a holiday meal, the directory is open.</p>
+      <p><strong>Why I believe it, as a security researcher.</strong> I have worked on Apple platforms since 2007 and on hardware security research for most of that time. With Team t8012 I helped bring Apple’s T2 security chip into checkra1n, and I have worked at Meta, Coinbase, Dropbox, Uber ATG, Bloomberg and Microsoft. In my professional judgment this traffic was deliberate. Its volume and timing don’t fit any client bug I have seen, and it fits a pattern of my work being copied and attacked over many years. <em>— Rick Mark, Love Wins Media</em></p>
 
       <h2>November 24 to 26, 2026: a flood of requests from one network</h2>
       <p>For three days, one outside network sent our API far more requests than any real use needs. At its peak it sent about 143,000 requests an hour. Over one 24-hour stretch it sent about 896,000 requests, 96% of all the traffic the API received.</p>
@@ -34,11 +44,6 @@ import { OPERATOR } from '../../lib/config';
         <li><strong>Possible, not shown:</strong> that the sign-in was copied to another machine. A copied sign-in would look the same in our records, because we don’t log a device on every request.</li>
         <li><strong>Unknown:</strong> who was holding the device.</li>
       </ul>
-      <p><strong>My view, as a security researcher.</strong> I have worked on Apple platforms since 2007 and on hardware security research for most of that time. With Team t8012 I helped bring Apple’s T2 security chip into checkra1n, and I have worked at Meta, Coinbase, Dropbox, Uber ATG, Bloomberg and Microsoft. In my professional judgment this traffic was deliberate. Its volume and timing don’t fit any client bug I have seen, and it fits a pattern of my work being copied and attacked over many years. <em>— Rick Mark, Love Wins Media</em></p>
-      <h3>A statement from Rick Mark</h3>
-      <p>Hot Mess is free. This week that included a free directory of holiday meals for anyone in our community who needed one. Flooding a free community service with hundreds of thousands of requests isn’t a prank or a test. It puts at risk the people who depend on that service, on the week many of them need it most.</p>
-      <p>The bug behind this traffic was known, and the fix was on the App Store by the evening of November 25. The same sign-in kept flooding us from the same network for another full day after that. A bug explains a loop. In my view, it doesn’t explain choosing to keep one running after the fix is out. I believe this flood was deliberate, and that it is part of a campaign against my work that has gone on for a long time. Whoever chose to do this: it didn’t work. The service stayed up, the limits held, and every change listed on this page makes the next attempt harder. Attacks like this don’t make our community smaller. They make it easier to see who is working to keep people fed and safe, and who is working against them.</p>
-      <p>If you know anything about this traffic, write to me. If you need a holiday meal, the directory is open. <em>— Rick Mark, Love Wins Media</em></p>
       <p><strong>What was exposed.</strong> The requests we could identify were the app’s ordinary screen-layout request, which returns the venue and event cards the app shows. We have found no sign of access beyond what the app itself shows a member.</p>
       <p><strong>What we changed.</strong></p>
       <ul>
@@ -87,4 +92,7 @@ import { OPERATOR } from '../../lib/config';
   .record-article h1 { margin-top: .25rem; }
   .record-article h2 { margin-top: 2rem; }
   .record-article li { margin-bottom: .6rem; line-height: 1.5; }
+  .tldr { border-left: 4px solid currentColor; padding: .25rem 0 .25rem 1rem; margin: 1rem 0 1.5rem; }
+  .tldr p { line-height: 1.55; }
+  .tldr .crisis { font-size: .95rem; opacity: .85; }
 </style>
