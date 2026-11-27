@@ -18,27 +18,29 @@ import { OPERATOR } from '../../lib/config';
 
       <h2>A statement from Rick Mark</h2>
       <p>Hot Mess is free. This week that included a free directory of holiday meals for anyone in our community who needed one. Flooding a free community service with hundreds of thousands of requests isn’t a prank or a test. It puts at risk the people who depend on that service, on the week many of them need it most.</p>
-      <p>The bug behind this traffic was known, and the fix was on the App Store by the evening of November 25. The same sign-in kept flooding us from the same network for another full day after that. A bug explains a loop. In my view, it doesn’t explain choosing to keep one running after the fix is out. I believe this flood was deliberate, and that it is part of a campaign against my work that has gone on for a long time. Whoever chose to do this: it didn’t work. The service stayed up, the limits held, and every change listed on this page makes the next attempt harder. Attacks like this don’t make our community smaller. They make it easier to see who is working to keep people fed and safe, and who is working against them.</p>
+      <p>The bug behind this traffic was known, and the fix was on the App Store by the evening of November 25. The same sign-in kept flooding us from the same network for another full day after that, and it came back on November 27. A bug explains a loop. In my view, it doesn’t explain choosing to keep one running after the fix is out. I believe this flood was deliberate, and that it is part of a campaign against my work that has gone on for a long time. Whoever chose to do this: it didn’t work. The service stayed up, the limits held, and every change listed on this page makes the next attempt harder. Attacks like this don’t make our community smaller. They make it easier to see who is working to keep people fed and safe, and who is working against them.</p>
       <p>If you know anything about this traffic, write to me. If you need a holiday meal, the directory is open.</p>
       <p><strong>Why I believe it, as a security researcher.</strong> I have worked on Apple platforms since 2007 and on hardware security research for most of that time. With Team t8012 I helped bring Apple’s T2 security chip into checkra1n, and I have worked at Meta, Coinbase, Dropbox, Uber ATG, Bloomberg and Microsoft. In my professional judgment this traffic was deliberate. Its volume and timing don’t fit any client bug I have seen, and it fits a pattern of my work being copied and attacked over many years. <em>— Rick Mark, Love Wins Media</em></p>
 
-      <h2>November 24 to 26, 2026: our service flooded through a known flaw</h2>
-      <p>An older release of Hot Mess for iPhone, version 2.8, has a flaw that makes a screen reload itself over and over, and that flaw could be used to flood our service. From November 23 to 26, one outside network flooded us through it. At its peak it sent about 143,000 requests an hour. Over one 24-hour stretch it sent about 896,000 requests, 96% of all the traffic our API received.</p>
-      <p><strong>The flooding went on for a full day after the fix was on the App Store.</strong> Apart from this one sign-in, we saw no App Store install trigger the flaw in everyday use.</p>
+      <h2>November 24 to 27, 2026: our service flooded through a known flaw</h2>
+      <p>An older release of Hot Mess for iPhone, version 2.8, has a flaw that makes a screen reload itself over and over, and that flaw could be used to flood our service. From November 23 to 27, one outside network flooded us with requests that identified themselves as coming through it. At its peak it sent about 143,000 requests an hour. Over one 24-hour stretch it sent about 896,000 requests, 96% of all the traffic our API received.</p>
+      <p><strong>The flooding went on for a full day after the fix was on the App Store, and came back two days after it.</strong> Apart from this one sign-in, we saw no App Store install trigger the flaw in everyday use.</p>
       <ul>
         <li><strong>Nov 23, about 11:20 PM to Nov 24, 12:05 AM:</strong> the first wave slowed the API for everyone, and some people saw errors in the app.</li>
-        <li><strong>Nov 24, 7:23 PM:</strong> our logging named the source: one member’s sign-in on Hot Mess for iPhone 2.8.</li>
+        <li><strong>Nov 24, 7:23 PM:</strong> our logging named the source: one member’s sign-in, with requests identifying as Hot Mess for iPhone 2.8.</li>
         <li><strong>By the evening of Nov 25:</strong> Hot Mess 2.9, which closes the flaw, was on the App Store.</li>
         <li><strong>Nov 26, about 2 AM to 8 AM and 7 PM to 10 PM:</strong> two more waves from the same network, after the fix was available. Our limits held, and the service stayed up.</li>
-        <li><strong>Nov 26, 11 PM:</strong> the flooding stopped. None has come from that network since.</li>
+        <li><strong>Nov 26, 11 PM:</strong> that wave stopped.</li>
+        <li><strong>Nov 27, about 11:30 AM to 1:45 PM:</strong> about 85,000 more requests from the same network, again identifying as Hot Mess 2.8, two days after the fix was on the App Store. Our limits held.</li>
       </ul>
       <p>Whatever its cause, traffic at this volume is abuse of the service. We will block any network that repeats it, and we keep the records needed to report it.</p>
       <p><strong>How sure we are.</strong> We publish what our records make probable and label the rest.</p>
       <ul>
-        <li><strong>Probable:</strong> every request used one member’s single sign-in, through the 2.8 flaw, from one network. That sign-in was made over a mobile network, on one phone that no other account has used.</li>
+        <li><strong>Probable:</strong> every request we could identify used one member’s single sign-in, from one network, and identified itself as Hot Mess 2.8. That sign-in was made over a mobile network, from a device that reported an identity no other account has used.</li>
         <li><strong>Probable:</strong> the volume was far beyond anything the flaw produced anywhere else.</li>
-        <li><strong>Our belief, not proven:</strong> that the flooding was deliberate. We believe it was because it kept going after the fix shipped. An install that was never updated would also keep looping, so our records can’t settle it.</li>
+        <li><strong>Our belief, not proven:</strong> that the flooding was deliberate. We believe it was because it kept going after the fix shipped. One possible explanation is an install that was never updated, which would also keep looping. That explanation rests on what the requests claimed about themselves, so our records can’t settle it.</li>
         <li><strong>Possible, not shown:</strong> that the sign-in was copied to another machine. A copied sign-in would look the same in our records, because we don’t log a device on every request.</li>
+        <li><strong>Known limit:</strong> the app version and device details in a request are reported by whoever sends it, and they can be forged. They show what a request claims to be, not which device sent it.</li>
         <li><strong>Unknown:</strong> who was holding the device.</li>
       </ul>
       <p><strong>What was exposed.</strong> The requests we could identify were the app’s ordinary screen-layout request, which returns the venue and event cards the app shows. We have found no sign of access beyond what the app itself shows a member.</p>
@@ -46,7 +48,7 @@ import { OPERATOR } from '../../lib/config';
       <ul>
         <li>Nov 24, 12:07 AM: per-caller request limits switched from warning to enforcing. A caller over its limit gets a quick “slow down” answer instead of tying up the servers.</li>
         <li>Nov 24, 1:13 AM: over-limit callers are refused before any sign-in or database work, and every refusal is logged with the app and version that made it.</li>
-        <li>Every refused request is now kept in a log for 30 days.</li>
+        <li>Next: every refused request kept in a log for 30 days. It is built and being tested.</li>
         <li>Our websites get their own request budget, so a flood from elsewhere can’t lock them out.</li>
         <li>Our app toolkit now paces its own requests and backs off when the server says to slow down (AudienceKit SDK 0.110.0).</li>
         <li>App Review’s demo accounts are never limited, so a flood can’t interfere with Apple’s review.</li>
