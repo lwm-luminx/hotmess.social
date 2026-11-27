@@ -13,20 +13,59 @@ const apiBase = () => settings().PUBLIC_CONTENT_API_BASE ?? 'https://api.next.au
 const host = () => settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com';
 const TIMEOUT = 8000;
 
-// The site's own AudienceKit client (the audience-kit SDK): it trades the Worker's service token (`public:read`) for an
-// hour-long session and trades again before it runs out. Made again when a setting changes.
-let site: { key: string; client: AudienceKitClient; website: Website.WebsiteClient } | undefined;
+interface OriginSettings { AUDIENCEKIT_ORIGIN_SECRET?: string }
+
+// Only plain values live across requests. A Worker isolate serves many requests, and a promise, Response or client
+// started in one request can't be finished from another: Cloudflare fails it at once ("Cannot perform I/O on behalf
+// of a different request"), and every later request in that isolate failed with it in 2 ms (the /thanksgiving 503s of
+// 2026-11-27). So each request makes its own AudienceKit client, and they share the audience's id and the service
+// session's token, which are strings.
+let shared: { key: string; audienceId?: string; token?: string; until?: number } = { key: '' };
+const SESSION_LIFETIME = 50 * 60 * 1000; // The service session lasts an hour; trade again before it runs out.
+
+function sharedFor(key: string) {
+  if (shared.key !== key) shared = { key };
+  return shared;
+}
+
+/** Keeps the service session's token in `shared`, for the next request's client. */
+class SharedTokenStore {
+  constructor(private readonly state: ReturnType<typeof sharedFor>) {}
+  loadToken() { return this.state.token && (this.state.until ?? 0) > Date.now() ? this.state.token : null; }
+  saveToken(token: string) { this.state.token = token; this.state.until = Date.now() + SESSION_LIFETIME; }
+  deleteToken() { this.state.token = undefined; this.state.until = undefined; }
+}
+
+/**
+ * Sends the Worker's origin secret (AUDIENCEKIT_ORIGIN_SECRET) as `X-AudienceKit-Origin` on every API call, so the API
+ * counts the site's calls against the site's own rate-limit budget instead of the one address every Worker shares.
+ */
+function originFetch(): (url: string, init: RequestInit) => Promise<Response> {
+  const secret = (env as unknown as OriginSettings).AUDIENCEKIT_ORIGIN_SECRET;
+  return (url, init) => {
+    if (!secret) return fetch(url, init);
+    const headers = new Headers(init.headers);
+    headers.set('X-AudienceKit-Origin', secret);
+    return fetch(url, { ...init, headers });
+  };
+}
+
+/** This request's AudienceKit client (the audience-kit SDK), on the shared audience id and service session. */
 function sdk(): { client: AudienceKitClient; website: Website.WebsiteClient } {
   const secret = settings().AUDIENCEKIT_SERVICE_TOKEN ?? '';
-  const key = [apiBase(), host(), secret].join('|');
-  if (site?.key !== key) {
-    const client = new AudienceKitClient({
-      configuration: { baseUrl: apiBase(), host: host() },
-      transport: new FetchTransport({ timeoutMillis: TIMEOUT }),
-    });
-    site = { key, client, website: new Website.WebsiteClient(client) };
-  }
-  return site;
+  const state = sharedFor([apiBase(), host(), secret].join('|'));
+  const client = new AudienceKitClient({
+    configuration: { baseUrl: apiBase(), host: host(), ...(state.audienceId ? { audienceId: state.audienceId } : {}) },
+    transport: new FetchTransport({ timeoutMillis: TIMEOUT, fetch: originFetch() }),
+    tokenStore: new SharedTokenStore(state),
+  });
+  return { client, website: new Website.WebsiteClient(client) };
+}
+
+/** The audience the site serves, looked up once per isolate from the configured host. */
+async function rememberAudience(client: AudienceKitClient): Promise<void> {
+  const state = sharedFor([apiBase(), host(), settings().AUDIENCEKIT_SERVICE_TOKEN ?? ''].join('|'));
+  if (!state.audienceId) state.audienceId = await client.audienceId();
 }
 
 /** The SDK client with the service session, or an error when the Worker has no service token. */
@@ -72,7 +111,7 @@ export async function signedIn(authorization: string | null): Promise<boolean> {
   // A client of its own: the visitor's token, never the site's service session.
   const client = new AudienceKitClient({
     configuration: { baseUrl: apiBase(), host: host() },
-    transport: new FetchTransport({ timeoutMillis: TIMEOUT }),
+    transport: new FetchTransport({ timeoutMillis: TIMEOUT, fetch: originFetch() }),
   });
   await client.useBearerToken(authorization.slice('Bearer '.length));
   try {
@@ -122,10 +161,14 @@ export async function shortLink(code: string): Promise<string | null> {
  * directory: no site credential, the same answer for everyone (audience_kit_api CommunityResourcesController).
  */
 export async function resourceCities(): Promise<ResourceLocale[]> {
-  return resourceLocales(await sdk().website.communityResourceLocales<unknown>().catch(unavailable('Community resources')));
+  const { client, website } = sdk();
+  await rememberAudience(client).catch(unavailable('Community resources'));
+  return resourceLocales(await website.communityResourceLocales<unknown>().catch(unavailable('Community resources')));
 }
 /** A city's community resource directory, live from the API, or null for no such city. */
 export async function resourceDirectoryFor(localeId: string): Promise<ResourceDirectory | null> {
-  const body = await sdk().website.communityResources<unknown>(localeId).catch(unavailable('Community resources'));
+  const { client, website } = sdk();
+  await rememberAudience(client).catch(unavailable('Community resources'));
+  const body = await website.communityResources<unknown>(localeId).catch(unavailable('Community resources'));
   return body === null ? null : resourceDirectory(body);
 }
