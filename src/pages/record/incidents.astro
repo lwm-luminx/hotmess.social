@@ -22,7 +22,7 @@ import { OPERATOR } from '../../lib/config';
         <li><strong>Nov 26, about 2 AM to 8 AM and 7 PM to 10 PM:</strong> two more waves from the same network. Our limits held, and the service stayed up.</li>
         <li><strong>Nov 26, 11 PM:</strong> the traffic stopped. None has come from that network since.</li>
       </ul>
-      <p><strong>What we know.</strong> The requests we could identify came from one account on an older App Store release of Hot Mess for iPhone, from that one network. That release has a known bug that can make a screen reload itself over and over. The fix shipped in Hot Mess 2.9, which is now on the App Store. The volume is far beyond what that bug produced anywhere else, so we can’t rule out that the traffic was deliberate, and we are treating any repeat as possible scraping.</p>
+      <p><strong>What we know.</strong> The requests we could identify came from one account on an older App Store release of Hot Mess for iPhone, from that one network. That release has a known bug that can make a screen reload itself over and over. The fix shipped in Hot Mess 2.9, which is now on the App Store. The volume is far beyond what that bug produced anywhere else, so we can’t rule out that the traffic was deliberate. Whatever caused it, traffic at this volume is abuse of the service. We will block any network that repeats it, and we keep the records needed to report it.</p>
       <p><strong>What was exposed.</strong> The requests we could identify were the app’s ordinary screen-layout request, which returns the venue and event cards the app shows. We have found no sign of access beyond what the app itself shows a member.</p>
       <p><strong>What we changed.</strong></p>
       <ul>
