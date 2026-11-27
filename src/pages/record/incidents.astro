@@ -28,6 +28,8 @@ import { OPERATOR } from '../../lib/config';
         <li><strong>Probable:</strong> the traffic came from one device on one network, running an older App Store release of Hot Mess for iPhone.</li>
         <li><strong>Probable:</strong> the volume was far beyond normal use, and it was abuse of the service whatever its cause.</li>
         <li><strong>Possible, not shown:</strong> that someone ran it on purpose. The old release’s reload bug could also explain it.</li>
+        <li><strong>Probable:</strong> every request used one member’s single sign-in. That sign-in was made over a mobile network, on one phone that no other account has used. No second device ever signed in to the account.</li>
+        <li><strong>Possible, not shown:</strong> that the sign-in was copied to another machine. A copied sign-in would look the same in our records, because we don’t log a device on every request.</li>
         <li><strong>Unknown:</strong> who was holding the device.</li>
       </ul>
       <p><strong>My view, as a security researcher.</strong> I have worked on Apple platforms since 2007 and on hardware security research for most of that time. With Team t8012 I helped bring Apple’s T2 security chip into checkra1n, and I have worked at Meta, Coinbase, Dropbox, Uber ATG, Bloomberg and Microsoft. In my professional judgment this traffic was deliberate. Its volume and timing don’t fit any client bug I have seen, and it fits a pattern of my work being copied and attacked over many years. <em>— Rick Mark, Love Wins Media</em></p>
@@ -41,6 +43,11 @@ import { OPERATOR } from '../../lib/config';
         <li>App Review’s demo accounts are never limited, so a flood can’t interfere with Apple’s review.</li>
         <li>Hot Mess 2.9 and 2.10 for iPhone, with the reload fix, are on the App Store.</li>
       </ul>
+
+      <h2>November 27, 2026: holiday pages failing on this site</h2>
+      <p>Just after midnight, eight page loads on hotmess.social failed with “cities unavailable” or “directory unavailable” between 12:01 and 12:06 AM. Each failed in about 2 milliseconds, without reaching our API, while other loads in the same minutes worked.</p>
+      <p><strong>Cause.</strong> Our own bug. One copy of the site’s server kept a failed lookup in memory and handed it to later visitors instead of asking again. The one failure we examined in full was served from Cloudflare’s Denver location. That is the data center nearest the visitor, not where any traffic came from.</p>
+      <p><strong>What we changed.</strong> Each page load now gets its own connection, nothing is shared between visitors, and holiday pages are cached, with a week-old good copy served if the API is down.</p>
 
       <h2>This has happened before: June 2017</h2>
       <p>In June 2017, Facebook rate-limited Hot Mess’s Facebook app, which disrupted signing in with Facebook. Our records from that month show the response:</p>
