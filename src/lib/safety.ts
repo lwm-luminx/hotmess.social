@@ -2,9 +2,18 @@
 // "Need support?" (audience-kit api/doc/SAFETY_ALERTS.md). Mirrors hot_mess_ios
 // HotMess/Models/SafetyAlert.swift; the requests are in safetyApi.ts.
 
-export type SafetyAlertState = 'OPEN' | 'ACKNOWLEDGED' | 'CLOSED' | 'CANCELLED';
-export type SafetyPlace = 'BAR' | 'DANCE_FLOOR' | 'RESTROOMS' | 'PATIO' | 'STAGE' | 'ENTRANCE' | 'UNSURE';
-export type SafetyConcern = 'BOTHERING' | 'FOLLOWING' | 'INTOXICATED' | 'UNWELL' | 'OTHER';
+import type { Website } from 'audience-kit';
+
+// The shapes are the SDK's (audience-kit's Website models); this file keeps the words and the rules.
+export type SafetyAlertState = Website.SafetyAlertState;
+export type SafetyPlace = Website.SafetyPlace;
+export type SafetyConcern = Website.SafetyConcern;
+export type SafetyAlertMessage = Website.SafetyAlertMessage;
+export type SafetyAlert = Website.SafetyAlert;
+export type SafetyDraft = Website.SafetyDraft;
+export type SupportLine = Website.SupportLine;
+export type SupportRide = Website.SupportRide;
+export type SupportResources = Website.SupportResources;
 
 export const PLACES: [SafetyPlace, string][] = [
   ['BAR', 'Bar'], ['DANCE_FLOOR', 'Dance floor'], ['RESTROOMS', 'Restrooms'], ['PATIO', 'Patio'],
@@ -15,44 +24,6 @@ export const CONCERNS: [SafetyConcern, string][] = [
   ['BOTHERING', 'Someone’s bothering me'], ['FOLLOWING', 'Someone’s following me'],
   ['INTOXICATED', 'Someone’s had too much'], ['UNWELL', 'I don’t feel well'], ['OTHER', 'Something else'],
 ];
-
-export interface SafetyAlertMessage { id: string; body: string; fromStaff: boolean; senderName: string; createdAt: string }
-
-export interface SafetyAlert {
-  id: string;
-  state: SafetyAlertState;
-  place: SafetyPlace | null;
-  concerns: SafetyConcern[];
-  description: string | null;
-  summary: string;
-  seen: boolean;
-  acknowledgedByName: string | null;
-  acknowledgedAt: string | null;
-  escalatedAt: string | null;
-  closedAt: string | null;
-  supportSharedAt: string | null;
-  supportNote: string | null;
-  createdAt: string;
-  venue: { id: string; name: string | null };
-  messages: SafetyAlertMessage[];
-}
-
-export interface SafetyDraft { place: SafetyPlace | null; concerns: SafetyConcern[]; description: string }
-
-export interface SupportLine {
-  id: string; name: string; description: string | null; phone: string | null;
-  textNumber: string | null; textBody: string | null; url: string | null;
-}
-
-/**
- * "Get a ride": a ride app (Uber, Lyft) as a plain link. `url` opens the app, or its site when it isn't installed;
- * `pickupUrl` does the same with the pickup set once {latitude}, {longitude} and {name} are filled in.
- */
-export interface SupportRide { id: string; name: string; url: string; pickupUrl: string | null }
-
-export interface SupportResources {
-  region: string; name: string; emergency: string; checkedAt: string | null; lines: SupportLine[];
-}
 
 /** Where "Get a ride" sets the pickup: the venue, with its name. */
 export interface RidePickup { latitude: number; longitude: number; name: string | null }

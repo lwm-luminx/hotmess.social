@@ -3,7 +3,7 @@
 // The gate is the UI; anything the page loads must still be checked by whatever serves it (the API, or the Worker for
 // /discover/listings).
 import { useState, type ReactNode } from 'react';
-import { session } from '../lib/api';
+import { session } from '../lib/session';
 import ErrorBoundary from './ErrorBoundary';
 import SignIn from './SignIn';
 
