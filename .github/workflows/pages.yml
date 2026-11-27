@@ -37,7 +37,7 @@ jobs:
       - name: Fetch the link files from AudienceKit
         run: |
           for file in apple-app-site-association assetlinks.json; do
-            if curl -fsS --max-time 20 "https://api.next.audiencekit.com/.well-known/$file?host=hotmess.admin.next.audiencekit.com" -o "$RUNNER_TEMP/$file" \
+            if curl -fsS --max-time 20 "https://api.audiencekit.com/.well-known/$file?host=hotmess.admin.audiencekit.com" -o "$RUNNER_TEMP/$file" \
               && jq -e . "$RUNNER_TEMP/$file" > /dev/null; then
               cp "$RUNNER_TEMP/$file" "public/.well-known/$file"
             else

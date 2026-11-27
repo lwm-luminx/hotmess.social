@@ -1,7 +1,9 @@
 // Public build-time configuration. Everything here ships to the browser,
-// so it must never hold a secret. Defaults target Next, matching the iOS staging configuration.
+// so it must never hold a secret. Defaults target production, like the App Store build: the live site must not
+// depend on the Next preview API, which redeploys on every merge. A staging build sets PUBLIC_API_BASE and
+// PUBLIC_AUDIENCE_HOST (.env.example).
 export const API_BASE: string =
-  import.meta.env.PUBLIC_API_BASE ?? 'https://api.next.audiencekit.com';
+  import.meta.env.PUBLIC_API_BASE ?? 'https://api.audiencekit.com';
 
 // The Hot Mess consumer Facebook app, which signs people in with classic
 // Facebook Login: the live app 1168782378316790, the same one the App Store
@@ -32,7 +34,7 @@ export const GOOGLE_CLIENT_ID: string =
 // hotmess.admin.audiencekit.com resolves by subdomain today; switch to
 // hotmess.social once that domain is verified in AudienceKit.
 export const AUDIENCE_HOST: string =
-  import.meta.env.PUBLIC_AUDIENCE_HOST ?? 'hotmess.admin.next.audiencekit.com';
+  import.meta.env.PUBLIC_AUDIENCE_HOST ?? 'hotmess.admin.audiencekit.com';
 
 // Hot Mess is a Love Wins Media product; every page links here (BrandBand and BrandCredit from @lwm-luminx/astro-components, in src/layouts/Base.astro).
 export const LOVE_WINS_URL = 'https://lovewins.media';
