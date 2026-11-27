@@ -169,7 +169,7 @@ const EVENT_PAGE = `query Event($id: ID!) {
 const PERSON_PAGE = `query Person($id: ID!) {
   people {
     person(id: $id) {
-      ${PERSON} bannerUrl description
+      ${PERSON} bannerUrl
       events { upcoming { nodes { ${EVENT} } } }
       profile { socialLinks { nodes { ${LINK} } } }
       music { links { nodes { ${LINK} } } tracks { nodes { id title provider providerUrl streamUrl artworkUrl } } }
