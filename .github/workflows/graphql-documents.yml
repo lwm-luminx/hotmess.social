@@ -1,6 +1,7 @@
 name: GraphQL documents
 
-# Validates the GraphQL operations in src/lib/api.ts (and the e2e fixtures)
+# Validates any GraphQL operations left in src/ (the site's own now live in the
+# AudienceKit SDK, whose CI validates them) and the e2e fixtures
 # against the AudienceKit consumer schema, so a renamed field fails here
 # instead of in the browser. The validator and the schema dump come from
 # developer.audiencekit.com/graphql/, which is published from audience-kit's

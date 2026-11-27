@@ -48,8 +48,8 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 </Base>
 
 <script>
-  import { API_BASE } from '../../lib/config';
-  import { endsLabel, invitationQuery, parseInvitation, type Invitation } from '../../lib/invitation';
+  import { website } from '../../lib/api';
+  import { endsLabel, parseInvitation, type Invitation } from '../../lib/invitation';
 
   const main = document.querySelector<HTMLElement>('.invite')!;
   const field = (name: string) => main.querySelector<HTMLElement>(`[data-field="${name}"]`)!;
@@ -84,15 +84,14 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
     // The token is opaque: only the API can say whether it's good.
     const e = new URLSearchParams(location.search).get('e');
     if (!e) return show('ended');
-    let response: Response;
+    let answer: unknown;
     try {
-      const query = invitationQuery(location.hostname, main.dataset.ping!, e);
-      response = await fetch(new URL(`/v1/share/invitation?${query}`, API_BASE), { headers: { accept: 'application/json' }, cache: 'no-store' });
+      // Null when the API says it ended or isn't there; a failure (5xx, rate limited, offline) throws.
+      answer = await website.invitation<unknown>(main.dataset.ping!, e, location.hostname);
     } catch {
       return show('error');
     }
-    if (response.status >= 500 || response.status === 429) return show('error');
-    const invitation = response.ok ? parseInvitation(await response.json().catch(() => null)) : null;
+    const invitation = answer ? parseInvitation(answer) : null;
     if (!invitation || invitation.expiresAt.getTime() <= Date.now()) return show('ended');
     render(invitation);
   }

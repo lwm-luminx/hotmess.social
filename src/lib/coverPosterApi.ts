@@ -3,21 +3,12 @@
 // then confirm with the one-time claim token; audience_kit_api doc/APP_CLIP_CHECKOUT.md). The card is taken by Stripe's
 // Payment Element on the venue's own connected account, so card numbers never touch Hot Mess. The paid pass stays in
 // this browser's storage, keyed by the poster code, so a reload or a second scan that night shows it again.
-import { API_BASE, AUDIENCE_HOST } from './config';
-import { API_VERSION } from './api';
-import { restError } from './apiErrors';
+import { apiError, website } from './api';
 import type { CoverPosterJSON, GuestAdmissionJSON } from './coverPoster';
 
-async function call<T>(method: 'GET' | 'POST', path: string, body?: object): Promise<T> {
-  const url = new URL(`${API_BASE.replace(/\/+$/, '')}/v1/${path}`);
-  if (method === 'GET') url.searchParams.set('host', AUDIENCE_HOST);
-  const headers: Record<string, string> = { Accept: 'application/json', 'X-AudienceKit-API-Version': API_VERSION };
-  if (body) headers['Content-Type'] = 'application/json';
-  const payload = body ? JSON.stringify({ host: AUDIENCE_HOST, ...body }) : undefined;
-  const response = await fetch(url, { method, headers, body: payload });
-  const json = await response.json().catch(() => null);
-  if (!response.ok) throw restError(method, path, response.status, json);
-  return json as T;
+/** Runs an SDK call, failing with the site's APIError (whose status the page reads). */
+async function call<T>(path: string, run: () => Promise<T>): Promise<T> {
+  try { return await run(); } catch (e) { throw apiError(path, e); }
 }
 
 export interface GuestCheckout {
@@ -52,21 +43,12 @@ export function saveCover(code: string, saved: SavedCover | null) {
 
 export const coverPoster = {
   /** The venue and its night; null for a code that names no venue. */
-  async load(code: string): Promise<CoverPosterJSON | null> {
-    try {
-      return await call<CoverPosterJSON>('GET', `cover/${encodeURIComponent(code)}`);
-    } catch (e) {
-      if ((e as { status?: number }).status === 404) return null;
-      throw e;
-    }
-  },
+  load: (code: string): Promise<CoverPosterJSON | null> => call('cover', () => website.coverPoster<CoverPosterJSON>(code)),
   /** `amountCents` is what the guest chose to pay for each cover on a sliding scale; null pays the set price. */
   start: (venueId: string, quantity: number, tier: string | null, amountCents: number | null = null) =>
-    call<GuestCheckout>('POST', 'clip/covers', {
-      venue_id: venueId, quantity, tier, ...(amountCents == null ? {} : { amount_cents: amountCents }),
-    }),
+    call('clip/covers', () => website.startGuestCover<GuestCheckout>(venueId, quantity, tier, amountCents)),
   confirm: async (id: string, token: string) =>
-    (await call<{ admission: GuestAdmissionJSON }>('POST', `clip/covers/${encodeURIComponent(id)}/confirm`, { claim_token: token })).admission,
+    (await call('clip/covers/confirm', () => website.confirmGuestCover<{ admission: GuestAdmissionJSON }>(id, token))).admission,
 };
 
 // Stripe.js, loaded from js.stripe.com only when someone pays (Stripe requires it be loaded from there).

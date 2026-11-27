@@ -6,9 +6,10 @@ The website now builds a Workers application with `@astrojs/cloudflare`. Marketi
 prerendered; `/venues/<uuid>` and `/events/<uuid>` render visibility-filtered public content and hydrate the same React app.
 The anonymous HTML never reads visitor cookies or tokens. Sign-in enriches the same URL via direct browser API calls.
 
-This rollout defaults to `https://api.next.audiencekit.com`, the Next audience host and staging Facebook app.
-The server's `PUBLIC_CONTENT_API_BASE` is configured in `wrangler.jsonc`; browser settings are build-time PUBLIC_
-variables. Change both together when promoting. Verify Apple Services ID and allowed callback domains for Next.
+The live site uses the production API, `https://api.audiencekit.com`, and the audience host
+`hotmess.admin.audiencekit.com`. The server's `PUBLIC_CONTENT_API_BASE` is configured in `wrangler.jsonc` (Worker
+Previews render from `https://api.next.audiencekit.com`); browser settings are build-time PUBLIC_ variables that
+default to production. The live site must not depend on the Next preview API: it redeploys on every merge.
 
 Set the Worker secret `AUDIENCEKIT_SERVICE_TOKEN` to an audience service token with only `public:read`.
 See the parent repository's `api/doc/PUBLIC_LISTINGS.md` for API migration, publication and global purge setup.
@@ -42,7 +43,7 @@ The Hot Mess web app and marketing site. Hot Mess is an audience on
 [AudienceKit](https://audiencekit.com); this site talks to the same API as the
 [iOS](https://github.com/audience-kit/hot_mess_ios) and
 [Android](https://github.com/audience-kit/hot_mess_android) apps,
-`https://api.next.audiencekit.com` for the initial public-pages rollout.
+`https://api.audiencekit.com`.
 
 ## What's here
 
@@ -57,7 +58,7 @@ The Hot Mess web app and marketing site. Hot Mess is an audience on
 | `/.well-known/assetlinks.json` | Android App Links for `social.hotmess.android.app` (Play app signing) and the staging and development builds (debug key) |
 
 Both link files come from AudienceKit: the Pages build fetches them from
-`https://api.next.audiencekit.com/.well-known/<file>?host=hotmess.admin.next.audiencekit.com`, which lists
+`https://api.audiencekit.com/.well-known/<file>?host=hotmess.admin.audiencekit.com`, which lists
 the Hot Mess audience's apps (console → Settings → Apps). The copies in
 `public/.well-known/` are what ships when the API can't answer.
 
@@ -86,16 +87,16 @@ npm test        # route parser, formatting and API error tests
 npm run build   # type-check and build to dist/
 ```
 
-The app talks to the API's consumer GraphQL endpoint; its documents live in
-`src/lib/api.ts` and `src/sdk/types.ts` mirrors them. The `GraphQL documents`
-workflow validates them against the published schema
-(https://developer.audiencekit.com/api/validate-documents/). To run the check
-locally against a checkout of audience-kit:
-
-```sh
-node ../audience-kit/scripts/graphql-documents/check.mjs \
-  --schema ../audience-kit/api/schema.graphql --endpoint consumer src e2e
-```
+The site talks to the API through the AudienceKit SDK (`audience-kit`, the npm
+package in [audience-kit-sdk](https://github.com/lwm-luminx/audience-kit-sdk)
+`node/`): sign-in, and the pages', posters', safety alerts' and privacy choices'
+GraphQL and REST calls through its `Website` client. The documents and the shapes
+they select live in the SDK (`node/src/website/`), whose CI validates them
+against the API's schema, so a query the site needs is added there, not here.
+`src/lib/api.ts` only adapts the SDK to the site (the session in this browser's
+storage, failures as `APIError`), and `src/server/publicContent.ts` uses it with
+the Worker's service token. Until the package is on npm it is vendored as
+`vendor/audience-kit-<version>.tgz` (see `vendor/README.md`).
 
 Configuration is public build-time values only (see `.env.example`):
 `PUBLIC_API_BASE`, `PUBLIC_FACEBOOK_APP_ID`, `PUBLIC_APPLE_SERVICES_ID` and

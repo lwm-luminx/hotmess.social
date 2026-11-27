@@ -1,5 +1,6 @@
 // The promoted placement rate card (AudienceKit GET /v1/promoted/rate_card, api/doc/PROMOTED_PLACEMENT.md). The money
 // page reads it at build time; the copy in src/data/ is what ships when the API can't answer.
+import { AudienceKitClient, FetchTransport, Website } from 'audience-kit';
 import fallback from '../data/promoted-rate-card.json' with { type: 'json' };
 
 export interface RateCard {
@@ -16,8 +17,8 @@ export interface RateCard {
 
 export async function loadRateCard(apiBase: string): Promise<RateCard> {
   try {
-    const response = await fetch(new URL('/v1/promoted/rate_card', apiBase), { signal: AbortSignal.timeout(5000) });
-    if (response.ok) return (await response.json()) as RateCard;
+    const client = new AudienceKitClient({ configuration: { baseUrl: apiBase }, transport: new FetchTransport({ timeoutMillis: 5000 }) });
+    return await new Website.WebsiteClient(client).rateCard<RateCard>();
   } catch {
     // Offline builds and an API without the rate card yet use the bundled copy.
   }

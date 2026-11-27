@@ -121,7 +121,7 @@ const path = Astro.url.pathname;
     </footer>
     <script>
       import { startErrorReporting } from '../lib/errorReporting';
-      import { session, SESSION_EVENT } from '../lib/api';
+      import { session, SESSION_EVENT } from '../lib/session';
       startErrorReporting();
 
       // The navbar's Sign in / Sign out follows the session, here and in other tabs. Signing out reloads, so a signed-in

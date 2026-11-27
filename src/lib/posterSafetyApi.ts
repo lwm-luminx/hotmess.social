@@ -3,9 +3,7 @@
 // calls and follows it with the guest token the API hands back once. The token stays in this browser's storage, keyed
 // by the poster code, so a reload or a second scan comes back to the same alert. Mirrors hot_mess_ios
 // HotMessClip/ClipSafety.swift.
-import { API_BASE, AUDIENCE_HOST } from './config';
-import { API_VERSION } from './api';
-import { restError } from './apiErrors';
+import { apiError, website } from './api';
 import { CONCERNS, type SafetyAlert, type SafetyDraft } from './safety';
 import { fromGuestJSON, type GuestAlertJSON } from './posterSafety';
 
@@ -37,16 +35,9 @@ function save(code: string, saved: Saved | null) {
   } catch { /* private mode: the alert still works until the page closes */ }
 }
 
-async function call<T>(method: 'GET' | 'POST', path: string, token: string | null, body?: object): Promise<T> {
-  const url = new URL(`${API_BASE.replace(/\/+$/, '')}/v1/${path}`);
-  url.searchParams.set('host', AUDIENCE_HOST);
-  const headers: Record<string, string> = { Accept: 'application/json', 'X-AudienceKit-API-Version': API_VERSION };
-  if (token) headers['X-Safety-Token'] = token;
-  if (body) headers['Content-Type'] = 'application/json';
-  const response = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  const json = await response.json().catch(() => null);
-  if (!response.ok) throw restError(method, path, response.status, json);
-  return json as T;
+/** Runs an SDK call, failing with the site's APIError (whose status and code the help flow reads). */
+async function call<T>(path: string, run: () => Promise<T>): Promise<T> {
+  try { return await run(); } catch (e) { throw apiError(path, e); }
 }
 
 function details(draft: SafetyDraft) {
@@ -60,21 +51,17 @@ function details(draft: SafetyDraft) {
 
 /** The calls the help flow makes, for one poster code; the same shape as safetyApi's for a signed-in member. */
 export function posterSafety(code: string) {
-  const token = () => savedAlert(code)?.token ?? null;
-  const alert = async (path: string, body?: object, method: 'GET' | 'POST' = 'POST') =>
-    fromGuestJSON((await call<{ alert: GuestAlertJSON }>(method, path, token(), body)).alert);
+  const token = () => savedAlert(code)?.token ?? '';
+  const alert = async (path: string, run: () => Promise<{ alert: GuestAlertJSON }>) => fromGuestJSON((await call(path, run)).alert);
   return {
     async venue(): Promise<PosterVenue | null> {
-      try {
-        const answer = await call<{ venue: PosterVenue['venue']; audience: PosterVenue['audience']; staff_on_shift: boolean }>('GET', `safety/posters/${code}`, null);
-        return { venue: answer.venue, audience: answer.audience, staffOnShift: answer.staff_on_shift };
-      } catch (e) {
-        if ((e as { status?: number }).status === 404) return null;
-        throw e;
-      }
+      type Answer = { venue: PosterVenue['venue']; audience: PosterVenue['audience']; staff_on_shift: boolean };
+      const answer = await call('safety/posters', () => website.safetyPoster<Answer>(code));
+      return answer && { venue: answer.venue, audience: answer.audience, staffOnShift: answer.staff_on_shift };
     },
     async send(_venueId: string, draft: SafetyDraft): Promise<SafetyAlert> {
-      const answer = await call<{ alert: GuestAlertJSON; guest_token: string }>('POST', `safety/posters/${code}/alerts`, token(), details(draft));
+      const answer = await call('safety/posters/alerts', () =>
+        website.sendGuestSafetyAlert<{ alert: GuestAlertJSON; guest_token: string }>(code, details(draft), savedAlert(code)?.token ?? null));
       save(code, { id: answer.alert.id, token: answer.guest_token });
       return fromGuestJSON(answer.alert);
     },
@@ -83,16 +70,16 @@ export function posterSafety(code: string) {
       const saved = savedAlert(code);
       if (!saved) return null;
       try {
-        return await alert(`safety/alerts/${saved.id}`, undefined, 'GET');
+        return await alert('safety/alerts', () => website.guestSafetyAlert(saved.id, saved.token));
       } catch (e) {
         if ((e as { status?: number }).status === 404) save(code, null);
         return null;
       }
     },
-    alert: (id: string) => alert(`safety/alerts/${id}`, undefined, 'GET'),
-    update: (id: string, draft: SafetyDraft) => alert(`safety/alerts/${id}/details`, details(draft)),
-    remind: (id: string) => alert(`safety/alerts/${id}/remind`),
-    cancel: (id: string) => alert(`safety/alerts/${id}/cancel`),
-    message: (id: string, body: string) => alert(`safety/alerts/${id}/messages`, { body }),
+    alert: (id: string) => alert('safety/alerts', () => website.guestSafetyAlert(id, token())),
+    update: (id: string, draft: SafetyDraft) => alert('safety/alerts/details', () => website.updateGuestSafetyAlert(id, token(), details(draft))),
+    remind: (id: string) => alert('safety/alerts/remind', () => website.remindGuestSafetyAlert(id, token())),
+    cancel: (id: string) => alert('safety/alerts/cancel', () => website.cancelGuestSafetyAlert(id, token())),
+    message: (id: string, body: string) => alert('safety/alerts/messages', () => website.messageGuestSafetyAlert(id, token(), body)),
   };
 }

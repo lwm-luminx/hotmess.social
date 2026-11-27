@@ -69,3 +69,19 @@ test('a Community post is only a sign-in shell, whatever else comes with it', ()
 test('post pages share the public page cache', () => {
   assert.equal(pageCacheKey(new Request(`https://hotmess.social/posts/${id}?utm_source=x`))?.url, `https://hotmess.social/posts/${id}`);
 });
+
+test('holiday pages are cached, and a last good copy is kept a week for when the API fails', async () => {
+  const { staleCopy, staleKey, staleResponse, STALE_TTL } = await import('../server/pageCache.ts');
+  for (const path of ['/thanksgiving', '/thanksgiving/seattle', '/christmas/slc']) {
+    assert.equal(pageCacheKey(new Request(`https://hotmess.social${path}?pick=`))?.url, `https://hotmess.social${path}`);
+  }
+  const key = pageCacheKey(new Request('https://hotmess.social/thanksgiving'))!;
+  assert.equal(staleKey(key).url, 'https://hotmess.social/thanksgiving?__last_good=1');
+  const good = new Response('cities', { headers: { 'cache-control': 'public, max-age=300, s-maxage=600' } });
+  assert.equal(staleCopy(good)?.headers.get('cache-control'), `public, max-age=${STALE_TTL}`);
+  assert.equal(staleCopy(new Response('down', { status: 503, headers: { 'cache-control': 'no-store' } })), null);
+  const served = staleResponse(staleCopy(good)!, 'GET');
+  assert.equal(served.headers.get('cache-control'), 'public, max-age=60');
+  assert.equal(served.headers.get('x-served-from'), 'last-good-copy');
+  assert.equal(await served.text(), 'cities');
+});

@@ -12,14 +12,15 @@ declare global {
   }
 }
 
-// Whether sign-in asks for email and user_friends (friends who also use Hot
-// Mess at the same venue), like the Android app. Meta's App Reviewers test
-// user_friends on the web, so the website has to ask for it: until Meta
-// approves the two, Facebook offers them only to people with a role on the app
-// (reviewers included) and leaves them out for everyone else.
+// Whether sign-in also asks for user_friends (friends who also use Hot Mess at
+// the same venue), like the Android app. Meta approved email for everyone
+// (2026-11-26) but not user_friends yet, and its App Reviewers test
+// user_friends on the web, so the website keeps asking for it: until Meta
+// approves it, Facebook offers it only to people with a role on the app
+// (reviewers included) and leaves it out for everyone else.
 const ASKS_FOR_REVIEWED_PERMISSIONS = true;
 
-const SCOPE = ['public_profile', ...(ASKS_FOR_REVIEWED_PERMISSIONS ? ['email', 'user_friends'] : [])].join(',');
+const SCOPE = ['public_profile', 'email', ...(ASKS_FOR_REVIEWED_PERMISSIONS ? ['user_friends'] : [])].join(',');
 
 // The Graph API version the site calls.
 const GRAPH_API_VERSION = 'v26.0';

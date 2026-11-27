@@ -27,14 +27,16 @@
     "enabled": true
   },
   "vars": {
-    "PUBLIC_CONTENT_API_BASE": "https://api.next.audiencekit.com",
-    "PUBLIC_CONTENT_HOST": "hotmess.admin.next.audiencekit.com",
+    "PUBLIC_CONTENT_API_BASE": "https://api.audiencekit.com",
+    "PUBLIC_CONTENT_HOST": "hotmess.admin.audiencekit.com",
     "PUBLIC_SITE_ORIGIN": "https://hotmess.social"
   },
   // Branch builds run `wrangler preview`, and Worker Previews don't inherit anything above. Without this block the
   // adapter's SESSION binding has no id in Previews, so every branch build tried to create "hotmess-social-session"
   // again and failed, the same way production did before the id was set. Previews share the session namespace
-  // (keys are random session ids) and use the same API settings as production.
+  // (keys are random session ids). Production's Worker reads the production API (vars above); Previews render from
+  // the Next preview API, so a branch can show API changes that haven't been promoted. The browser half of every
+  // build signs in against production (src/lib/config.ts) unless the build sets PUBLIC_API_BASE.
   "previews": {
     "kv_namespaces": [
       {
