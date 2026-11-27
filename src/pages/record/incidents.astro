@@ -1,0 +1,77 @@
+---
+import Base from '../../layouts/Base.astro';
+import { OPERATOR } from '../../lib/config';
+// Public incident and App Review record (Rick, 2026-11-27: "pull all info into our public disclosures, along with recent apple rejections").
+// Rules: dated facts we can show; name no person, venue, network address or other company; no personal data.
+// Apple's messages are summarised by guideline number, never quoted.
+---
+<Base title="Incidents and App Review: the record" description="A dated public record of service incidents on Hot Mess and AudienceKit, what we changed, and Apple's recent App Review decisions.">
+  <main>
+    <section class="wrap record-article">
+      <p class="eyebrow">On the record · Updated November 27, 2026</p>
+      <h1>Incidents and App Review: the record</h1>
+      <p class="lede">When something goes wrong with the service, we write down what happened, when, and what we changed. All times are Mountain Time.</p>
+
+      <h2>November 24 to 26, 2026: a flood of requests from one network</h2>
+      <p>For three days, one outside network sent our API far more requests than any real use needs. At its peak it sent about 143,000 requests an hour. Over one 24-hour stretch it sent about 896,000 requests, 96% of all the traffic the API received.</p>
+      <ul>
+        <li><strong>Nov 23, about 11:20 PM to Nov 24, 12:05 AM:</strong> the first wave slowed the API for everyone, and some people saw errors in the app.</li>
+        <li><strong>Nov 24, 12:07 AM:</strong> we switched our per-caller request limits from warning to enforcing. A caller over its limit now gets a quick “slow down” answer instead of tying up the servers.</li>
+        <li><strong>Nov 24, about 1:00 AM:</strong> a development build of our own iPhone app looped in the same way on our own test phone. We changed that build’s reload timing the same night, and we list it here because it was ours.</li>
+        <li><strong>Nov 24, 1:13 AM:</strong> over-limit callers are now refused before any sign-in or database work, and every refusal is logged with the app and version that made it.</li>
+        <li><strong>Nov 26, about 2 AM to 8 AM and 7 PM to 10 PM:</strong> two more waves from the same network. Our limits held, and the service stayed up.</li>
+        <li><strong>Nov 26, 11 PM:</strong> the traffic stopped. None has come from that network since.</li>
+      </ul>
+      <p><strong>What we know.</strong> The requests we could identify came from one account on an older App Store release of Hot Mess for iPhone, from that one network. That release has a known bug that can make a screen reload itself over and over. The fix shipped in Hot Mess 2.9, which is now on the App Store. The volume is far beyond what that bug produced anywhere else, so we can’t rule out that the traffic was deliberate. Whatever caused it, traffic at this volume is abuse of the service. We will block any network that repeats it, and we keep the records needed to report it.</p>
+      <p><strong>How sure we are.</strong> We publish what our records make probable and label the rest.</p>
+      <ul>
+        <li><strong>Probable:</strong> the traffic came from one device on one network, running an older App Store release of Hot Mess for iPhone.</li>
+        <li><strong>Probable:</strong> the volume was far beyond normal use, and it was abuse of the service whatever its cause.</li>
+        <li><strong>Possible, not shown:</strong> that someone ran it on purpose. The old release’s reload bug could also explain it.</li>
+        <li><strong>Unknown:</strong> who was holding the device.</li>
+      </ul>
+      <p><strong>My view, as a security researcher.</strong> I have worked on Apple platforms since 2007 and on hardware security research for most of that time. With Team t8012 I helped bring Apple’s T2 security chip into checkra1n, and I have worked at Meta, Coinbase, Dropbox, Uber ATG, Bloomberg and Microsoft. In my professional judgment this traffic was deliberate. Its volume and timing don’t fit any client bug I have seen, and it fits a pattern of my work being copied and attacked over many years. <em>— Rick Mark, Love Wins Media</em></p>
+      <p><strong>What was exposed.</strong> The requests we could identify were the app’s ordinary screen-layout request, which returns the venue and event cards the app shows. We have found no sign of access beyond what the app itself shows a member.</p>
+      <p><strong>What we changed.</strong></p>
+      <ul>
+        <li>Per-caller request limits are enforced, and over-limit callers are refused before any other work is done.</li>
+        <li>Every refused request is now kept in a log for 30 days, so we can see who is over the limit and why.</li>
+        <li>Our websites get their own request budget, so a flood from elsewhere can’t lock them out.</li>
+        <li>Our app toolkit now paces its own requests and backs off when the server says to slow down (AudienceKit SDK 0.110.0). Every app we build gets it on its next release.</li>
+        <li>App Review’s demo accounts are never limited, so a flood can’t interfere with Apple’s review.</li>
+        <li>Hot Mess 2.9 and 2.10 for iPhone, with the reload fix, are on the App Store.</li>
+      </ul>
+
+      <h2>This has happened before: June 2017</h2>
+      <p>In June 2017, Facebook rate-limited Hot Mess’s Facebook app, which disrupted signing in with Facebook. Our records from that month show the response:</p>
+      <ul>
+        <li><strong>June 10, 2017:</strong> we cut how often Hot Mess refreshed public Facebook pages from every 12 hours to every 36, stopped refreshing hidden pages, and rotated our Facebook app secret.</li>
+        <li><strong>June 13, 2017:</strong> we moved to a newer, fixed version of Facebook’s API.</li>
+        <li><strong>June 19, 2017:</strong> pages whose last refresh failed are retried sooner, and all others wait their turn.</li>
+      </ul>
+      <p>Both times, a burst of requests that ordinary use doesn’t explain ran into limits meant to protect the service. Both times, we answered by pacing our own requests and tightening our limits.</p>
+
+      <h2>Recent App Review decisions</h2>
+      <p>These are Apple’s decisions on our apps since October, from App Store Connect. Guideline numbers refer to Apple’s App Review Guidelines.</p>
+      <ul>
+        <li><strong>Velvet for iPhone and iPad, Oct 21:</strong> 2.1, App Review couldn’t sign in with our review code. We fixed the code.</li>
+        <li><strong>Velvet, Oct 23:</strong> 2.1(b), questions about our business model. Velvet sells nothing, and we answered the same day.</li>
+        <li><strong>Velvet, Nov 5:</strong> 2.1 and 2.5.4, questions about comment moderation and background audio for AirPlay. We answered with a demo video.</li>
+        <li><strong>Velvet, Nov 13:</strong> 4.3 (spam) and 4.2.6, 12 seconds after review began. We answered every question and appealed to the App Review Board. <a href="/record/velvet">The full Velvet record</a>.</li>
+        <li><strong>Velvet 1.10, Nov 23:</strong> 2.5.4 (background audio) and 2.1(a) (access). We removed background audio and resubmitted the same day. It has been waiting for review since Nov 22, 8:58 PM.</li>
+        <li><strong>Velvet for Apple TV 1.0, Nov 25:</strong> 3.1.1 (the TV asked for a code to be typed in) and 2.1(a) (pairing). The TV now only shows a code, and you approve it in a browser. We resubmitted the same day.</li>
+        <li><strong>Velvet for Mac 1.0:</strong> waiting for review since Nov 19.</li>
+      </ul>
+      <p>In the same period Apple approved Hot Mess 2.2 through 2.10, Focus, Backstage, Soapbox and Arbiter.</p>
+
+      <p class="muted">Questions about this record: <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>. Our dated record of Hot Mess’s development: <a href="/record/hot-mess-dated-record.pdf">hot-mess-dated-record.pdf</a>.</p>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .record-article { max-width: 46rem; padding-block: 2.5rem 4rem; }
+  .record-article h1 { margin-top: .25rem; }
+  .record-article h2 { margin-top: 2rem; }
+  .record-article li { margin-bottom: .6rem; line-height: 1.5; }
+</style>
