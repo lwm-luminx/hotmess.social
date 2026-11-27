@@ -31,7 +31,7 @@ test('signs in with Facebook, then shows Now', async ({ page, api }) => {
   const [signIn] = api.calls('POST /v1/token');
   expect(signIn.postDataJSON()).toMatchObject({
     facebook_token: 'fb-user-token',
-    host: 'hotmess.admin.next.audiencekit.com',
+    host: 'hotmess.admin.audiencekit.com',
     facebook_app_id: '1168782378316790',
     device: { type: 'web', identifier: expect.any(String) },
   });
@@ -140,7 +140,7 @@ test('offers the methods the audience has on, and says so when none is', async (
   api.on('GET /v1/token/methods', { json: { methods: ['facebook', 'apple'] } });
   const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/v1/token/methods');
   await page.goto('/app/');
-  expect(new URL((await asked).url()).searchParams.get('host')).toBe('hotmess.admin.next.audiencekit.com');
+  expect(new URL((await asked).url()).searchParams.get('host')).toBe('hotmess.admin.audiencekit.com');
   await expect(page.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Facebook' })).toBeVisible();
 
@@ -183,7 +183,7 @@ test('signs in with Apple, bound to a nonce, then shows Now', async ({ page, api
     first_name: 'Dana',
     last_name: 'Kim',
     redirect_uri: init.redirectURI,
-    host: 'hotmess.admin.next.audiencekit.com',
+    host: 'hotmess.admin.audiencekit.com',
     device: { type: 'web', identifier: expect.any(String) },
   });
   // Apple gets the SHA-256 of the nonce; only the site has the nonce itself.
@@ -309,7 +309,7 @@ test('signs in with Google, then shows Now', async ({ page, api }) => {
   const [signIn] = api.calls('POST /v1/token/google');
   expect(signIn.postDataJSON()).toMatchObject({
     access_token: 'google-access-token',
-    host: 'hotmess.admin.next.audiencekit.com',
+    host: 'hotmess.admin.audiencekit.com',
     device: { type: 'web', identifier: expect.any(String) },
   });
   expect(signIn.headers()['authorization']).toBeUndefined();

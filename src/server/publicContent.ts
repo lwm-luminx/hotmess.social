@@ -9,8 +9,8 @@ interface Settings { PUBLIC_CONTENT_API_BASE?: string; PUBLIC_CONTENT_HOST?: str
   PUBLIC_SITE_ORIGIN?: string; AUDIENCEKIT_SERVICE_TOKEN?: string }
 const settings = () => env as unknown as Settings;
 export const siteOrigin = () => settings().PUBLIC_SITE_ORIGIN ?? 'https://hotmess.social';
-const apiBase = () => settings().PUBLIC_CONTENT_API_BASE ?? 'https://api.next.audiencekit.com';
-const host = () => settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.next.audiencekit.com';
+const apiBase = () => settings().PUBLIC_CONTENT_API_BASE ?? 'https://api.audiencekit.com';
+const host = () => settings().PUBLIC_CONTENT_HOST ?? 'hotmess.admin.audiencekit.com';
 const TIMEOUT = 8000;
 
 interface OriginSettings { AUDIENCEKIT_ORIGIN_SECRET?: string }

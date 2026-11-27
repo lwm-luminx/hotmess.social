@@ -9,7 +9,7 @@ import { dirname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const base = process.env.SLOGANS_API_BASE ?? process.env.PUBLIC_API_BASE ?? 'https://api.next.audiencekit.com';
+const base = process.env.SLOGANS_API_BASE ?? process.env.PUBLIC_API_BASE ?? 'https://api.audiencekit.com';
 const check = process.argv.includes('--check');
 let drift = false;
 
